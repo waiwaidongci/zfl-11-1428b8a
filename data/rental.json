@@ -47,7 +47,7 @@
       "customer": "星光传媒",
       "startDate": "2026-07-01",
       "endDate": "2026-07-03",
-      "status": "待出库",
+      "status": "已出库",
       "itemIds": [
         "L-443651",
         "C-001"

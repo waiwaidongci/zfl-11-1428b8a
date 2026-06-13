@@ -140,7 +140,9 @@ function renderOrders() {
   document.querySelectorAll(".order select").forEach((select) => {
     const order = orders.find((o) => o.id === select.dataset.id);
     if (order) select.value = order.status;
-    select.onchange = async () => {
+    select.onclick = (e) => e.stopPropagation();
+    select.onchange = async (e) => {
+      e.stopPropagation();
       try {
         await Orders.update(select.dataset.id, { status: select.value });
         showToast(`订单状态已更新为「${select.value}」`);
