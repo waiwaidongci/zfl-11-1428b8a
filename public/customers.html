@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>客户档案管理 - 舞台灯光租赁</title>
+  <link rel="stylesheet" href="/css/common.css">
+  <link rel="stylesheet" href="/css/customers.css">
+</head>
+<body>
+  <header>
+    <div>
+      <h1>舞台灯光租赁管理</h1>
+      <div class="subtitle">客户档案管理 · 新增、编辑与查询</div>
+    </div>
+    <nav>
+      <a href="/">订单中心</a>
+      <a href="/equipment">设备管理</a>
+      <a href="/customers" class="active">客户管理</a>
+      <button id="addBtn">+ 新增客户</button>
+    </nav>
+  </header>
+
+  <main>
+    <div class="stats" id="stats"></div>
+
+    <div class="panel">
+      <div class="toolbar">
+        <input id="search" type="search" placeholder="搜索客户名称/联系人/电话...">
+        <select id="activityFilter">
+          <option value="">全部活动类型</option>
+        </select>
+        <span class="toolbar-spacer"></span>
+        <span class="meta" id="countInfo"></span>
+        <button id="reloadBtn" class="ghost small">↻ 刷新</button>
+      </div>
+
+      <div id="customerGrid" class="cust-grid"></div>
+    </div>
+  </main>
+
+  <div id="modal" class="modal-backdrop hidden">
+    <div class="modal">
+      <header>
+        <h3 id="modalTitle">新增客户</h3>
+        <button id="closeModal" class="ghost">×</button>
+      </header>
+      <div class="body">
+        <form id="custForm" autocomplete="off">
+          <label>客户编号（留空自动生成）</label>
+          <input name="id" placeholder="如 CU-003">
+
+          <label>客户名称 *</label>
+          <input name="name" required placeholder="如 星桥活动、光影传媒">
+
+          <label>联系人</label>
+          <input name="contact" placeholder="如 张经理">
+
+          <label>联系电话</label>
+          <input name="phone" placeholder="如 13800138001">
+
+          <label>常用活动类型</label>
+          <select name="activityType">
+            <option value="">请选择</option>
+            <option>发布会</option>
+            <option>演唱会</option>
+            <option>年会</option>
+            <option>婚礼</option>
+            <option>展会</option>
+            <option>其他</option>
+          </select>
+
+          <label>备注</label>
+          <textarea name="note" placeholder="客户偏好、特殊要求等"></textarea>
+        </form>
+      </div>
+      <div class="actions">
+        <button id="cancelBtn" type="button" class="ghost">取消</button>
+        <button id="submitBtn" type="button" class="secondary">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/js/customers.js"></script>
+</body>
+</html>

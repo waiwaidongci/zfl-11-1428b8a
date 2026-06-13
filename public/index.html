@@ -16,6 +16,7 @@
     <nav>
       <a href="/" class="active">订单中心</a>
       <a href="/equipment">设备管理</a>
+      <a href="/customers">客户管理</a>
       <button id="reload" class="ghost small">↻ 刷新</button>
     </nav>
   </header>
@@ -23,8 +24,31 @@
   <main>
     <form id="orderForm">
       <h2>创建租赁订单</h2>
-      <label>客户</label>
-      <input name="customer" required placeholder="客户公司或负责人">
+      <label>选择客户</label>
+      <div class="customer-select-row">
+        <select id="customerSelect">
+          <option value="">— 选择已有客户 —</option>
+        </select>
+        <button type="button" id="newCustomerBtn" class="ghost small">+ 新客户</button>
+      </div>
+
+      <label>客户名称 *</label>
+      <input name="customer" required placeholder="客户公司或负责人" id="customerNameInput">
+
+      <div class="customer-info hidden" id="customerInfo">
+        <div class="info-item">
+          <span class="info-label">联系人：</span>
+          <span id="infoContact">—</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">电话：</span>
+          <span id="infoPhone">—</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">常用活动：</span>
+          <span id="infoActivity">—</span>
+        </div>
+      </div>
 
       <div class="row">
         <div>

@@ -66,5 +66,15 @@
       ],
       "note": "发布会"
     }
+  ],
+  "customers": [
+    {
+      "id": "CU-657864",
+      "name": "星光传媒",
+      "contact": "李经理",
+      "phone": "13800138888",
+      "activityType": "发布会",
+      "note": ""
+    }
   ]
 }

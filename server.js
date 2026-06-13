@@ -15,6 +15,14 @@ import {
 
 import { listOrders, createOrder, updateOrder } from "./routes/orders.js";
 
+import {
+  listCustomers,
+  getCustomer,
+  createCustomer,
+  updateCustomer,
+  deleteCustomer
+} from "./routes/customers.js";
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const publicDir = join(__dirname, "public");
 const port = Number(process.env.PORT || 3011);
@@ -46,7 +54,7 @@ const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, `http://${req.headers.host}`);
     const p = url.pathname;
 
-    if (req.method === "GET" && (p === "/" || p === "/equipment" || p.startsWith("/css/") || p.startsWith("/js/"))) {
+    if (req.method === "GET" && (p === "/" || p === "/equipment" || p === "/customers" || p.startsWith("/css/") || p.startsWith("/js/"))) {
       const served = await serveStatic(req, res, p);
       if (served) return;
     }
@@ -74,6 +82,17 @@ const server = http.createServer(async (req, res) => {
       return updateOrder(req, res, decodeURIComponent(orderMatch[1]));
     }
 
+    if (req.method === "GET" && p === "/api/customers") return listCustomers(req, res);
+    if (req.method === "POST" && p === "/api/customers") return createCustomer(req, res);
+
+    const customerMatch = p.match(/^\/api\/customers\/([^/]+)$/);
+    if (customerMatch) {
+      const id = decodeURIComponent(customerMatch[1]);
+      if (req.method === "GET") return getCustomer(req, res, id);
+      if (req.method === "PATCH") return updateCustomer(req, res, id);
+      if (req.method === "DELETE") return deleteCustomer(req, res, id);
+    }
+
     notFound(res);
   } catch (error) {
     console.error("[server error]", error);
@@ -85,4 +104,5 @@ server.listen(port, () => {
   console.log(`Stage light rental app listening on http://localhost:${port}`);
   console.log(`  订单中心:   http://localhost:${port}/`);
   console.log(`  设备管理:   http://localhost:${port}/equipment`);
+  console.log(`  客户管理:   http://localhost:${port}/customers`);
 });

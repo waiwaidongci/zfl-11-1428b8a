@@ -32,6 +32,14 @@ export const Orders = {
   update: (id, data) => api(`/api/orders/${id}`, { method: "PATCH", body: JSON.stringify(data) })
 };
 
+export const Customers = {
+  list: () => api("/api/customers"),
+  get: (id) => api(`/api/customers/${id}`),
+  create: (data) => api("/api/customers", { method: "POST", body: JSON.stringify(data) }),
+  update: (id, data) => api(`/api/customers/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  remove: (id) => api(`/api/customers/${id}`, { method: "DELETE" })
+};
+
 export function overlap(a, b, c, d) {
   return new Date(a) <= new Date(d) && new Date(c) <= new Date(b);
 }

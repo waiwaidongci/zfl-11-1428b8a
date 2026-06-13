@@ -1,4 +1,4 @@
-import { Equipment, Orders, showToast, overlap } from "./api.js";
+import { Equipment, Orders, Customers, showToast, overlap } from "./api.js";
 
 const orderForm = document.querySelector("#orderForm");
 const itemsEl = document.querySelector("#items");
@@ -8,10 +8,18 @@ const selectionEl = document.querySelector("#selection");
 const statusFilter = document.querySelector("#statusFilter");
 const categoryFilter = document.querySelector("#categoryFilter");
 const itemCategoryFilter = document.querySelector("#itemCategoryFilter");
+const customerSelect = document.querySelector("#customerSelect");
+const customerNameInput = document.querySelector("#customerNameInput");
+const customerInfo = document.querySelector("#customerInfo");
+const infoContact = document.querySelector("#infoContact");
+const infoPhone = document.querySelector("#infoPhone");
+const infoActivity = document.querySelector("#infoActivity");
+const newCustomerBtn = document.querySelector("#newCustomerBtn");
 
 const selected = new Set();
 let equipment = [];
 let orders = [];
+let customers = [];
 
 function occupied(id, start, end) {
   if (!start || !end) return false;
@@ -160,6 +168,41 @@ function renderCategoryFilters() {
   itemCategoryFilter.innerHTML = opts;
 }
 
+function renderCustomerOptions() {
+  customerSelect.innerHTML =
+    '<option value="">— 选择已有客户 —</option>' +
+    customers
+      .sort((a, b) => a.name.localeCompare(b.name, "zh-CN"))
+      .map((c) => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name)}</option>`)
+      .join("");
+}
+
+function handleCustomerChange() {
+  const custId = customerSelect.value;
+  if (!custId) {
+    customerInfo.classList.add("hidden");
+    return;
+  }
+  const cust = customers.find((c) => c.id === custId);
+  if (cust) {
+    customerNameInput.value = cust.name;
+    infoContact.textContent = cust.contact || "—";
+    infoPhone.textContent = cust.phone || "—";
+    infoActivity.textContent = cust.activityType || "—";
+    customerInfo.classList.remove("hidden");
+    if (cust.activityType && !orderForm.note.value) {
+      orderForm.note.value = cust.activityType;
+    }
+  }
+}
+
+function startNewCustomer() {
+  customerSelect.value = "";
+  customerNameInput.value = "";
+  customerNameInput.focus();
+  customerInfo.classList.add("hidden");
+}
+
 function render() {
   renderStats();
   renderItems();
@@ -168,8 +211,13 @@ function render() {
 
 async function load() {
   try {
-    [equipment, orders] = await Promise.all([Equipment.list(), Orders.list()]);
+    [equipment, orders, customers] = await Promise.all([
+      Equipment.list(),
+      Orders.list(),
+      Customers.list()
+    ]);
     renderCategoryFilters();
+    renderCustomerOptions();
     render();
   } catch (err) {
     showToast(err.message, "error");
@@ -188,6 +236,8 @@ orderForm.addEventListener("input", renderItems);
 statusFilter.addEventListener("change", renderOrders);
 categoryFilter.addEventListener("change", renderOrders);
 itemCategoryFilter.addEventListener("change", renderItems);
+customerSelect.addEventListener("change", handleCustomerChange);
+newCustomerBtn.addEventListener("click", startNewCustomer);
 document.querySelector("#reload").onclick = load;
 
 orderForm.onsubmit = async (event) => {
@@ -199,6 +249,8 @@ orderForm.onsubmit = async (event) => {
     showToast(`订单 ${created.id} 创建成功`);
     selected.clear();
     orderForm.reset();
+    customerSelect.value = "";
+    customerInfo.classList.add("hidden");
     itemCategoryFilter.value = "";
     await load();
   } catch (error) {

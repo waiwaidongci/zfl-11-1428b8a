@@ -70,3 +70,40 @@ select.mini {
   border-top: 1px dashed var(--line);
   margin-top: 4px;
 }
+
+.customer-select-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.customer-select-row select {
+  flex: 1;
+}
+
+.customer-select-row button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.customer-info {
+  background: #f3faf6;
+  border: 1px solid #c9e2d2;
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-top: 8px;
+  margin-bottom: 4px;
+}
+
+.customer-info .info-item {
+  display: flex;
+  gap: 6px;
+  font-size: 13px;
+  padding: 2px 0;
+}
+
+.customer-info .info-label {
+  color: var(--muted);
+  font-weight: 600;
+  min-width: 64px;
+}
