@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>出库单 - 舞台灯光租赁</title>
+  <link rel="stylesheet" href="/css/common.css">
+  <link rel="stylesheet" href="/css/print.css">
+</head>
+<body>
+  <div id="toolbar" class="toolbar no-print">
+    <button onclick="window.print()" class="secondary">🖨 打印</button>
+    <button onclick="location.href='/'" class="ghost">← 返回订单中心</button>
+    <span id="viewHint" class="meta" style="margin-left:auto">管理视图 · 打印时自动切换为打印视图</span>
+  </div>
+
+  <div id="printArea" class="print-area">
+    <div id="loading" style="padding:60px;text-align:center;color:var(--muted)">加载中…</div>
+    <div id="error" class="hidden" style="padding:60px;text-align:center;color:var(--red)"></div>
+
+    <div id="sheet" class="sheet hidden">
+      <div class="sheet-header">
+        <h1>设备出库单</h1>
+        <div class="sheet-id" id="orderId"></div>
+      </div>
+
+      <div class="rental-period">
+        <span>📅 租期：<strong id="rentalPeriod"></strong></span>
+        <span>共 <strong id="rentalDays"></strong> 天</span>
+      </div>
+
+      <table class="info-table">
+        <tr>
+          <th>客户</th>
+          <td id="customer"></td>
+          <th>联系人</th>
+          <td id="contact"></td>
+        </tr>
+        <tr>
+          <th>联系电话</th>
+          <td id="phone"></td>
+          <th>订单状态</th>
+          <td id="status"></td>
+        </tr>
+      </table>
+
+      <table class="equip-table">
+        <thead>
+          <tr>
+            <th class="col-seq">序号</th>
+            <th class="col-id">设备编号</th>
+            <th class="col-name">设备名称</th>
+            <th class="col-spec">规格</th>
+            <th class="col-remark">备注</th>
+          </tr>
+        </thead>
+        <tbody id="equipBody"></tbody>
+      </table>
+
+      <div class="note-section">
+        <div class="note-label">备注</div>
+        <div id="note">—</div>
+      </div>
+
+      <div class="sign-area">
+        <div class="sign-block">
+          <div class="sign-label">出库人签字：</div>
+          <div class="sign-line"></div>
+          <div class="sign-date">日期：____年____月____日</div>
+        </div>
+        <div class="sign-block">
+          <div class="sign-label">签收人签字：</div>
+          <div class="sign-line"></div>
+          <div class="sign-date">日期：____年____月____日</div>
+        </div>
+      </div>
+
+      <div class="sheet-footer">
+        本单一式两份，出库方与签收方各执一份。
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/js/print.js"></script>
+</body>
+</html>

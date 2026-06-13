@@ -116,7 +116,7 @@ function renderOrders() {
           return `<span class="item-tag">${escapeHtml(e ? `${e.id} ${e.name}` : id)}</span>`;
         })
         .join("");
-      return `<article class="order">
+      return `<article class="order" data-order-id="${escapeHtml(o.id)}" style="cursor:pointer">
         <div style="display:flex;justify-content:space-between;align-items:start;gap:8px">
           <h3>${escapeHtml(o.customer)}</h3>
           <span class="order-id">${escapeHtml(o.id)}</span>
@@ -128,6 +128,10 @@ function renderOrders() {
           <select data-id="${o.id}" class="mini">
             <option>待出库</option><option>已出库</option><option>待归还</option><option>已归还</option><option>已取消</option>
           </select>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="print-btn ghost small" data-order-id="${escapeHtml(o.id)}" style="flex:1">🖨 打印出库单</button>
+          <button class="view-detail-btn ghost small" data-order-id="${escapeHtml(o.id)}" style="flex:1">📋 查看详情</button>
         </div>
       </article>`;
     })
@@ -147,7 +151,110 @@ function renderOrders() {
       }
     };
   });
+
+  document.querySelectorAll(".print-btn").forEach((btn) => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      window.open(`/print?id=${encodeURIComponent(btn.dataset.orderId)}`, "_blank");
+    };
+  });
+
+  document.querySelectorAll(".view-detail-btn").forEach((btn) => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      openOrderDetail(btn.dataset.orderId);
+    };
+  });
+
+  document.querySelectorAll(".order").forEach((order) => {
+    order.onclick = () => {
+      openOrderDetail(order.dataset.orderId);
+    };
+  });
 }
+
+let currentDetailOrderId = null;
+
+async function openOrderDetail(id) {
+  currentDetailOrderId = id;
+  const modal = document.getElementById("orderDetailModal");
+  const body = document.getElementById("orderDetailBody");
+
+  modal.classList.remove("hidden");
+  body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">加载中…</div>';
+
+  try {
+    const order = await Orders.get(id);
+    renderOrderDetail(order);
+  } catch (err) {
+    body.innerHTML = `<div style="text-align:center;padding:40px;color:var(--red)">加载失败：${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function closeOrderDetail() {
+  document.getElementById("orderDetailModal").classList.add("hidden");
+  currentDetailOrderId = null;
+}
+
+function renderOrderDetail(o) {
+  const body = document.getElementById("orderDetailBody");
+
+  const itemsHtml = o.items.map((item, i) => `
+    <tr>
+      <td class="center">${i + 1}</td>
+      <td>${escapeHtml(item.id)}</td>
+      <td>${escapeHtml(item.name)}</td>
+      <td>${escapeHtml(item.spec || "—")}</td>
+    </tr>
+  `).join("");
+
+  body.innerHTML = `
+    <div class="detail-section">
+      <div class="detail-id" style="text-align:right;color:var(--muted);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;margin-bottom:12px">${escapeHtml(o.id)}</div>
+      <h3 style="margin:0 0 16px 0;font-size:18px">${escapeHtml(o.customer)}</h3>
+      <span class="badge" style="margin-bottom:16px;display:inline-block">${escapeHtml(o.status)}</span>
+    </div>
+
+    <table class="info-table" style="width:100%;border-collapse:collapse;margin-bottom:16px;font-size:13px">
+      <tr>
+        <th style="border:1px solid var(--line);padding:6px 10px;text-align:left;background:#f6f8f6;color:var(--muted);width:80px">联系人</th>
+        <td style="border:1px solid var(--line);padding:6px 10px">${escapeHtml(o.customerContact || "—")}</td>
+        <th style="border:1px solid var(--line);padding:6px 10px;text-align:left;background:#f6f8f6;color:var(--muted);width:80px">电话</th>
+        <td style="border:1px solid var(--line);padding:6px 10px">${escapeHtml(o.customerPhone || "—")}</td>
+      </tr>
+      <tr>
+        <th style="border:1px solid var(--line);padding:6px 10px;text-align:left;background:#f6f8f6;color:var(--muted)">租期开始</th>
+        <td style="border:1px solid var(--line);padding:6px 10px">${escapeHtml(o.startDate)}</td>
+        <th style="border:1px solid var(--line);padding:6px 10px;text-align:left;background:#f6f8f6;color:var(--muted)">租期结束</th>
+        <td style="border:1px solid var(--line);padding:6px 10px">${escapeHtml(o.endDate)}</td>
+      </tr>
+      <tr>
+        <th style="border:1px solid var(--line);padding:6px 10px;text-align:left;background:#f6f8f6;color:var(--muted)">备注</th>
+        <td colspan="3" style="border:1px solid var(--line);padding:6px 10px">${escapeHtml(o.note || "—")}</td>
+      </tr>
+    </table>
+
+    <h4 style="margin:16px 0 8px 0;font-size:14px">租赁设备清单</h4>
+    <table class="equip-table" style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead>
+        <tr>
+          <th style="border:1px solid var(--line);padding:6px 10px;text-align:left;background:#f6f8f6;color:var(--muted);width:40px">序号</th>
+          <th style="border:1px solid var(--line);padding:6px 10px;text-align:left;background:#f6f8f6;color:var(--muted);width:100px">设备编号</th>
+          <th style="border:1px solid var(--line);padding:6px 10px;text-align:left;background:#f6f8f6;color:var(--muted)">设备名称</th>
+          <th style="border:1px solid var(--line);padding:6px 10px;text-align:left;background:#f6f8f6;color:var(--muted)">规格</th>
+        </tr>
+      </thead>
+      <tbody>${itemsHtml}</tbody>
+    </table>
+  `;
+
+  const printBtn = document.getElementById("detailPrintBtn");
+  printBtn.onclick = () => {
+    window.open(`/print?id=${encodeURIComponent(currentDetailOrderId)}`, "_blank");
+  };
+}
+
+window.closeOrderDetail = closeOrderDetail;
 
 function renderStats() {
   const counts = {

@@ -13,7 +13,7 @@ import {
   deleteEquipment
 } from "./routes/equipment.js";
 
-import { listOrders, createOrder, updateOrder } from "./routes/orders.js";
+import { listOrders, getOrder, createOrder, updateOrder } from "./routes/orders.js";
 
 import {
   listCustomers,
@@ -54,7 +54,7 @@ const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, `http://${req.headers.host}`);
     const p = url.pathname;
 
-    if (req.method === "GET" && (p === "/" || p === "/equipment" || p === "/customers" || p.startsWith("/css/") || p.startsWith("/js/"))) {
+    if (req.method === "GET" && (p === "/" || p === "/equipment" || p === "/customers" || p === "/print" || p.startsWith("/css/") || p.startsWith("/js/"))) {
       const served = await serveStatic(req, res, p);
       if (served) return;
     }
@@ -78,8 +78,10 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && p === "/api/orders") return createOrder(req, res);
 
     const orderMatch = p.match(/^\/api\/orders\/([^/]+)$/);
-    if (orderMatch && req.method === "PATCH") {
-      return updateOrder(req, res, decodeURIComponent(orderMatch[1]));
+    if (orderMatch) {
+      const id = decodeURIComponent(orderMatch[1]);
+      if (req.method === "GET") return getOrder(req, res, id);
+      if (req.method === "PATCH") return updateOrder(req, res, id);
     }
 
     if (req.method === "GET" && p === "/api/customers") return listCustomers(req, res);

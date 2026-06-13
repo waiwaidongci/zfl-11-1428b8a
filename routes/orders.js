@@ -46,6 +46,37 @@ export async function createOrder(req, res) {
   return sendJson(res, 201, order);
 }
 
+export async function getOrder(req, res, id) {
+  const db = await loadDb();
+  const order = db.orders.find((o) => o.id === id);
+  if (!order) return sendJson(res, 404, { error: "order_not_found" });
+
+  const eqMap = new Map(db.equipment.map((e) => [e.id, e]));
+  const items = order.itemIds.map((iid) => {
+    const eq = eqMap.get(iid);
+    return {
+      id: iid,
+      name: eq ? eq.name : "（已删除）",
+      spec: eq ? eq.spec : "",
+      category: eq ? eq.category : ""
+    };
+  });
+
+  const customer = (db.customers || []).find((c) => c.name === order.customer);
+
+  return sendJson(res, 200, {
+    id: order.id,
+    customer: order.customer,
+    customerContact: customer ? customer.contact : "",
+    customerPhone: customer ? customer.phone : "",
+    startDate: order.startDate,
+    endDate: order.endDate,
+    status: order.status,
+    note: order.note || "",
+    items
+  });
+}
+
 export async function updateOrder(req, res, id) {
   const db = await loadDb();
   const order = db.orders.find((item) => item.id === id);

@@ -1,0 +1,274 @@
+body {
+  background: var(--bg);
+  margin: 0;
+  font-family: Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: var(--ink);
+}
+
+.print-area {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px 28px 40px;
+}
+
+.toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--bg);
+  padding: 12px 28px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.toolbar .meta {
+  font-size: 12px;
+  color: var(--muted);
+  background: #e8f0ed;
+  padding: 4px 10px;
+  border-radius: 4px;
+}
+
+.sheet {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 32px 36px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  margin-top: 20px;
+}
+
+.sheet-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid var(--ink);
+  padding-bottom: 12px;
+  margin-bottom: 20px;
+}
+
+.sheet-header h1 {
+  margin: 0;
+  font-size: 24px;
+  letter-spacing: 4px;
+}
+
+.sheet-id {
+  font-size: 14px;
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.rental-period {
+  background: #f3faf6;
+  border: 1px solid #c9e2d2;
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+}
+
+.rental-period strong {
+  color: var(--green);
+  font-size: 15px;
+}
+
+.info-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
+.info-table th,
+.info-table td {
+  border: 1px solid var(--line);
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.info-table th {
+  background: #f6f8f6;
+  color: var(--muted);
+  font-weight: 600;
+  width: 90px;
+  white-space: nowrap;
+}
+
+.info-table td {
+  color: var(--ink);
+}
+
+.equip-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 24px;
+  font-size: 14px;
+}
+
+.equip-table th,
+.equip-table td {
+  border: 1px solid var(--line);
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.equip-table thead th {
+  background: #f6f8f6;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.equip-table tbody tr:nth-child(even) {
+  background: #fafcf9;
+}
+
+.col-seq { width: 48px; }
+.col-id { width: 100px; }
+.col-name { width: 140px; }
+.col-spec { width: 140px; }
+.col-remark { }
+
+.center { text-align: center; }
+
+.note-section {
+  background: #fafbf9;
+  border: 1px dashed var(--line);
+  border-radius: 6px;
+  padding: 12px 14px;
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
+.note-section .note-label {
+  color: var(--muted);
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.sign-area {
+  display: flex;
+  justify-content: space-between;
+  gap: 40px;
+  margin-bottom: 24px;
+  margin-top: 40px;
+}
+
+.sign-block {
+  flex: 1;
+  max-width: 320px;
+}
+
+.sign-label {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 40px;
+}
+
+.sign-line {
+  border-bottom: 1px solid var(--ink);
+  margin-bottom: 8px;
+}
+
+.sign-date {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.sheet-footer {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+  border-top: 1px dashed var(--line);
+  padding-top: 12px;
+  margin-top: 20px;
+}
+
+.hidden { display: none !important; }
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: #fff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-area {
+    padding: 0;
+    max-width: none;
+  }
+
+  .sheet {
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    box-shadow: none;
+    margin-top: 0;
+  }
+
+  .rental-period {
+    background: #f3faf6 !important;
+    border-color: #c9e2d2 !important;
+  }
+
+  .rental-period strong {
+    color: #2f6b4f !important;
+  }
+
+  .sheet-header {
+    border-bottom: 2px solid #000;
+  }
+
+  .info-table th,
+  .info-table td {
+    border-color: #999;
+  }
+
+  .equip-table th,
+  .equip-table td {
+    border-color: #999;
+  }
+
+  .equip-table thead th {
+    background: #eee !important;
+  }
+
+  .info-table th {
+    background: #eee !important;
+  }
+
+  .note-section {
+    background: #fafbf9 !important;
+    border-style: dashed !important;
+    border-color: #999 !important;
+  }
+
+  .sign-line {
+    border-bottom-color: #000;
+  }
+
+  .sheet-footer {
+    border-top-color: #999;
+  }
+
+  @page {
+    margin: 15mm 20mm;
+  }
+}
+
+@media screen {
+  .toolbar {
+    margin-bottom: 0;
+  }
+}
