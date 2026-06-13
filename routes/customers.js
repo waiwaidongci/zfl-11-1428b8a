@@ -52,6 +52,9 @@ export async function updateCustomer(req, res, id) {
 
   if (input.name !== undefined) {
     const name = input.name.trim();
+    if (!name) {
+      return sendJson(res, 400, { error: "客户名称必填" });
+    }
     if (db.customers.some((c, i) => i !== idx && c.name === name)) {
       return sendJson(res, 409, { error: `客户名称「${name}」已存在` });
     }
