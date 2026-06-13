@@ -1,0 +1,370 @@
+:root {
+  --bg: #f4f6f4;
+  --panel: #fff;
+  --ink: #1f2933;
+  --muted: #65717d;
+  --line: #d9dfd8;
+  --green: #2f6b4f;
+  --green-hover: #275a42;
+  --red: #a64236;
+  --red-hover: #8c362b;
+  --yellow: #9a6a12;
+  --blue: #2e5c8a;
+  --blue-hover: #254b72;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+header {
+  padding: 22px 28px;
+  border-bottom: 1px solid var(--line);
+  background: #fff;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 26px;
+}
+
+header .subtitle {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+nav {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+nav a {
+  display: inline-block;
+  padding: 8px 16px;
+  border-radius: 6px;
+  text-decoration: none;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  font-weight: 600;
+  transition: all 0.15s ease;
+}
+
+nav a:hover {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+nav a.active {
+  background: var(--green);
+  color: #fff;
+  border-color: var(--green);
+}
+
+main {
+  padding: 22px 28px;
+}
+
+h2 {
+  margin: 0 0 12px;
+  font-size: 18px;
+}
+
+form, .panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+label {
+  display: block;
+  margin: 10px 0 5px;
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+input, select, textarea {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font: inherit;
+  background: #fff;
+  color: var(--ink);
+  transition: border-color 0.15s ease;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(47, 107, 79, 0.1);
+}
+
+textarea {
+  min-height: 70px;
+  resize: vertical;
+}
+
+button {
+  border: 0;
+  border-radius: 6px;
+  padding: 10px 16px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--green);
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.15s ease;
+}
+
+button:hover {
+  background: var(--green-hover);
+}
+
+button.secondary {
+  background: var(--blue);
+}
+button.secondary:hover { background: var(--blue-hover); }
+
+button.danger {
+  background: var(--red);
+}
+button.danger:hover { background: var(--red-hover); }
+
+button.ghost {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--line);
+}
+button.ghost:hover {
+  background: #f0f2f0;
+  color: var(--ink);
+}
+
+button.small {
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.toolbar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  align-items: center;
+}
+
+.toolbar select, .toolbar input {
+  width: auto;
+  min-width: 150px;
+}
+
+.items {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 10px;
+  max-height: 360px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.item, .order {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: #fff;
+}
+
+.item {
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.item:hover {
+  border-color: #b8c4b4;
+}
+
+.item.selected {
+  border-color: var(--green);
+  outline: 2px solid rgba(47, 107, 79, .15);
+  background: #f3faf6;
+}
+
+.item.disabled {
+  opacity: .48;
+  cursor: not-allowed;
+}
+
+.meta {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #eef3ed;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.badge.available {
+  background: #e3f2ea;
+  color: var(--green);
+}
+
+.badge.repair {
+  background: #f7e1dd;
+  color: var(--red);
+}
+
+.repair {
+  color: var(--red);
+}
+
+.orders {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.stat {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.stat span {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.stat strong {
+  display: block;
+  font-size: 24px;
+  margin-top: 4px;
+  color: var(--ink);
+}
+
+@media (max-width: 850px) {
+  header {
+    display: block;
+    padding: 18px 16px;
+  }
+  nav {
+    margin-top: 12px;
+  }
+  main {
+    grid-template-columns: 1fr;
+    padding: 16px;
+  }
+  .stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 16px;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 10px;
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow: auto;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+}
+
+.modal header {
+  padding: 16px 20px;
+  background: #fafbfa;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal header h3 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.modal header button {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  padding: 4px 10px;
+  font-weight: 600;
+}
+
+.modal .body {
+  padding: 20px;
+}
+
+.modal .actions {
+  padding: 14px 20px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 12px 20px;
+  border-radius: 8px;
+  color: #fff;
+  font-weight: 600;
+  z-index: 200;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  animation: slideIn 0.2s ease;
+}
+
+.toast.success { background: var(--green); }
+.toast.error { background: var(--red); }
+.toast.info { background: var(--blue); }
+
+@keyframes slideIn {
+  from { transform: translateX(40px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}

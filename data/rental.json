@@ -1,6 +1,14 @@
 {
   "equipment": [
     {
+      "id": "L-443651",
+      "name": "230W光束灯",
+      "category": "灯具",
+      "spec": "7R 230W",
+      "location": "主仓A",
+      "condition": "available"
+    },
+    {
       "id": "L-001",
       "name": "摇头染色灯",
       "category": "灯具",
@@ -13,7 +21,7 @@
       "name": "LED帕灯",
       "category": "灯具",
       "spec": "18x10W",
-      "location": "主仓B",
+      "location": "主仓C",
       "condition": "available"
     },
     {
@@ -34,6 +42,18 @@
     }
   ],
   "orders": [
+    {
+      "id": "O-1781387583734",
+      "customer": "星光传媒",
+      "startDate": "2026-07-01",
+      "endDate": "2026-07-03",
+      "status": "待出库",
+      "itemIds": [
+        "L-443651",
+        "C-001"
+      ],
+      "note": "周年庆晚会"
+    },
     {
       "id": "O-1001",
       "customer": "星桥活动",

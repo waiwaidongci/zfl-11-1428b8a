@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>订单中心 - 舞台灯光租赁</title>
+  <link rel="stylesheet" href="/css/common.css">
+  <link rel="stylesheet" href="/css/index.css">
+</head>
+<body>
+  <header>
+    <div>
+      <h1>舞台灯光租赁管理</h1>
+      <div class="subtitle">设备库存、时间占用、待出库和待归还</div>
+    </div>
+    <nav>
+      <a href="/" class="active">订单中心</a>
+      <a href="/equipment">设备管理</a>
+      <button id="reload" class="ghost small">↻ 刷新</button>
+    </nav>
+  </header>
+
+  <main>
+    <form id="orderForm">
+      <h2>创建租赁订单</h2>
+      <label>客户</label>
+      <input name="customer" required placeholder="客户公司或负责人">
+
+      <div class="row">
+        <div>
+          <label>租期开始</label>
+          <input name="startDate" type="date" required>
+        </div>
+        <div>
+          <label>租期结束</label>
+          <input name="endDate" type="date" required>
+        </div>
+      </div>
+
+      <label>备注</label>
+      <textarea name="note" placeholder="活动名称、特殊要求等"></textarea>
+
+      <div class="sel-head">
+        <label style="margin:0">选择设备</label>
+        <select id="itemCategoryFilter" class="mini">
+          <option value="">全部类别</option>
+        </select>
+      </div>
+      <div class="items" id="items"></div>
+      <p class="meta" id="selection"></p>
+
+      <button>提交订单</button>
+    </form>
+
+    <section>
+      <div class="stats" id="stats"></div>
+
+      <div class="toolbar">
+        <select id="statusFilter">
+          <option value="">全部订单</option>
+          <option>待出库</option>
+          <option>已出库</option>
+          <option>待归还</option>
+          <option>已归还</option>
+          <option>已取消</option>
+        </select>
+        <select id="categoryFilter">
+          <option value="">全部设备</option>
+        </select>
+      </div>
+
+      <div class="panel">
+        <h2>订单列表</h2>
+        <div class="orders" id="orders"></div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>设备入库管理 - 舞台灯光租赁</title>
+  <link rel="stylesheet" href="/css/common.css">
+  <link rel="stylesheet" href="/css/equipment.css">
+</head>
+<body>
+  <header>
+    <div>
+      <h1>舞台灯光租赁管理</h1>
+      <div class="subtitle">设备入库管理 · 新增、编辑与状态切换</div>
+    </div>
+    <nav>
+      <a href="/">订单中心</a>
+      <a href="/equipment" class="active">设备管理</a>
+      <button id="addBtn">+ 新增设备</button>
+    </nav>
+  </header>
+
+  <main>
+    <div class="stats" id="stats"></div>
+
+    <div class="panel">
+      <div class="toolbar">
+        <input id="search" type="search" placeholder="搜索编号/名称/规格/位置...">
+        <select id="categoryFilter">
+          <option value="">全部类别</option>
+        </select>
+        <select id="conditionFilter">
+          <option value="">全部状态</option>
+          <option value="available">在库可用</option>
+          <option value="repair">维修中</option>
+        </select>
+        <span class="toolbar-spacer"></span>
+        <span class="meta" id="countInfo"></span>
+        <button id="reloadBtn" class="ghost small">↻ 刷新</button>
+      </div>
+
+      <div id="equipmentGrid" class="eq-grid"></div>
+    </div>
+  </main>
+
+  <div id="modal" class="modal-backdrop hidden">
+    <div class="modal">
+      <header>
+        <h3 id="modalTitle">新增设备</h3>
+        <button id="closeModal" class="ghost">×</button>
+      </header>
+      <div class="body">
+        <form id="eqForm" autocomplete="off">
+          <label>设备编号（留空自动生成）</label>
+          <input name="id" placeholder="如 L-003、C-002">
+
+          <label>设备名称 *</label>
+          <input name="name" required placeholder="如 光束灯、老虎控台">
+
+          <label>设备类别 *</label>
+          <select name="category" required>
+            <option value="">请选择</option>
+            <option>灯具</option>
+            <option>控台</option>
+            <option>桁架</option>
+            <option>线缆</option>
+            <option>其他</option>
+          </select>
+
+          <label>规格参数</label>
+          <input name="spec" placeholder="如 230W、7R、400mm 3m">
+
+          <label>存放位置</label>
+          <input name="location" placeholder="如 主仓A、控台柜">
+
+          <label>设备状态</label>
+          <select name="condition">
+            <option value="available">在库可用</option>
+            <option value="repair">维修中</option>
+          </select>
+        </form>
+      </div>
+      <div class="actions">
+        <button id="cancelBtn" type="button" class="ghost">取消</button>
+        <button id="submitBtn" type="button" class="secondary">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/js/equipment.js"></script>
+</body>
+</html>
