@@ -1,0 +1,50 @@
+{
+  "equipment": [
+    {
+      "id": "L-001",
+      "name": "摇头染色灯",
+      "category": "灯具",
+      "spec": "19颗蜂眼",
+      "location": "主仓A",
+      "condition": "available"
+    },
+    {
+      "id": "L-002",
+      "name": "LED帕灯",
+      "category": "灯具",
+      "spec": "18x10W",
+      "location": "主仓B",
+      "condition": "available"
+    },
+    {
+      "id": "C-001",
+      "name": "MA控台",
+      "category": "控台",
+      "spec": "Command Wing",
+      "location": "控台柜",
+      "condition": "available"
+    },
+    {
+      "id": "T-001",
+      "name": "铝合金桁架",
+      "category": "桁架",
+      "spec": "300mm 2m",
+      "location": "外场架",
+      "condition": "repair"
+    }
+  ],
+  "orders": [
+    {
+      "id": "O-1001",
+      "customer": "星桥活动",
+      "startDate": "2026-06-18",
+      "endDate": "2026-06-20",
+      "status": "待出库",
+      "itemIds": [
+        "L-001",
+        "C-001"
+      ],
+      "note": "发布会"
+    }
+  ]
+}
