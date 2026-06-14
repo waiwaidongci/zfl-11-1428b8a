@@ -44,6 +44,8 @@ import {
   getEquipmentRepairs
 } from "./routes/repairs.js";
 
+import { getSchedule } from "./routes/schedule.js";
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const publicDir = join(__dirname, "public");
 const port = Number(process.env.PORT || 3011);
@@ -75,7 +77,7 @@ const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, `http://${req.headers.host}`);
     const p = url.pathname;
 
-    if (req.method === "GET" && (p === "/" || p === "/equipment" || p === "/customers" || p === "/quotations" || p === "/repairs" || p === "/print" || p.startsWith("/css/") || p.startsWith("/js/"))) {
+    if (req.method === "GET" && (p === "/" || p === "/equipment" || p === "/customers" || p === "/quotations" || p === "/repairs" || p === "/schedule" || p === "/print" || p.startsWith("/css/") || p.startsWith("/js/"))) {
       const served = await serveStatic(req, res, p);
       if (served) return;
     }
@@ -159,6 +161,8 @@ const server = http.createServer(async (req, res) => {
       return getEquipmentRepairs(req, res, decodeURIComponent(eqRepairsMatch[1]));
     }
 
+    if (req.method === "GET" && p === "/api/schedule") return getSchedule(req, res);
+
     notFound(res);
   } catch (error) {
     console.error("[server error]", error);
@@ -173,4 +177,5 @@ server.listen(port, () => {
   console.log(`  设备管理:   http://localhost:${port}/equipment`);
   console.log(`  客户管理:   http://localhost:${port}/customers`);
   console.log(`  维修工单:   http://localhost:${port}/repairs`);
+  console.log(`  租期排期:   http://localhost:${port}/schedule`);
 });

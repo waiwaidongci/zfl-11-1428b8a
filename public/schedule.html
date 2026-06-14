@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>租期排期日历 - 舞台灯光租赁</title>
+  <link rel="stylesheet" href="/css/common.css">
+  <link rel="stylesheet" href="/css/schedule.css">
+</head>
+<body>
+  <header>
+    <div>
+      <h1>舞台灯光租赁管理</h1>
+      <div class="subtitle">租期排期日历 · 设备占用可视化与快速查询</div>
+    </div>
+    <nav>
+      <a href="/">订单中心</a>
+      <a href="/quotations">报价管理</a>
+      <a href="/equipment">设备管理</a>
+      <a href="/customers">客户管理</a>
+      <a href="/repairs">维修工单</a>
+      <a href="/schedule" class="active">排期日历</a>
+      <button id="reloadBtn" class="ghost small">↻ 刷新</button>
+    </nav>
+  </header>
+
+  <main>
+    <div class="stats" id="stats"></div>
+
+    <div class="panel">
+      <div class="toolbar">
+        <div class="date-range">
+          <label>日期范围</label>
+          <div class="date-inputs">
+            <input type="date" id="startDateInput">
+            <span class="date-sep">至</span>
+            <input type="date" id="endDateInput">
+          </div>
+          <div class="quick-ranges">
+            <button type="button" class="ghost small" data-range="7">未来7天</button>
+            <button type="button" class="ghost small" data-range="14">未来14天</button>
+            <button type="button" class="ghost small" data-range="30">未来30天</button>
+            <button type="button" class="ghost small" data-range="90">未来90天</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <label class="filter-label">设备类别</label>
+        <select id="categoryFilter">
+          <option value="">全部类别</option>
+        </select>
+
+        <label class="filter-label">设备编号</label>
+        <select id="equipmentFilter">
+          <option value="">全部设备</option>
+        </select>
+
+        <label class="filter-label">客户名称</label>
+        <input type="text" id="customerFilter" placeholder="输入客户名称搜索">
+
+        <button id="applyFilterBtn" class="secondary small">应用筛选</button>
+        <button id="resetFilterBtn" class="ghost small">重置</button>
+
+        <span class="toolbar-spacer"></span>
+        <div class="legend">
+          <span class="legend-item"><span class="legend-color available"></span>可租</span>
+          <span class="legend-item"><span class="legend-color pending_out"></span>待出库</span>
+          <span class="legend-item"><span class="legend-color occupied"></span>占用中</span>
+          <span class="legend-item"><span class="legend-color pending_return"></span>待归还</span>
+          <span class="legend-item"><span class="legend-color repairing"></span>维修中</span>
+          <span class="legend-item"><span class="legend-color quote_locked"></span>报价锁定</span>
+        </div>
+      </div>
+
+      <div class="schedule-wrap">
+        <div id="scheduleGrid" class="schedule-grid">
+          <div style="text-align:center;padding:60px;color:var(--muted)">加载中…</div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div id="blockDetailModal" class="modal-backdrop hidden">
+    <div class="modal">
+      <header>
+        <h3 id="detailTitle">详情</h3>
+        <button id="closeDetailModal" class="ghost">✕</button>
+      </header>
+      <div class="body" id="detailBody">
+        <div style="text-align:center;padding:40px;color:var(--muted)">加载中…</div>
+      </div>
+      <div class="actions">
+        <button id="detailCloseBtn" type="button" class="ghost">关闭</button>
+        <button id="detailGotoBtn" type="button" class="secondary hidden">跳转查看</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/js/schedule.js"></script>
+</body>
+</html>

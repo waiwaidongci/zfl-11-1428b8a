@@ -78,3 +78,18 @@ export const Repairs = {
   advance: (id) => api(`/api/repairs/${id}/advance`, { method: "POST" }),
   remove: (id) => api(`/api/repairs/${id}`, { method: "DELETE" })
 };
+
+export const Schedule = {
+  get: (params) => {
+    const qs = params ? "?" + new URLSearchParams(params).toString() : "";
+    return api(`/api/schedule${qs}`);
+  }
+};
+
+export const BLOCK_TYPE_LABELS = {
+  pending_out: "待出库",
+  occupied: "占用中",
+  pending_return: "待归还",
+  repairing: "维修中",
+  quote_locked: "报价锁定"
+};
