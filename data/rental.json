@@ -39,31 +39,9 @@
       "spec": "300mm 2m",
       "location": "外场架",
       "condition": "repair"
-    },
-    {
-      "id": "L-458732",
-      "name": "测试灯",
-      "spec": "测试",
-      "condition": "available",
-      "category": "灯具",
-      "location": "A仓"
     }
   ],
   "orders": [
-    {
-      "id": "O-1781431458757",
-      "customer": "全流程测试客户",
-      "startDate": "2026-09-01",
-      "endDate": "2026-09-05",
-      "status": "已归还",
-      "itemIds": [
-        "L-443651",
-        "C-001"
-      ],
-      "note": "测试归还校验",
-      "checkoutTime": "2026-09-01T10:00",
-      "returnTime": "2026-09-05T18:00"
-    },
     {
       "id": "O-1781421615815",
       "customer": "测试客户",
@@ -196,54 +174,6 @@
     }
   ],
   "handovers": [
-    {
-      "id": "H-458777",
-      "orderId": "O-1781431458757",
-      "type": "return",
-      "handler": "测试员",
-      "actualTime": "2026-09-05T18:00",
-      "itemStatuses": [
-        {
-          "itemId": "L-443651",
-          "itemName": "230W光束灯",
-          "status": "intact",
-          "remark": ""
-        },
-        {
-          "itemId": "C-001",
-          "itemName": "MA控台",
-          "status": "intact",
-          "remark": ""
-        }
-      ],
-      "compensationNote": "",
-      "extraCharges": 0,
-      "remarks": "正常归还",
-      "createdAt": "2026-06-14T10:04:18.777Z"
-    },
-    {
-      "id": "H-458762",
-      "orderId": "O-1781431458757",
-      "type": "checkout",
-      "handler": "测试员",
-      "actualTime": "2026-09-01T10:00",
-      "itemConfirmations": [
-        {
-          "itemId": "L-443651",
-          "itemName": "230W光束灯",
-          "confirmed": true,
-          "remark": ""
-        },
-        {
-          "itemId": "C-001",
-          "itemName": "MA控台",
-          "confirmed": true,
-          "remark": ""
-        }
-      ],
-      "remarks": "正常出库",
-      "createdAt": "2026-06-14T10:04:18.762Z"
-    },
     {
       "id": "H-089447",
       "orderId": "O-1001",
