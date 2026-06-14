@@ -148,7 +148,9 @@ function renderItems() {
       let statusText = item.location;
       if (isRepair) statusText = "维修中";
 
-      return `<div class="${cls}" data-id="${escapeHtml(item.id)}" title="点击选择">
+      const disabledCls = isRepair ? " disabled" : "";
+      const title = isRepair ? "维修中，不可选择" : "点击选择";
+      return `<div class="${cls}${disabledCls}" data-id="${escapeHtml(item.id)}" data-repair="${isRepair ? 1 : 0}" title="${title}">
         <b>${escapeHtml(item.name)}</b>
         <div class="meta">${escapeHtml(item.id)} · ${escapeHtml(item.category)} · ${escapeHtml(item.spec || "—")}</div>
         <div class="${isRepair ? "repair" : "meta"}">
@@ -162,6 +164,11 @@ function renderItems() {
   $$(".item").forEach((el) => {
     el.onclick = () => {
       const id = el.dataset.id;
+      const isRepair = el.dataset.repair === "1";
+      if (isRepair) {
+        showToast("维修中设备不可加入报价单", "error");
+        return;
+      }
       if (selectedItems.has(id)) {
         selectedItems.delete(id);
         delete depositOverrides[id];
@@ -451,6 +458,12 @@ async function submitQuote() {
   }
   if (new Date(data.endDate) < new Date(data.startDate)) {
     showToast("结束日期不能早于开始日期", "error");
+    return;
+  }
+
+  const repairItems = allEquipment.filter((e) => data.itemIds.includes(e.id) && e.condition === "repair");
+  if (repairItems.length) {
+    showToast(`维修中设备不可加入报价单：${repairItems.map((e) => `${e.id} ${e.name}`).join("、")}`, "error");
     return;
   }
 

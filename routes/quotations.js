@@ -2,7 +2,7 @@ import { loadDb, saveDb, genQuotationId } from "../data/db.js";
 import { sendJson, parseBody } from "../lib/http.js";
 import { buildQuoteSummary, calcRentalDays } from "../lib/quoteCalculator.js";
 import { convertQuotationToOrder, isQuoteConvertible } from "../lib/quoteToOrder.js";
-import { validateEquipmentForOrder } from "../lib/equipmentValidator.js";
+import { validateEquipmentForOrder, findRepairItems } from "../lib/equipmentValidator.js";
 
 const QUOTE_STATUSES = ["草稿", "已确认", "已转订单", "已取消"];
 
@@ -114,6 +114,13 @@ export async function createQuotation(req, res) {
     return sendJson(res, 409, { error: `报价单编号 ${quotation.id} 已存在` });
   }
 
+  const repairItems = findRepairItems(db, quotation.itemIds);
+  if (repairItems.length) {
+    return sendJson(res, 409, {
+      error: `维修中设备不可加入报价单：${repairItems.map((r) => `${r.id} ${r.name}`).join("、")}`
+    });
+  }
+
   db.quotations.unshift(quotation);
   await saveDb(db);
   return sendJson(res, 201, buildQuotationPayload(db, quotation, true));
@@ -165,6 +172,15 @@ export async function updateQuotation(req, res, id) {
     }
   }
 
+  if (merged.itemIds?.length) {
+    const repairItems = findRepairItems(db, merged.itemIds);
+    if (repairItems.length) {
+      return sendJson(res, 409, {
+        error: `维修中设备不可加入报价单：${repairItems.map((r) => `${r.id} ${r.name}`).join("、")}`
+      });
+    }
+  }
+
   db.quotations[idx] = merged;
   await saveDb(db);
   return sendJson(res, 200, buildQuotationPayload(db, merged, true));
@@ -201,6 +217,13 @@ export async function previewQuote(req, res) {
   }
   if (new Date(endDate) < new Date(startDate)) {
     return sendJson(res, 400, { error: "结束日期不能早于开始日期" });
+  }
+
+  const repairItems = findRepairItems(db, itemIds);
+  if (repairItems.length) {
+    return sendJson(res, 409, {
+      error: `维修中设备不可加入报价单：${repairItems.map((r) => `${r.id} ${r.name}`).join("、")}`
+    });
   }
 
   const summary = buildQuoteSummary(db.equipment, itemIds, startDate, endDate, depositOverride, discount);

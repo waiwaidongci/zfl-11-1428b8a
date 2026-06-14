@@ -14,7 +14,7 @@
       "category": "灯具",
       "spec": "18x10W",
       "location": "主仓B",
-      "condition": "available"
+      "condition": "repair"
     },
     {
       "id": "C-001",
@@ -77,21 +77,38 @@
       "note": ""
     }
   ],
-  "quotations": [],
+  "quotations": [
+    {
+      "id": "Q-927196",
+      "customer": "测试客户",
+      "startDate": "2026-06-20",
+      "endDate": "2026-06-22",
+      "rentalDays": 3,
+      "itemIds": [
+        "L-001"
+      ],
+      "discount": 0,
+      "depositOverride": {},
+      "status": "草稿",
+      "note": "",
+      "createdAt": "2026-06-14T03:32:07.196Z",
+      "updatedAt": "2026-06-14T03:32:07.196Z"
+    }
+  ],
   "repairs": [
     {
-      "id": "R-592838",
+      "id": "R-592839",
       "equipmentId": "L-002",
       "equipmentName": "LED帕灯",
-      "faultDescription": "测试：灯具无法点亮，疑似电源模块损坏",
+      "faultDescription": "灯具无法点亮，疑似电源模块损坏",
       "sendTime": "2026-06-14",
       "expectedReturn": "2026-06-21",
       "repairCost": 280,
-      "status": "completed",
-      "note": "送原厂检修",
+      "status": "repairing",
+      "note": "已送原厂检修，等待配件",
       "createdAt": "2026-06-14T01:46:32.839Z",
       "updatedAt": "2026-06-14T01:49:52.031Z",
-      "completedAt": "2026-06-14T01:49:52.031Z"
+      "completedAt": null
     },
     {
       "id": "R-000001",
