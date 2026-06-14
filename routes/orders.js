@@ -7,7 +7,7 @@ export async function listOrders(req, res) {
   const customer = url.searchParams.get("customer");
 
   let list = [...db.orders];
-  if (customer) list = list.filter((o) => (o.customer || "").includes(customer));
+  if (customer) list = list.filter((o) => (o.customer || "") === customer);
   return sendJson(res, 200, list);
 }
 

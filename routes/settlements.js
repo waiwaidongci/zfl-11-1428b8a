@@ -733,7 +733,7 @@ export async function listSettlements(req, res) {
 
   if (customer) {
     const orderIds = db.orders
-      .filter((o) => (o.customer || "").includes(customer))
+      .filter((o) => (o.customer || "") === customer)
       .map((o) => o.id);
     list = list.filter((s) => orderIds.includes(s.orderId));
   }

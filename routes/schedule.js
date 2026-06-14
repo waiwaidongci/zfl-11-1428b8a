@@ -61,10 +61,10 @@ export async function getSchedule(req, res) {
   const activeRepairs = db.repairs.filter((r) => ["pending", "repairing"].includes(r.status));
 
   const filteredOrders = customer
-    ? activeOrders.filter((o) => (o.customer || "").includes(customer))
+    ? activeOrders.filter((o) => (o.customer || "") === customer)
     : activeOrders;
   const filteredQuotations = customer
-    ? activeQuotations.filter((q) => (q.customer || "").includes(customer))
+    ? activeQuotations.filter((q) => (q.customer || "") === customer)
     : activeQuotations;
 
   const equipmentSchedule = equipmentList.map((eq) => {

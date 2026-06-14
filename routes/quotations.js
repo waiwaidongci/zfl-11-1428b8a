@@ -345,7 +345,7 @@ export async function listQuotations(req, res) {
 
   let list = [...db.quotations];
   if (status) list = list.filter((q) => q.status === status);
-  if (customer) list = list.filter((q) => (q.customer || "").includes(customer));
+  if (customer) list = list.filter((q) => (q.customer || "") === customer);
 
   const result = list.map((q) => buildQuotationPayload(db, q, false));
   return sendJson(res, 200, result);
