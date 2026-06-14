@@ -175,6 +175,42 @@ export const PAYMENT_TYPE_LABELS = {
   deposit_return: "押金退还"
 };
 
+export const STOCKTAKE_STATUS_LABELS = {
+  draft: "草稿",
+  processing: "盘点中",
+  completed: "已完成",
+  cancelled: "已取消"
+};
+
+export const STOCKTAKE_RESULT_LABELS = {
+  normal: "正常",
+  missing: "丢失",
+  damaged: "损坏",
+  mismatch: "位置不符"
+};
+
+export const Stocktakes = {
+  list: (params) => {
+    const qs = params ? "?" + new URLSearchParams(params).toString() : "";
+    return api(`/api/stocktakes${qs}`);
+  },
+  get: (id) => api(`/api/stocktakes/${id}`),
+  create: (data) => api("/api/stocktakes", { method: "POST", body: JSON.stringify(data) }),
+  update: (id, data) => api(`/api/stocktakes/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  submit: (id) => api(`/api/stocktakes/${id}/submit`, { method: "POST" }),
+  cancel: (id) => api(`/api/stocktakes/${id}/cancel`, { method: "POST" }),
+  remove: (id) => api(`/api/stocktakes/${id}`, { method: "DELETE" }),
+  processDamaged: (id, equipmentId, data) =>
+    api(`/api/stocktakes/${id}/damaged/${equipmentId}`, {
+      method: "POST",
+      body: JSON.stringify(data || {})
+    }),
+  processMissing: (id, equipmentId) =>
+    api(`/api/stocktakes/${id}/missing/${equipmentId}`, { method: "POST" }),
+  processMismatch: (id, equipmentId) =>
+    api(`/api/stocktakes/${id}/mismatch/${equipmentId}`, { method: "POST" })
+};
+
 export const BLOCK_TYPE_LABELS = {
   pending_out: "待出库",
   occupied: "占用中",

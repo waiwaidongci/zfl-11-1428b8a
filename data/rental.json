@@ -6,7 +6,7 @@
       "category": "灯具",
       "spec": "7R 230W",
       "location": "主仓A",
-      "condition": "available"
+      "condition": "missing"
     },
     {
       "id": "L-001",
@@ -22,14 +22,14 @@
       "category": "灯具",
       "spec": "18x10W",
       "location": "主仓C",
-      "condition": "available"
+      "condition": "repair"
     },
     {
       "id": "C-001",
       "name": "MA控台",
       "category": "控台",
       "spec": "Command Wing",
-      "location": "控台柜",
+      "location": "控台柜B",
       "condition": "available"
     },
     {
@@ -736,6 +736,20 @@
   ],
   "repairs": [
     {
+      "id": "R-706536",
+      "equipmentId": "L-002",
+      "equipmentName": "LED帕灯",
+      "faultDescription": "外壳有裂痕，需送修焊接",
+      "sendTime": "2026-06-14",
+      "expectedReturn": "2026-06-20",
+      "repairCost": 200,
+      "status": "pending",
+      "note": "盘点任务 ST-679161 发现损坏，外壳有裂痕",
+      "createdAt": "2026-06-14T12:55:06.536Z",
+      "updatedAt": "2026-06-14T12:55:06.536Z",
+      "completedAt": null
+    },
+    {
       "id": "R-089447",
       "equipmentId": "L-001",
       "equipmentName": "摇头染色灯",
@@ -924,5 +938,89 @@
       "updatedAt": "2026-06-14T12:16:48.512Z"
     }
   ],
-  "payments": []
+  "payments": [],
+  "stocktakes": [
+    {
+      "id": "ST-737753",
+      "name": "测试丢失处理",
+      "category": "",
+      "status": "completed",
+      "note": "",
+      "items": [
+        {
+          "equipmentId": "L-443651",
+          "equipmentName": "230W光束灯",
+          "category": "灯具",
+          "spec": "7R 230W",
+          "expectedLocation": "主仓A",
+          "actualLocation": "",
+          "result": "missing",
+          "remark": "遍寻仓库不见",
+          "processed": true,
+          "linkedRepairId": null
+        },
+        {
+          "equipmentId": "C-001",
+          "equipmentName": "MA控台",
+          "category": "控台",
+          "spec": "Command Wing",
+          "expectedLocation": "控台柜B",
+          "actualLocation": "",
+          "result": "normal",
+          "remark": "",
+          "processed": true,
+          "linkedRepairId": null
+        }
+      ],
+      "createdAt": "2026-06-14T12:55:37.753Z",
+      "completedAt": "2026-06-14T12:55:46.944Z"
+    },
+    {
+      "id": "ST-679161",
+      "name": "2026年6月月末盘点",
+      "category": "",
+      "status": "completed",
+      "note": "月度常规盘点",
+      "items": [
+        {
+          "equipmentId": "L-443651",
+          "equipmentName": "230W光束灯",
+          "category": "灯具",
+          "spec": "7R 230W",
+          "expectedLocation": "主仓A",
+          "actualLocation": "",
+          "result": "normal",
+          "remark": "",
+          "processed": true,
+          "linkedRepairId": null
+        },
+        {
+          "equipmentId": "L-002",
+          "equipmentName": "LED帕灯",
+          "category": "灯具",
+          "spec": "18x10W",
+          "expectedLocation": "主仓C",
+          "actualLocation": "",
+          "result": "damaged",
+          "remark": "外壳有裂痕",
+          "processed": true,
+          "linkedRepairId": "R-706536"
+        },
+        {
+          "equipmentId": "C-001",
+          "equipmentName": "MA控台",
+          "category": "控台",
+          "spec": "Command Wing",
+          "expectedLocation": "控台柜",
+          "actualLocation": "控台柜B",
+          "result": "mismatch",
+          "remark": "实际在B柜",
+          "processed": true,
+          "linkedRepairId": null
+        }
+      ],
+      "createdAt": "2026-06-14T12:54:39.161Z",
+      "completedAt": "2026-06-14T12:54:59.244Z"
+    }
+  ]
 }

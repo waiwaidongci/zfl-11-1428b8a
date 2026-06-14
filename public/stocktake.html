@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>库存盘点 - 舞台灯光租赁</title>
+  <link rel="stylesheet" href="/css/common.css">
+  <link rel="stylesheet" href="/css/stocktake.css">
+</head>
+<body>
+  <header>
+    <div>
+      <h1>舞台灯光租赁管理</h1>
+      <div class="subtitle">库存盘点与差异处理 · 定期核对设备实物库存</div>
+    </div>
+    <nav>
+      <a href="/">订单中心</a>
+      <a href="/quotations">报价管理</a>
+      <a href="/equipment">设备管理</a>
+      <a href="/customers">客户管理</a>
+      <a href="/repairs">维修工单</a>
+      <a href="/schedule">排期日历</a>
+      <a href="/settlement">项目结算</a>
+      <a href="/stocktake" class="active">库存盘点</a>
+      <button id="addBtn">+ 新建盘点</button>
+    </nav>
+  </header>
+
+  <main id="listView">
+    <div class="stats" id="stats"></div>
+
+    <div class="panel">
+      <div class="toolbar">
+        <input id="search" type="search" placeholder="搜索盘点名称/编号...">
+        <select id="statusFilter">
+          <option value="">全部状态</option>
+          <option value="processing">盘点中</option>
+          <option value="completed">已完成</option>
+          <option value="cancelled">已取消</option>
+        </select>
+        <span class="toolbar-spacer"></span>
+        <span class="meta" id="countInfo"></span>
+        <button id="reloadBtn" class="ghost small">↻ 刷新</button>
+      </div>
+
+      <div id="stocktakeGrid" class="stocktake-grid"></div>
+    </div>
+  </main>
+
+  <main id="detailView" class="hidden">
+    <div class="panel detail-header">
+      <div class="detail-nav">
+        <button id="backBtn" class="ghost small">← 返回列表</button>
+        <div class="detail-title">
+          <h2 id="detailName"></h2>
+          <span id="detailStatusBadge" class="badge"></span>
+        </div>
+        <div class="detail-actions" id="detailActions"></div>
+      </div>
+      <div class="detail-meta" id="detailMeta"></div>
+    </div>
+
+    <div class="stats" id="detailStats"></div>
+
+    <div class="panel">
+      <div class="toolbar">
+        <select id="resultFilter">
+          <option value="">全部设备</option>
+          <option value="unmarked">未盘点</option>
+          <option value="normal">正常</option>
+          <option value="missing">丢失</option>
+          <option value="damaged">损坏</option>
+          <option value="mismatch">位置不符</option>
+          <option value="pending">待处理</option>
+          <option value="processed">已处理</option>
+        </select>
+        <span class="toolbar-spacer"></span>
+        <span class="meta" id="detailCountInfo"></span>
+      </div>
+
+      <div id="detailItems" class="stocktake-items"></div>
+    </div>
+  </main>
+
+  <div id="createModal" class="modal-backdrop hidden">
+    <div class="modal">
+      <header>
+        <h3>新建盘点任务</h3>
+        <button id="closeCreateModal" class="ghost">×</button>
+      </header>
+      <div class="body">
+        <form id="createForm" autocomplete="off">
+          <label>盘点任务名称 *</label>
+          <input name="name" required placeholder="如 2026年6月月末盘点、灯具季度盘点">
+
+          <label>盘点范围</label>
+          <select name="category" id="categorySelect">
+            <option value="">全部设备</option>
+          </select>
+
+          <label>备注</label>
+          <textarea name="note" placeholder="盘点说明、参与人员等..."></textarea>
+        </form>
+      </div>
+      <div class="actions">
+        <button id="cancelCreateBtn" type="button" class="ghost">取消</button>
+        <button id="submitCreateBtn" type="button">开始盘点</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="resultModal" class="modal-backdrop hidden">
+    <div class="modal wide">
+      <header>
+        <h3 id="resultModalTitle">记录盘点结果</h3>
+        <button id="closeResultModal" class="ghost">×</button>
+      </header>
+      <div class="body">
+        <div class="panel" style="padding:10px;margin-bottom:14px;background:#f5f8f5;border:1px dashed var(--line)">
+          <strong style="font-size:13px">设备信息：</strong>
+          <span id="resultEqName" style="margin-left:6px"></span>
+          <span id="resultEqId" class="meta" style="margin-left:6px"></span>
+          <div style="margin-top:6px;font-size:12px;color:var(--muted)">
+            规格：<span id="resultEqSpec"></span> | 预期位置：<span id="resultEqLocation"></span>
+          </div>
+        </div>
+        <form id="resultForm" autocomplete="off">
+          <input type="hidden" name="equipmentId">
+
+          <label>盘点结果 *</label>
+          <div class="result-options">
+            <label class="result-option">
+              <input type="radio" name="result" value="normal" required>
+              <span class="result-icon">✓</span>
+              <span class="result-text">正常</span>
+            </label>
+            <label class="result-option">
+              <input type="radio" name="result" value="missing">
+              <span class="result-icon">?</span>
+              <span class="result-text">丢失</span>
+            </label>
+            <label class="result-option">
+              <input type="radio" name="result" value="damaged">
+              <span class="result-icon">⚠</span>
+              <span class="result-text">损坏</span>
+            </label>
+            <label class="result-option">
+              <input type="radio" name="result" value="mismatch">
+              <span class="result-icon">📍</span>
+              <span class="result-text">位置不符</span>
+            </label>
+          </div>
+
+          <div id="actualLocationField" class="hidden">
+            <label>实际存放位置 *</label>
+            <input name="actualLocation" placeholder="请填写设备实际所在位置">
+          </div>
+
+          <label>备注</label>
+          <textarea name="remark" placeholder="损坏情况、丢失原因、位置说明等..."></textarea>
+        </form>
+      </div>
+      <div class="actions">
+        <button id="cancelResultBtn" type="button" class="ghost">取消</button>
+        <button id="submitResultBtn" type="button" class="secondary">保存结果</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="damagedModal" class="modal-backdrop hidden">
+    <div class="modal wide">
+      <header>
+        <h3>转维修工单</h3>
+        <button id="closeDamagedModal" class="ghost">×</button>
+      </header>
+      <div class="body">
+        <form id="damagedForm" autocomplete="off">
+          <div class="panel" style="padding:10px;margin-bottom:14px;background:#fff8f0;border:1px dashed var(--line)">
+            <strong style="font-size:13px">损坏设备：</strong>
+            <span id="damagedEqName" style="margin-left:6px"></span>
+            <span id="damagedEqId" class="meta" style="margin-left:6px"></span>
+            <div id="damagedRemark" style="margin-top:6px;font-size:12px;color:var(--muted)"></div>
+          </div>
+
+          <label>故障描述 *</label>
+          <textarea name="faultDescription" required placeholder="请详细描述设备故障现象..."></textarea>
+
+          <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px">
+            <label>送修日期</label>
+            <label>预计恢复日期</label>
+            <input name="sendTime" type="date" style="grid-column:1">
+            <input name="expectedReturn" type="date" style="grid-column:2">
+            <label>维修费用（元）</label>
+            <label></label>
+            <input name="repairCost" type="number" min="0" step="0.01" placeholder="0.00" style="grid-column:1">
+          </div>
+
+          <label>备注</label>
+          <textarea name="note" placeholder="维修商、联系方式等其他信息..."></textarea>
+        </form>
+      </div>
+      <div class="actions">
+        <button id="cancelDamagedBtn" type="button" class="ghost">取消</button>
+        <button id="submitDamagedBtn" type="button" class="danger">创建维修工单</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="diffReportModal" class="modal-backdrop hidden">
+    <div class="modal wide" style="max-width:720px">
+      <header>
+        <h3>差异处理报告</h3>
+        <button id="closeDiffModal" class="ghost">×</button>
+      </header>
+      <div class="body" id="diffReportBody">
+      </div>
+      <div class="actions">
+        <button id="closeDiffBtn" type="button" class="secondary">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/js/stocktake.js"></script>
+</body>
+</html>

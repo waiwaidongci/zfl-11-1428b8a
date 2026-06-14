@@ -52,6 +52,7 @@ export async function loadDb() {
   if (!db.handovers) db.handovers = [];
   if (!db.settlements) db.settlements = [];
   if (!db.payments) db.payments = [];
+  if (!db.stocktakes) db.stocktakes = [];
 
   db.quotations = db.quotations.map((q) => {
     if (!q.versions || !Array.isArray(q.versions)) {
@@ -138,6 +139,10 @@ export function genPaymentId() {
   return `P-${Date.now().toString().slice(-6)}`;
 }
 
+export function genStocktakeId() {
+  return `ST-${Date.now().toString().slice(-6)}`;
+}
+
 let settlementFeeIdSeq = 0;
 
 export function genSettlementFeeId() {
@@ -189,6 +194,22 @@ export const REPAIR_STATUS_LABELS = {
   repairing: "维修中",
   completed: "维修完成",
   cancelled: "已取消"
+};
+
+export const STOCKTAKE_STATUSES = ["draft", "processing", "completed", "cancelled"];
+export const STOCKTAKE_STATUS_LABELS = {
+  draft: "草稿",
+  processing: "盘点中",
+  completed: "已完成",
+  cancelled: "已取消"
+};
+
+export const STOCKTAKE_RESULT_TYPES = ["normal", "missing", "damaged", "mismatch"];
+export const STOCKTAKE_RESULT_LABELS = {
+  normal: "正常",
+  missing: "丢失",
+  damaged: "损坏",
+  mismatch: "位置不符"
 };
 
 export function getActiveRepairByEquipmentId(db, equipmentId) {

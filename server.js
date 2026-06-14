@@ -67,6 +67,19 @@ import {
   deletePayment
 } from "./routes/settlements.js";
 
+import {
+  listStocktakes,
+  getStocktake,
+  createStocktake,
+  updateStocktake,
+  submitStocktake,
+  processDamaged,
+  processMissing,
+  processMismatch,
+  cancelStocktake,
+  deleteStocktake
+} from "./routes/stocktakes.js";
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const publicDir = join(__dirname, "public");
 const port = Number(process.env.PORT || 3011);
@@ -98,7 +111,7 @@ const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, `http://${req.headers.host}`);
     const p = url.pathname;
 
-    if (req.method === "GET" && (p === "/" || p === "/equipment" || p === "/customers" || p === "/quotations" || p === "/repairs" || p === "/schedule" || p === "/print" || p === "/settlement" || p.startsWith("/css/") || p.startsWith("/js/"))) {
+    if (req.method === "GET" && (p === "/" || p === "/equipment" || p === "/customers" || p === "/quotations" || p === "/repairs" || p === "/schedule" || p === "/print" || p === "/settlement" || p === "/stocktake" || p.startsWith("/css/") || p.startsWith("/js/"))) {
       const served = await serveStatic(req, res, p);
       if (served) return;
     }
@@ -279,6 +292,42 @@ const server = http.createServer(async (req, res) => {
       if (req.method === "DELETE") return deletePayment(req, res, orderId, paymentId);
     }
 
+    if (req.method === "GET" && p === "/api/stocktakes") return listStocktakes(req, res);
+    if (req.method === "POST" && p === "/api/stocktakes") return createStocktake(req, res);
+
+    const stocktakeMatch = p.match(/^\/api\/stocktakes\/([^/]+)$/);
+    if (stocktakeMatch) {
+      const id = decodeURIComponent(stocktakeMatch[1]);
+      if (req.method === "GET") return getStocktake(req, res, id);
+      if (req.method === "PATCH") return updateStocktake(req, res, id);
+      if (req.method === "DELETE") return deleteStocktake(req, res, id);
+    }
+
+    const stocktakeSubmitMatch = p.match(/^\/api\/stocktakes\/([^/]+)\/submit$/);
+    if (stocktakeSubmitMatch && req.method === "POST") {
+      return submitStocktake(req, res, decodeURIComponent(stocktakeSubmitMatch[1]));
+    }
+
+    const stocktakeCancelMatch = p.match(/^\/api\/stocktakes\/([^/]+)\/cancel$/);
+    if (stocktakeCancelMatch && req.method === "POST") {
+      return cancelStocktake(req, res, decodeURIComponent(stocktakeCancelMatch[1]));
+    }
+
+    const stocktakeDamagedMatch = p.match(/^\/api\/stocktakes\/([^/]+)\/damaged\/([^/]+)$/);
+    if (stocktakeDamagedMatch && req.method === "POST") {
+      return processDamaged(req, res, decodeURIComponent(stocktakeDamagedMatch[1]), decodeURIComponent(stocktakeDamagedMatch[2]));
+    }
+
+    const stocktakeMissingMatch = p.match(/^\/api\/stocktakes\/([^/]+)\/missing\/([^/]+)$/);
+    if (stocktakeMissingMatch && req.method === "POST") {
+      return processMissing(req, res, decodeURIComponent(stocktakeMissingMatch[1]), decodeURIComponent(stocktakeMissingMatch[2]));
+    }
+
+    const stocktakeMismatchMatch = p.match(/^\/api\/stocktakes\/([^/]+)\/mismatch\/([^/]+)$/);
+    if (stocktakeMismatchMatch && req.method === "POST") {
+      return processMismatch(req, res, decodeURIComponent(stocktakeMismatchMatch[1]), decodeURIComponent(stocktakeMismatchMatch[2]));
+    }
+
     notFound(res);
   } catch (error) {
     console.error("[server error]", error);
@@ -295,4 +344,5 @@ server.listen(port, () => {
   console.log(`  维修工单:   http://localhost:${port}/repairs`);
   console.log(`  租期排期:   http://localhost:${port}/schedule`);
   console.log(`  项目结算:   http://localhost:${port}/settlement`);
+  console.log(`  库存盘点:   http://localhost:${port}/stocktake`);
 });
