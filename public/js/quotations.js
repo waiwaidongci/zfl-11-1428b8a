@@ -390,7 +390,7 @@ function resetEditForm() {
   Object.keys(depositOverrides).forEach((k) => delete depositOverrides[k]);
   currentPreview = null;
   $("#modalTitle").textContent = "新建报价单";
-  $("#statusSelect").innerHTML = '<option value="草稿">草稿</option><option value="已确认">已确认</option>';
+  $("#statusSelect").innerHTML = '<option value="草稿">草稿</option>';
   $("#previewEmpty").classList.remove("hidden");
   $("#previewContent").classList.add("hidden");
   $("#breakdownCard").classList.add("hidden");
@@ -418,7 +418,12 @@ async function openEdit(id = null) {
       $("#discountInput").value = q.discount || 0;
       handleDiscountPreset();
       $("#noteInput").value = q.note || "";
-      $("#statusSelect").value = q.status === "已取消" ? "草稿" : (q.status === "已转订单" ? "草稿" : (q.status || "草稿"));
+      if (q.status === "已确认") {
+        $("#statusSelect").innerHTML = '<option value="已确认">已确认（由审批通过生成）</option><option value="草稿">退回草稿</option>';
+      } else {
+        $("#statusSelect").innerHTML = '<option value="草稿">草稿</option>';
+      }
+      $("#statusSelect").value = q.status === "已确认" ? "已确认" : "草稿";
 
       if (q.status === "已转订单") {
         $("#statusSelect").innerHTML = '<option value="已转订单">已转订单（不可修改）</option>';
@@ -694,7 +699,6 @@ function renderDetail(q, check) {
   if (canEdit) actions.push(`<button class="editDetailBtn ghost">✏️ 编辑</button>`);
   if (canConvert && check && check.convertible) actions.push(`<button class="convertDetailBtn secondary">📦 一键转订单</button>`);
   if (canConvert && check && !check.convertible) actions.push(`<button class="convertDetailBtn secondary" disabled style="opacity:.5;cursor:not-allowed">📦 无法转订单</button>`);
-  if (q.status === "草稿") actions.push(`<button class="confirmDetailBtn">✅ 确认报价</button>`);
   if (q.status === "草稿" || q.status === "已确认") actions.push(`<button class="cancelDetailBtn danger">🚫 取消报价</button>`);
   if (canDelete) actions.push(`<button class="deleteDetailBtn ghost">🗑 删除</button>`);
   actions.push(`<button id="detailCloseBtn" class="ghost">关闭</button>`);
@@ -703,22 +707,12 @@ function renderDetail(q, check) {
 
   const editBtn = $(".editDetailBtn");
   const convertBtn = $(".convertDetailBtn");
-  const confirmBtn = $(".confirmDetailBtn");
   const cancelBtn = $(".cancelDetailBtn");
   const deleteBtn = $(".deleteDetailBtn");
   const closeBtn = $("#detailCloseBtn");
 
   if (editBtn) editBtn.onclick = () => { closeDetail(); openEdit(q.id); };
   if (convertBtn && !convertBtn.disabled) convertBtn.onclick = () => handleConvertClick(q.id);
-  if (confirmBtn) confirmBtn.onclick = async () => {
-    if (!confirm("确认将此报价单标记为「已确认」？确认后即可转订单。")) return;
-    try {
-      await Quotations.update(q.id, { status: "已确认" });
-      showToast("报价单已确认");
-      await load();
-      openDetail(q.id);
-    } catch (err) { showToast(err.message, "error"); }
-  };
   if (cancelBtn) cancelBtn.onclick = async () => {
     if (!confirm("确定取消此报价单？取消后不能恢复。")) return;
     try {

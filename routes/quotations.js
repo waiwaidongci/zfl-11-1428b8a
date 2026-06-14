@@ -378,6 +378,14 @@ function validateQuoteInput(input) {
   return errors;
 }
 
+function isCurrentVersionApproved(quote) {
+  return quote.approvedVersionId != null &&
+    quote.currentVersionId === quote.approvedVersionId &&
+    (quote.versions || []).some(
+      (v) => v.versionId === quote.currentVersionId && v.approvalStatus === "approved"
+    );
+}
+
 export async function createQuotation(req, res) {
   const db = await loadDb();
   const input = await parseBody(req);
@@ -386,8 +394,6 @@ export async function createQuotation(req, res) {
   if (errors.length) {
     return sendJson(res, 400, { error: errors.join("；") });
   }
-
-  const status = QUOTE_STATUSES.includes(input.status) ? input.status : "草稿";
 
   const quotation = {
     id: input.id?.trim() || genQuotationId(),
@@ -398,7 +404,7 @@ export async function createQuotation(req, res) {
     itemIds: [...new Set(input.itemIds.filter(Boolean))],
     discount: input.discount != null ? Number(input.discount) : 0,
     depositOverride: input.depositOverride || {},
-    status,
+    status: "草稿",
     note: input.note?.trim() || "",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
@@ -494,6 +500,10 @@ export async function updateQuotation(req, res, id) {
   }
 
   const keyFieldsChanged = hasKeyFieldChanged(current, merged);
+
+  if (input.status === "已确认" && !keyFieldsChanged && !isCurrentVersionApproved(merged)) {
+    return sendJson(res, 400, { error: "只有当前版本审批通过后才能确认报价单" });
+  }
 
   if (keyFieldsChanged) {
     const versions = current.versions || [];
