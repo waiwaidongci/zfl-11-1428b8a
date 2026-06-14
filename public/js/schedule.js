@@ -92,11 +92,16 @@ function renderStats(data) {
     const allDaysAvailable = data.dates.every((d) => eq.dailyStatus[d]?.available);
     return allDaysAvailable;
   }).length;
-  const hasConflict = data.equipment.filter((eq) => {
-    const dayStatuses = data.dates.map((d) => eq.dailyStatus[d]).filter(Boolean);
-    const statusTypes = new Set(dayStatuses.flatMap((s) => s.statuses.map((st) => st.blockType)));
-    return statusTypes.size > 1;
-  }).length;
+  const conflictDays = data.equipment.reduce((sum, eq) => {
+    let count = 0;
+    for (const d of data.dates) {
+      const ds = eq.dailyStatus[d];
+      if (ds && ds.statuses && ds.statuses.length > 1) {
+        count++;
+      }
+    }
+    return sum + count;
+  }, 0);
 
   const totalBlocks = data.equipment.reduce((sum, eq) => sum + eq.blocks.length, 0);
 
@@ -104,7 +109,7 @@ function renderStats(data) {
     <div class="stat"><span>设备总数</span><strong>${total}</strong></div>
     <div class="stat"><span>全期可租</span><strong>${available}</strong></div>
     <div class="stat"><span>占用块数</span><strong>${totalBlocks}</strong></div>
-    <div class="stat"><span>状态冲突</span><strong>${hasConflict}</strong></div>
+    <div class="stat"><span>冲突天数</span><strong>${conflictDays}</strong></div>
   `;
 }
 
@@ -231,9 +236,9 @@ function openBlockDetail(el) {
   detailTitle.textContent = (typeLabels[type] || "详情") + " " + id;
 
   let gotoUrl = "";
-  if (type === "order") gotoUrl = "/";
-  else if (type === "quotation") gotoUrl = "/quotations";
-  else if (type === "repair") gotoUrl = "/repairs";
+  if (type === "order") gotoUrl = `/?id=${encodeURIComponent(id)}`;
+  else if (type === "quotation") gotoUrl = `/quotations?id=${encodeURIComponent(id)}`;
+  else if (type === "repair") gotoUrl = `/repairs?id=${encodeURIComponent(id)}`;
 
   detailBody.innerHTML = `
     <table class="detail-table">
@@ -266,9 +271,9 @@ function openCellDetail(eqId, date, dailyStatus) {
   for (const s of dailyStatus.statuses) {
     const typeLabels = { order: "订单", quotation: "报价单", repair: "维修" };
     let gotoUrl = "";
-    if (s.type === "order") gotoUrl = "/";
-    else if (s.type === "quotation") gotoUrl = "/quotations";
-    else if (s.type === "repair") gotoUrl = "/repairs";
+    if (s.type === "order") gotoUrl = `/?id=${encodeURIComponent(s.id)}`;
+    else if (s.type === "quotation") gotoUrl = `/quotations?id=${encodeURIComponent(s.id)}`;
+    else if (s.type === "repair") gotoUrl = `/repairs?id=${encodeURIComponent(s.id)}`;
 
     rows += `<tr>
       <td>${typeLabels[s.type] || s.type}</td>

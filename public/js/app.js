@@ -328,6 +328,12 @@ async function load() {
     renderCategoryFilters();
     renderCustomerOptions();
     render();
+
+    const params = new URLSearchParams(window.location.search);
+    const orderId = params.get("id");
+    if (orderId) {
+      setTimeout(() => openOrderDetail(orderId), 100);
+    }
   } catch (err) {
     showToast(err.message, "error");
   }

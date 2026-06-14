@@ -749,6 +749,12 @@ async function load() {
     renderCustomerOptions();
     renderStats();
     renderGrid();
+
+    const params = new URLSearchParams(window.location.search);
+    const quoteId = params.get("id");
+    if (quoteId) {
+      setTimeout(() => openDetail(quoteId), 100);
+    }
   } catch (err) {
     showToast(err.message, "error");
   }

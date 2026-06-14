@@ -367,8 +367,12 @@ document.addEventListener("keydown", (e) => {
 });
 
 const params = new URLSearchParams(location.search);
-if (params.get("equipment")) {
-  load().then(() => openCreate(params.get("equipment")));
+const equipmentParam = params.get("equipment");
+const idParam = params.get("id");
+if (equipmentParam) {
+  load().then(() => openCreate(equipmentParam));
+} else if (idParam) {
+  load().then(() => openEdit(idParam));
 } else {
   load();
 }
