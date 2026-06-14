@@ -9,6 +9,7 @@ let allCustomers = [];
 let allOrders = [];
 
 const selectedItems = new Set();
+const depositOverrides = {};
 let editingId = null;
 let currentPreview = null;
 let currentDetailId = null;
@@ -160,7 +161,13 @@ function renderItems() {
 
   $$(".item").forEach((el) => {
     el.onclick = () => {
-      selectedItems.has(el.dataset.id) ? selectedItems.delete(el.dataset.id) : selectedItems.add(el.dataset.id);
+      const id = el.dataset.id;
+      if (selectedItems.has(id)) {
+        selectedItems.delete(id);
+        delete depositOverrides[id];
+      } else {
+        selectedItems.add(id);
+      }
       renderSelection();
       renderItems();
       schedulePreview();
@@ -256,7 +263,8 @@ async function runPreview() {
 
   try {
     const summary = await Quotations.preview({
-      itemIds, startDate: start, endDate: end, discount
+      itemIds, startDate: start, endDate: end, discount,
+      depositOverride: { ...depositOverrides }
     });
     currentPreview = summary;
     renderPreview(summary);
@@ -279,25 +287,74 @@ function renderPreview(summary) {
   $("#sumTotal").textContent = fmtMoney(summary.grandTotal);
 
   $("#breakdownBody").innerHTML = summary.itemBreakdown
-    .map((it) => `
-      <div class="breakdown-item">
+    .map((it) => {
+      const curDeposit = (depositOverrides[it.id] && depositOverrides[it.id].deposit != null)
+        ? depositOverrides[it.id].deposit
+        : it.deposit;
+      const isOverridden = depositOverrides[it.id] && depositOverrides[it.id].deposit != null && depositOverrides[it.id].deposit !== it.deposit;
+      return `
+      <div class="breakdown-item" data-item-id="${escapeHtml(it.id)}">
         <div class="bd-head">
           <span>${escapeHtml(it.name)} <span class="meta">(${escapeHtml(it.id)})</span></span>
           <span class="bd-daily">¥${fmtMoney(it.subtotal)}</span>
         </div>
         <div class="bd-sub">
           <span>¥${fmtMoney(it.daily)} × ${summary.rentalDays}天</span>
-          <span>押金 ¥${fmtMoney(it.deposit)}</span>
+        </div>
+        <div class="bd-deposit-row">
+          <label class="bd-deposit-label">押金</label>
+          <div class="bd-deposit-input-wrap">
+            <span class="bd-deposit-prefix">¥</span>
+            <input type="number" min="0" step="10"
+              class="bd-deposit-input ${isOverridden ? 'overridden' : ''}"
+              data-item-id="${escapeHtml(it.id)}"
+              data-default="${it.deposit}"
+              value="${curDeposit}"
+              title="默认押金 ¥${fmtMoney(it.deposit)}${isOverridden ? '（已修改）' : ''}">
+            ${isOverridden ? `<button class="bd-deposit-reset ghost small" data-item-id="${escapeHtml(it.id)}" title="恢复默认押金 ¥${fmtMoney(it.deposit)}">↺</button>` : ''}
+          </div>
         </div>
       </div>
-    `)
+    `})
     .join("");
+
+  $$(".bd-deposit-input").forEach((inp) => {
+    inp.onchange = () => {
+      const id = inp.dataset.itemId;
+      const defVal = Number(inp.dataset.default || 0);
+      const val = Number(inp.value);
+      if (Number.isNaN(val) || val < 0) {
+        depositOverrides[id] = { deposit: defVal };
+        inp.value = defVal;
+        showToast("押金不能为负数", "error");
+      } else {
+        depositOverrides[id] = { deposit: val };
+      }
+      inp.classList.toggle("overridden", depositOverrides[id].deposit !== defVal);
+      schedulePreview();
+    };
+    inp.oninput = () => {
+      const id = inp.dataset.itemId;
+      const defVal = Number(inp.dataset.default || 0);
+      const val = Number(inp.value);
+      inp.classList.toggle("overridden", !Number.isNaN(val) && val >= 0 && val !== defVal);
+    };
+  });
+
+  $$(".bd-deposit-reset").forEach((btn) => {
+    btn.onclick = () => {
+      const id = btn.dataset.itemId;
+      delete depositOverrides[id];
+      schedulePreview();
+    };
+  });
 }
 
 function resetEditForm() {
   editingId = null;
   $("#quoteForm").reset();
   selectedItems.clear();
+  Object.keys(depositOverrides).forEach((k) => delete depositOverrides[k]);
   currentPreview = null;
   $("#modalTitle").textContent = "新建报价单";
   $("#statusSelect").innerHTML = '<option value="草稿">草稿</option><option value="已确认">已确认</option>';
@@ -341,6 +398,12 @@ async function openEdit(id = null) {
       selectedItems.clear();
       (q.itemIds || []).forEach((iid) => selectedItems.add(iid));
 
+      if (q.depositOverride && typeof q.depositOverride === "object") {
+        Object.keys(q.depositOverride).forEach((iid) => {
+          depositOverrides[iid] = { ...q.depositOverride[iid] };
+        });
+      }
+
       const cust = allCustomers.find((c) => c.name === q.customer);
       if (cust) {
         $("#customerSelect").value = cust.id;
@@ -368,6 +431,11 @@ async function submitQuote() {
   const form = $("#quoteForm");
   const data = Object.fromEntries(new FormData(form).entries());
   data.itemIds = [...selectedItems];
+
+  Object.keys(depositOverrides).forEach((iid) => {
+    if (!data.itemIds.includes(iid)) delete depositOverrides[iid];
+  });
+  data.depositOverride = { ...depositOverrides };
 
   if (!data.customer || !data.customer.trim()) {
     showToast("请填写客户名称", "error");
