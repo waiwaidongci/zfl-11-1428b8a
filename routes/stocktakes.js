@@ -212,6 +212,9 @@ export async function processDamaged(req, res, id, equipmentId) {
   const db = await loadDb();
   const stocktake = (db.stocktakes || []).find((s) => s.id === id);
   if (!stocktake) return sendJson(res, 404, { error: "stocktake_not_found" });
+  if (stocktake.status !== "completed") {
+    return sendJson(res, 400, { error: "只有已提交的盘点才能处理差异" });
+  }
 
   const item = stocktake.items.find((i) => i.equipmentId === equipmentId);
   if (!item) return sendJson(res, 404, { error: "item_not_found" });
@@ -271,6 +274,9 @@ export async function processMissing(req, res, id, equipmentId) {
   const db = await loadDb();
   const stocktake = (db.stocktakes || []).find((s) => s.id === id);
   if (!stocktake) return sendJson(res, 404, { error: "stocktake_not_found" });
+  if (stocktake.status !== "completed") {
+    return sendJson(res, 400, { error: "只有已提交的盘点才能处理差异" });
+  }
 
   const item = stocktake.items.find((i) => i.equipmentId === equipmentId);
   if (!item) return sendJson(res, 404, { error: "item_not_found" });
@@ -300,6 +306,9 @@ export async function processMismatch(req, res, id, equipmentId) {
   const db = await loadDb();
   const stocktake = (db.stocktakes || []).find((s) => s.id === id);
   if (!stocktake) return sendJson(res, 404, { error: "stocktake_not_found" });
+  if (stocktake.status !== "completed") {
+    return sendJson(res, 400, { error: "只有已提交的盘点才能处理差异" });
+  }
 
   const item = stocktake.items.find((i) => i.equipmentId === equipmentId);
   if (!item) return sendJson(res, 404, { error: "item_not_found" });

@@ -266,7 +266,8 @@ function renderDetail() {
   detailItems.innerHTML = items
     .map((item, index) => {
       const eq = item.equipment || {};
-      const isLocked = s.status !== "processing";
+      const canEdit = s.status === "processing";
+      const canProcess = s.status === "completed";
       const condLabel = { available: "在库可用", repair: "维修中", rented: "租赁中", missing: "已丢失" }[eq.condition] || eq.condition;
 
       return `
@@ -300,10 +301,10 @@ function renderDetail() {
         ${item.linkedRepairId ? `<div class="linked-repair">关联工单：<a href="/repairs?id=${item.linkedRepairId}" target="_blank">${item.linkedRepairId}</a></div>` : ""}
       </div>
       <div class="item-actions">
-        ${!isLocked ? `<button class="secondary small" data-action="edit">记录结果</button>` : ""}
-        ${isLocked && item.result === "damaged" && !item.processed ? `<button class="danger small" data-action="repair">转维修</button>` : ""}
-        ${isLocked && item.result === "missing" && !item.processed ? `<button class="danger small" data-action="missing">冻结库存</button>` : ""}
-        ${isLocked && item.result === "mismatch" && !item.processed ? `<button class="secondary small" data-action="mismatch">回写位置</button>` : ""}
+        ${canEdit ? `<button class="secondary small" data-action="edit">记录结果</button>` : ""}
+        ${canProcess && item.result === "damaged" && !item.processed ? `<button class="danger small" data-action="repair">转维修</button>` : ""}
+        ${canProcess && item.result === "missing" && !item.processed ? `<button class="danger small" data-action="missing">冻结库存</button>` : ""}
+        ${canProcess && item.result === "mismatch" && !item.processed ? `<button class="secondary small" data-action="mismatch">回写位置</button>` : ""}
       </div>
     </div>
   `;
