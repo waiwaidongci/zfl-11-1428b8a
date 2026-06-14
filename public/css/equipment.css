@@ -398,6 +398,44 @@ button:disabled {
   font-size: 12px;
 }
 
+.preview-hint {
+  padding: 10px 14px;
+  background: #fbf4e3;
+  border: 1px solid #e5d3a3;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--yellow);
+  margin-bottom: 14px;
+}
+
+.preview-hint strong {
+  color: var(--yellow);
+  font-weight: 700;
+}
+
+.preview-table tbody tr.has-default {
+  background: #fdf9ef;
+}
+
+.preview-table .cell-default {
+  color: var(--muted);
+  font-style: italic;
+  position: relative;
+}
+
+.default-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  margin-right: 4px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  background: #f0d78a;
+  color: #6a4e10;
+  font-style: normal;
+  vertical-align: middle;
+}
+
 .dropdown-menu {
   position: fixed;
   z-index: 150;

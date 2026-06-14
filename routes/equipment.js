@@ -83,6 +83,15 @@ function normalizeRecord(raw) {
   return record;
 }
 
+function getRawFieldKeys(raw) {
+  const keys = new Set();
+  for (const key of Object.keys(raw)) {
+    const mapped = FIELD_ALIASES[key] || key;
+    keys.add(mapped);
+  }
+  return keys;
+}
+
 function validateRecords(records, existingIds) {
   const seenIds = new Set();
   const valid = [];
@@ -90,16 +99,17 @@ function validateRecords(records, existingIds) {
   const missing = [];
 
   records.forEach((raw, index) => {
+    const rawKeys = getRawFieldKeys(raw);
     const record = normalizeRecord(raw);
     const rowNum = index + 2;
 
-    const missingFields = [];
-    if (!record.id) missingFields.push("id(设备编号)");
-    if (!record.name) missingFields.push("name(设备名称)");
-    if (!record.category) missingFields.push("category(设备类别)");
+    const missingRequiredFields = [];
+    if (!record.id) missingRequiredFields.push("id(设备编号)");
+    if (!record.name) missingRequiredFields.push("name(设备名称)");
+    if (!record.category) missingRequiredFields.push("category(设备类别)");
 
-    if (missingFields.length > 0) {
-      missing.push({ row: rowNum, record, fields: missingFields });
+    if (missingRequiredFields.length > 0) {
+      missing.push({ row: rowNum, record, fields: missingRequiredFields });
       return;
     }
 
@@ -114,8 +124,19 @@ function validateRecords(records, existingIds) {
       return;
     }
 
+    const missingOptional = [];
+    if (!rawKeys.has("spec") || raw.spec === undefined || raw.spec === null || (typeof raw.spec === "string" && raw.spec.trim() === "")) {
+      missingOptional.push({ field: "spec", label: "规格参数", defaultValue: "(空)" });
+    }
+    if (!rawKeys.has("location") || raw.location === undefined || raw.location === null || (typeof raw.location === "string" && raw.location.trim() === "")) {
+      missingOptional.push({ field: "location", label: "存放位置", defaultValue: "未指定" });
+    }
+    if (!rawKeys.has("condition") || raw.condition === undefined || raw.condition === null || (typeof raw.condition === "string" && raw.condition.trim() === "")) {
+      missingOptional.push({ field: "condition", label: "设备状态", defaultValue: "在库可用" });
+    }
+
     seenIds.add(record.id);
-    valid.push({ row: rowNum, record });
+    valid.push({ row: rowNum, record, missingOptional });
   });
 
   return { valid, duplicates, missing };

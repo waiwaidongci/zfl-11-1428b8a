@@ -456,6 +456,14 @@ function backToStep1() {
 
 function renderImportPreview(r) {
   const COND_LABEL = { available: "在库可用", repair: "维修中" };
+
+  let optionalMissingCount = 0;
+  r.valid.forEach((v) => {
+    if (v.missingOptional && v.missingOptional.length > 0) {
+      optionalMissingCount++;
+    }
+  });
+
   $("importSummary").innerHTML = `
     <div class="summary-row">
       <div class="summary-card ok"><span>可写入</span><strong>${r.validCount}</strong></div>
@@ -463,6 +471,7 @@ function renderImportPreview(r) {
       <div class="summary-card err"><span>字段缺失</span><strong>${r.missingCount}</strong></div>
       <div class="summary-card info"><span>总计</span><strong>${r.total}</strong></div>
     </div>
+    ${optionalMissingCount > 0 ? `<div class="preview-hint">⚠️ 有 <strong>${optionalMissingCount}</strong> 条记录的可选字段使用了默认值，请在下表中查看黄色标记的单元格</div>` : ""}
   `;
   $("validCount").textContent = r.validCount;
   $("duplicateCount").textContent = r.duplicateCount;
@@ -470,17 +479,37 @@ function renderImportPreview(r) {
 
   const validBody = $("validTable").querySelector("tbody");
   validBody.innerHTML = r.valid.length
-    ? r.valid.map(({ row, record }) => `
-        <tr>
+    ? r.valid.map(({ row, record, missingOptional }) => {
+        const missMap = {};
+        (missingOptional || []).forEach((m) => { missMap[m.field] = m; });
+
+        const hasMissing = (missingOptional || []).length > 0;
+        const rowClass = hasMissing ? 'class="has-default"' : "";
+
+        const specCell = missMap.spec
+          ? `<td class="cell-default" title="字段缺失，使用默认值 ${missMap.spec.defaultValue}"><span class="default-badge">默认</span> ${escapeHtml(record.spec || "-")}</td>`
+          : `<td>${escapeHtml(record.spec || "-")}</td>`;
+
+        const locationCell = missMap.location
+          ? `<td class="cell-default" title="字段缺失，使用默认值 ${missMap.location.defaultValue}"><span class="default-badge">默认</span> ${escapeHtml(record.location || "-")}</td>`
+          : `<td>${escapeHtml(record.location || "-")}</td>`;
+
+        const conditionCell = missMap.condition
+          ? `<td class="cell-default" title="字段缺失，使用默认值 ${missMap.condition.defaultValue}"><span class="default-badge">默认</span> <span class="badge ${record.condition}">${COND_LABEL[record.condition] || record.condition}</span></td>`
+          : `<td><span class="badge ${record.condition}">${COND_LABEL[record.condition] || record.condition}</span></td>`;
+
+        return `
+        <tr ${rowClass}>
           <td>${row}</td>
           <td class="mono">${escapeHtml(record.id)}</td>
           <td>${escapeHtml(record.name)}</td>
           <td>${escapeHtml(record.category)}</td>
-          <td>${escapeHtml(record.spec || "-")}</td>
-          <td>${escapeHtml(record.location || "-")}</td>
-          <td><span class="badge ${record.condition}">${COND_LABEL[record.condition] || record.condition}</span></td>
+          ${specCell}
+          ${locationCell}
+          ${conditionCell}
         </tr>
-      `).join("")
+      `;
+      }).join("")
     : `<tr><td colspan="7" class="empty-row">无可写入记录</td></tr>`;
 
   const dupBody = $("duplicateTable").querySelector("tbody");
