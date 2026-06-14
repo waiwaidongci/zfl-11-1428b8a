@@ -868,7 +868,7 @@
       "status": "draft",
       "fees": [
         {
-          "id": "SF-678084",
+          "id": "SF-678084-001",
           "type": "rental",
           "amount": 1620,
           "description": "报价单 Q-891569 租金",
@@ -878,7 +878,7 @@
           "updatedAt": "2026-06-14T12:21:18.084Z"
         },
         {
-          "id": "SF-678084",
+          "id": "SF-678084-002",
           "type": "deposit",
           "amount": 3000,
           "description": "报价单 Q-891569 押金",
@@ -888,7 +888,7 @@
           "updatedAt": "2026-06-14T12:21:18.084Z"
         },
         {
-          "id": "SF-678084",
+          "id": "SF-678084-003",
           "type": "discount",
           "amount": 162,
           "description": "报价单 Q-891569 优惠",

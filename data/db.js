@@ -138,8 +138,11 @@ export function genPaymentId() {
   return `P-${Date.now().toString().slice(-6)}`;
 }
 
+let settlementFeeIdSeq = 0;
+
 export function genSettlementFeeId() {
-  return `SF-${Date.now().toString().slice(-6)}`;
+  settlementFeeIdSeq = (settlementFeeIdSeq + 1) % 1000;
+  return `SF-${Date.now().toString().slice(-6)}-${String(settlementFeeIdSeq).padStart(3, "0")}`;
 }
 
 export const VERSION_APPROVAL_STATUSES = ["pending", "approved", "rejected", "superseded"];
