@@ -6,6 +6,7 @@ let currentOrderId = null;
 let currentSettlement = null;
 let editingFeeId = null;
 let editingPaymentId = null;
+let customerFilterFromUrl = "";
 
 const orderListEl = document.getElementById("orderList");
 const noSelectionEl = document.getElementById("noSelection");
@@ -15,9 +16,14 @@ const settlementStatusFilterEl = document.getElementById("settlementStatusFilter
 
 async function loadOrders() {
   try {
-    orders = await Orders.list();
+    const params = new URLSearchParams(window.location.search);
+    customerFilterFromUrl = params.get("customer") || "";
+
+    const orderParams = customerFilterFromUrl ? { customer: customerFilterFromUrl } : null;
+    orders = await Orders.list(orderParams);
     try {
-      settlements = await Settlements.list();
+      const settlementParams = customerFilterFromUrl ? { customer: customerFilterFromUrl } : null;
+      settlements = await Settlements.list(settlementParams);
     } catch {
       settlements = [];
     }
@@ -33,6 +39,10 @@ function renderOrderList() {
 
   let visible = [...orders];
 
+  if (customerFilterFromUrl) {
+    visible = visible.filter((o) => (o.customer || "") === customerFilterFromUrl);
+  }
+
   if (statusFilter) {
     visible = visible.filter((o) => o.status === statusFilter);
   }
@@ -47,7 +57,10 @@ function renderOrderList() {
   }
 
   if (!visible.length) {
-    orderListEl.innerHTML = `<div style="text-align:center;padding:30px;color:var(--muted)">暂无匹配订单</div>`;
+    const emptyTip = customerFilterFromUrl
+      ? `<div style="text-align:center;padding:30px;color:var(--muted)">客户「${escapeHtml(customerFilterFromUrl)}」暂无结算订单 · <a href="/settlement" style="color:var(--blue)">显示全部</a></div>`
+      : `<div style="text-align:center;padding:30px;color:var(--muted)">暂无匹配订单</div>`;
+    orderListEl.innerHTML = emptyTip;
     return;
   }
 

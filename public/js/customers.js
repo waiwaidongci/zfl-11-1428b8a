@@ -67,7 +67,14 @@ function renderList() {
 
   grid.innerHTML = data
     .map(
-      (c) => `
+      (c) => {
+        const ov = c.overview || {};
+        const customerParam = encodeURIComponent(c.name);
+        const quotationLink = `/quotations?customer=${customerParam}`;
+        const orderLink = `/?customer=${customerParam}`;
+        const settlementLink = `/settlement?customer=${customerParam}`;
+
+        return `
     <article class="cust-card" data-id="${c.id}">
       <div class="cust-head">
         <div>
@@ -92,15 +99,42 @@ function renderList() {
             : ""
         }
       </div>
+      <div class="cust-overview">
+        <div class="overview-title">业务概览</div>
+        <div class="overview-grid">
+          <a class="overview-item" href="${quotationLink}" title="查看该客户报价单">
+            <span class="ov-label">报价单</span>
+            <strong class="ov-value">${ov.quotationCount || 0}</strong>
+          </a>
+          <a class="overview-item" href="${orderLink}" title="查看该客户订单">
+            <span class="ov-label">已转订单</span>
+            <strong class="ov-value">${ov.convertedQuotationCount || 0}</strong>
+          </a>
+          <div class="overview-item">
+            <span class="ov-label">最近租赁</span>
+            <strong class="ov-value ov-date">${ov.lastRentalDate ? escapeHtml(ov.lastRentalDate) : "—"}</strong>
+          </div>
+          <a class="overview-item ${ov.unsettledAmount > 0 ? "ov-warning" : ""}" href="${settlementLink}" title="查看该客户结算">
+            <span class="ov-label">未结金额</span>
+            <strong class="ov-value">${ov.unsettledAmount > 0 ? "¥" + Number(ov.unsettledAmount).toFixed(2) : "¥0.00"}</strong>
+          </a>
+        </div>
+      </div>
       <div class="cust-note">${c.note ? escapeHtml(c.note) : '<span class="no-note">暂无备注</span>'}</div>
       <div class="cust-foot">
+        <div class="cust-links">
+          <a class="link-btn" href="${quotationLink}">📄 报价</a>
+          <a class="link-btn" href="${orderLink}">📦 订单</a>
+          <a class="link-btn" href="${settlementLink}">💰 结算</a>
+        </div>
         <div class="cust-actions">
           <button class="secondary small" data-action="edit">编辑</button>
           <button class="danger small" data-action="delete">删除</button>
         </div>
       </div>
     </article>
-  `
+  `;
+      }
     )
     .join("");
 

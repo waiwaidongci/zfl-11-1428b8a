@@ -20,6 +20,7 @@ const selected = new Set();
 let equipment = [];
 let orders = [];
 let customers = [];
+let customerFilterFromUrl = "";
 
 function occupied(id, start, end) {
   if (!start || !end) return false;
@@ -118,6 +119,10 @@ function renderOrders() {
   const cat = categoryFilter.value;
   let visible = status ? orders.filter((o) => o.status === status) : [...orders];
 
+  if (customerFilterFromUrl) {
+    visible = visible.filter((o) => (o.customer || "") === customerFilterFromUrl);
+  }
+
   if (cat) {
     visible = visible.filter((o) =>
       o.itemIds.some((id) => {
@@ -128,7 +133,10 @@ function renderOrders() {
   }
 
   if (!visible.length) {
-    ordersEl.innerHTML = `<div style="padding:30px;text-align:center;color:var(--muted);grid-column:1/-1">暂无匹配订单</div>`;
+    const filterTip = customerFilterFromUrl
+      ? `<div style="padding:30px;text-align:center;color:var(--muted);grid-column:1/-1">客户「${escapeHtml(customerFilterFromUrl)}」暂无订单 · <a href="/" style="color:var(--blue)">显示全部</a></div>`
+      : `<div style="padding:30px;text-align:center;color:var(--muted);grid-column:1/-1">暂无匹配订单</div>`;
+    ordersEl.innerHTML = filterTip;
     return;
   }
 
@@ -748,16 +756,19 @@ function render() {
 
 async function load() {
   try {
+    const params = new URLSearchParams(window.location.search);
+    customerFilterFromUrl = params.get("customer") || "";
+
+    const orderParams = customerFilterFromUrl ? { customer: customerFilterFromUrl } : null;
     [equipment, orders, customers] = await Promise.all([
       Equipment.list(),
-      Orders.list(),
+      Orders.list(orderParams),
       Customers.list()
     ]);
     renderCategoryFilters();
     renderCustomerOptions();
     render();
 
-    const params = new URLSearchParams(window.location.search);
     const orderId = params.get("id");
     if (orderId) {
       setTimeout(() => openOrderDetail(orderId), 100);

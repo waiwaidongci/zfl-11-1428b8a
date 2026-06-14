@@ -1,16 +1,105 @@
 import { loadDb, saveDb, genCustomerId } from "../data/db.js";
 import { sendJson, parseBody } from "../lib/http.js";
 
+function calcCustomerOverview(db, customer) {
+  const customerName = customer.name;
+
+  const quotations = (db.quotations || []).filter(
+    (q) => (q.customer || "") === customerName
+  );
+  const quotationCount = quotations.length;
+  const convertedQuotationCount = quotations.filter(
+    (q) => q.status === "已转订单"
+  ).length;
+
+  const orders = (db.orders || []).filter(
+    (o) => (o.customer || "") === customerName
+  );
+  const orderCount = orders.length;
+
+  let lastRentalDate = "";
+  if (orders.length) {
+    const allDates = orders
+      .flatMap((o) => [o.startDate, o.endDate, o.returnTime, o.checkoutTime])
+      .filter(Boolean)
+      .sort();
+    if (allDates.length) {
+      lastRentalDate = allDates[allDates.length - 1].split("T")[0];
+    }
+  }
+
+  let unsettledAmount = 0;
+  const settlements = db.settlements || [];
+  const payments = db.payments || [];
+  for (const s of settlements) {
+    const order = db.orders.find((o) => o.id === s.orderId);
+    if (!order || order.customer !== customerName) continue;
+    if (order.status === "已取消") continue;
+
+    const fees = s.fees || [];
+    const rentalFee = fees
+      .filter((f) => f.type === "rental")
+      .reduce((sum, f) => sum + Number(f.amount) || 0, 0);
+    const transportFee = fees
+      .filter((f) => f.type === "transport")
+      .reduce((sum, f) => sum + Number(f.amount) || 0, 0);
+    const laborFee = fees
+      .filter((f) => f.type === "labor")
+      .reduce((sum, f) => sum + Number(f.amount) || 0, 0);
+    const setupFee = fees
+      .filter((f) => f.type === "setup")
+      .reduce((sum, f) => sum + Number(f.amount) || 0, 0);
+    const compensationFee = fees
+      .filter((f) => f.type === "compensation")
+      .reduce((sum, f) => sum + Number(f.amount) || 0, 0);
+    const discountFee = fees
+      .filter((f) => f.type === "discount")
+      .reduce((sum, f) => sum + Number(f.amount) || 0, 0);
+
+    const receivableTotal =
+      rentalFee + transportFee + laborFee + setupFee + compensationFee - discountFee;
+
+    const totalPaid = payments
+      .filter(
+        (p) =>
+          p.settlementId === s.id &&
+          (p.type === "payment" || p.type === "deposit_deduction")
+      )
+      .reduce((sum, p) => sum + Number(p.amount) || 0, 0);
+
+    const balanceDue = receivableTotal - totalPaid;
+    if (balanceDue > 0.01) {
+      unsettledAmount += balanceDue;
+    }
+  }
+
+  return {
+    quotationCount,
+    convertedQuotationCount,
+    orderCount,
+    lastRentalDate,
+    unsettledAmount: Math.round(unsettledAmount * 100) / 100
+  };
+}
+
+function buildCustomerPayload(db, customer) {
+  return {
+    ...customer,
+    overview: calcCustomerOverview(db, customer)
+  };
+}
+
 export async function listCustomers(req, res) {
   const db = await loadDb();
-  return sendJson(res, 200, db.customers || []);
+  const list = (db.customers || []).map((c) => buildCustomerPayload(db, c));
+  return sendJson(res, 200, list);
 }
 
 export async function getCustomer(req, res, id) {
   const db = await loadDb();
   const customer = (db.customers || []).find((c) => c.id === id);
   if (!customer) return sendJson(res, 404, { error: "customer_not_found" });
-  return sendJson(res, 200, customer);
+  return sendJson(res, 200, buildCustomerPayload(db, customer));
 }
 
 export async function createCustomer(req, res) {
@@ -38,7 +127,7 @@ export async function createCustomer(req, res) {
   db.customers = db.customers || [];
   db.customers.unshift(customer);
   await saveDb(db);
-  return sendJson(res, 201, customer);
+  return sendJson(res, 201, buildCustomerPayload(db, customer));
 }
 
 export async function updateCustomer(req, res, id) {
@@ -67,7 +156,7 @@ export async function updateCustomer(req, res, id) {
 
   db.customers[idx] = { ...current, ...input };
   await saveDb(db);
-  return sendJson(res, 200, db.customers[idx]);
+  return sendJson(res, 200, buildCustomerPayload(db, db.customers[idx]));
 }
 
 export async function deleteCustomer(req, res, id) {

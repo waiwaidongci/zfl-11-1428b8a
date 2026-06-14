@@ -3,7 +3,12 @@ import { sendJson, parseBody } from "../lib/http.js";
 
 export async function listOrders(req, res) {
   const db = await loadDb();
-  return sendJson(res, 200, db.orders);
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const customer = url.searchParams.get("customer");
+
+  let list = [...db.orders];
+  if (customer) list = list.filter((o) => (o.customer || "").includes(customer));
+  return sendJson(res, 200, list);
 }
 
 export async function createOrder(req, res) {

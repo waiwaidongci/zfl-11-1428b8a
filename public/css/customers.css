@@ -96,11 +96,113 @@
   font-style: italic;
 }
 
+.cust-card .cust-overview {
+  background: linear-gradient(135deg, #f8faf8 0%, #f0f6f0 100%);
+  border: 1px solid #e4ece4;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.cust-card .overview-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #4a664a;
+  margin-bottom: 8px;
+  letter-spacing: 0.5px;
+}
+
+.cust-card .overview-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.cust-card .overview-item {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid #e4ece4;
+  border-radius: 6px;
+  padding: 6px 8px;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.cust-card a.overview-item:hover {
+  border-color: var(--blue);
+  background: #f5f9ff;
+  transform: translateY(-1px);
+}
+
+.cust-card a.overview-item.ov-warning {
+  border-color: #f5d5a8;
+  background: #fffaf2;
+}
+
+.cust-card a.overview-item.ov-warning:hover {
+  border-color: var(--orange);
+  background: #fff3e0;
+}
+
+.cust-card .overview-item .ov-label {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.cust-card .overview-item .ov-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+  margin-top: 2px;
+}
+
+.cust-card .overview-item.ov-warning .ov-value {
+  color: #d17a1a;
+}
+
+.cust-card .overview-item .ov-value.ov-date {
+  font-size: 12px;
+  font-weight: 600;
+  color: #4a664a;
+}
+
 .cust-card .cust-foot {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
   padding-top: 10px;
   border-top: 1px dashed var(--line);
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.cust-card .cust-links {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.cust-card .link-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  font-size: 12px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #fff;
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+.cust-card .link-btn:hover {
+  border-color: var(--blue);
+  background: #f5f9ff;
+  color: var(--blue);
 }
 
 .cust-card .cust-actions {

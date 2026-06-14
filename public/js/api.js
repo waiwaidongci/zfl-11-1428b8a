@@ -42,7 +42,10 @@ export const Equipment = {
 };
 
 export const Orders = {
-  list: () => api("/api/orders"),
+  list: (params) => {
+    const qs = params ? "?" + new URLSearchParams(params).toString() : "";
+    return api(`/api/orders${qs}`);
+  },
   get: (id) => api(`/api/orders/${id}`),
   create: (data) => api("/api/orders", { method: "POST", body: JSON.stringify(data) }),
   update: (id, data) => api(`/api/orders/${id}`, { method: "PATCH", body: JSON.stringify(data) }),

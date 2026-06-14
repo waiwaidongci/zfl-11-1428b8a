@@ -7,6 +7,7 @@ let allEquipment = [];
 let allQuotations = [];
 let allCustomers = [];
 let allOrders = [];
+let customerFilterFromUrl = "";
 
 const selectedItems = new Set();
 const depositOverrides = {};
@@ -81,6 +82,7 @@ function renderGrid() {
 
   let visible = allQuotations.filter((q) => {
     if (status && q.status !== status) return false;
+    if (customerFilterFromUrl && (q.customer || "") !== customerFilterFromUrl) return false;
     if (search) {
       const hay = [q.id, q.customer, q.note, ...(q.itemIds || [])]
         .join(" ").toLowerCase();
@@ -91,7 +93,10 @@ function renderGrid() {
 
   visible.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 
-  $("#countInfo").textContent = `共 ${visible.length} 张`;
+  const countInfo = customerFilterFromUrl
+    ? `客户「${escapeHtml(customerFilterFromUrl)}」共 ${visible.length} 张 · <a href="/quotations" style="color:var(--blue)">显示全部</a>`
+    : `共 ${visible.length} 张`;
+  $("#countInfo").innerHTML = countInfo;
 
   if (!visible.length) {
     $("#quoteGrid").innerHTML = `<div style="padding:30px;text-align:center;color:var(--muted);grid-column:1/-1">暂无匹配报价单</div>`;
@@ -1153,9 +1158,13 @@ function showConfirm(title, body, onOk, okText = "确认") {
 
 async function load() {
   try {
+    const params = new URLSearchParams(window.location.search);
+    customerFilterFromUrl = params.get("customer") || "";
+
+    const quoteParams = customerFilterFromUrl ? { customer: customerFilterFromUrl } : null;
     [allEquipment, allQuotations, allCustomers, allOrders] = await Promise.all([
       Equipment.list(),
-      Quotations.list(),
+      Quotations.list(quoteParams),
       Customers.list(),
       import("./api.js").then((m) => (typeof m.Orders !== "undefined" ? m.Orders.list() : fetch("/api/orders").then((r) => r.json())))
     ]);
@@ -1164,7 +1173,6 @@ async function load() {
     renderStats();
     renderGrid();
 
-    const params = new URLSearchParams(window.location.search);
     const quoteId = params.get("id");
     if (quoteId) {
       setTimeout(() => openDetail(quoteId), 100);
