@@ -110,8 +110,10 @@ function calcSettlementSummary(db, settlement, order) {
   const balanceDue = receivableTotal - totalPaid;
 
   let status = settlement.status || "draft";
-  if (status !== "cancelled") {
-    if (totalPaid <= 0 && remainingDeposit === depositFee) {
+  if (order && order.status === "已取消") {
+    status = "cancelled";
+  } else if (status !== "cancelled") {
+    if (totalPaid <= 0 && remainingDeposit === depositFee && depositDeducted === 0) {
       status = "draft";
     } else if (balanceDue <= 0.01 && remainingDeposit <= 0.01) {
       status = "settled";
@@ -183,15 +185,170 @@ function buildSettlementPayload(db, settlement, order) {
   };
 }
 
+function ensureSettlement(db, orderId) {
+  let settlement = (db.settlements || []).find((s) => s.orderId === orderId);
+  const isNew = !settlement;
+
+  if (isNew) {
+    const quote = getQuoteForOrder(db, orderId);
+    settlement = {
+      id: genSettlementId(),
+      orderId,
+      quotationId: quote ? quote.id : null,
+      status: "draft",
+      fees: [],
+      note: "",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    if (!db.settlements) db.settlements = [];
+    db.settlements.unshift(settlement);
+  }
+
+  if (!settlement.fees) settlement.fees = [];
+
+  return { settlement, isNew };
+}
+
+function syncQuoteFeesToSettlement(db, settlement, quote) {
+  const quoteSummary = buildQuoteSummary(
+    db.equipment,
+    quote.itemIds,
+    quote.startDate,
+    quote.endDate,
+    quote.depositOverride || {},
+    quote.discount || 0
+  );
+
+  const existingRental = (settlement.fees || []).find(
+    (f) => f.type === "rental" && f.source === "quotation" && f.sourceId === quote.id
+  );
+  if (existingRental) {
+    existingRental.amount = quoteSummary.subtotal;
+    existingRental.description = `报价单 ${quote.id} 租金`;
+    existingRental.updatedAt = new Date().toISOString();
+  } else {
+    settlement.fees.push({
+      id: genSettlementFeeId(),
+      type: "rental",
+      amount: quoteSummary.subtotal,
+      description: `报价单 ${quote.id} 租金`,
+      source: "quotation",
+      sourceId: quote.id,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+  }
+
+  const existingDeposit = (settlement.fees || []).find(
+    (f) => f.type === "deposit" && f.source === "quotation" && f.sourceId === quote.id
+  );
+  if (existingDeposit) {
+    existingDeposit.amount = quoteSummary.totalDeposit;
+    existingDeposit.description = `报价单 ${quote.id} 押金`;
+    existingDeposit.updatedAt = new Date().toISOString();
+  } else {
+    settlement.fees.push({
+      id: genSettlementFeeId(),
+      type: "deposit",
+      amount: quoteSummary.totalDeposit,
+      description: `报价单 ${quote.id} 押金`,
+      source: "quotation",
+      sourceId: quote.id,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+  }
+
+  if (quoteSummary.discountAmount > 0) {
+    const existingDiscount = (settlement.fees || []).find(
+      (f) => f.type === "discount" && f.source === "quotation" && f.sourceId === quote.id
+    );
+    if (existingDiscount) {
+      existingDiscount.amount = quoteSummary.discountAmount;
+      existingDiscount.description = `报价单 ${quote.id} 优惠`;
+      existingDiscount.updatedAt = new Date().toISOString();
+    } else {
+      settlement.fees.push({
+        id: genSettlementFeeId(),
+        type: "discount",
+        amount: quoteSummary.discountAmount,
+        description: `报价单 ${quote.id} 优惠`,
+        source: "quotation",
+        sourceId: quote.id,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+    }
+  } else {
+    settlement.fees = (settlement.fees || []).filter(
+      (f) => !(f.type === "discount" && f.source === "quotation" && f.sourceId === quote.id)
+    );
+  }
+
+  settlement.quotationId = quote.id;
+  return quoteSummary;
+}
+
+function syncHandoverFeesToSettlement(db, settlement, orderId) {
+  const handoverComp = getHandoverCompensation(db, orderId);
+  for (const item of handoverComp.items) {
+    const existing = (settlement.fees || []).find(
+      (f) => f.type === "compensation" && f.source === "handover" && f.sourceId === item.handoverId
+    );
+    if (existing) {
+      existing.amount = item.amount;
+      existing.description = item.description;
+      existing.updatedAt = new Date().toISOString();
+    } else {
+      settlement.fees.push({
+        id: genSettlementFeeId(),
+        type: "compensation",
+        amount: item.amount,
+        description: item.description,
+        source: "handover",
+        sourceId: item.handoverId,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+    }
+  }
+  return handoverComp;
+}
+
 export async function getSettlement(req, res, orderId) {
   const db = await loadDb();
   const order = db.orders.find((o) => o.id === orderId);
   if (!order) return sendJson(res, 404, { error: "order_not_found" });
 
-  const settlement = getOrderSettlement(db, orderId);
-  const payload = buildSettlementPayload(db, settlement, order);
+  const { settlement, isNew } = ensureSettlement(db, orderId);
 
   const quote = getQuoteForOrder(db, orderId);
+  let hasChanges = isNew;
+
+  if (quote && isNew) {
+    syncQuoteFeesToSettlement(db, settlement, quote);
+    hasChanges = true;
+  }
+
+  const handoverComp = getHandoverCompensation(db, orderId);
+  if (handoverComp.items.length > 0 && isNew) {
+    syncHandoverFeesToSettlement(db, settlement, orderId);
+    hasChanges = true;
+  }
+
+  if (order.status === "已取消" && settlement.status !== "cancelled") {
+    settlement.status = "cancelled";
+    hasChanges = true;
+  }
+
+  if (hasChanges) {
+    settlement.updatedAt = new Date().toISOString();
+    await saveDb(db);
+  }
+
+  const payload = buildSettlementPayload(db, settlement, order);
+
   if (quote) {
     payload.quotationId = quote.id;
     const quoteSummary = buildQuoteSummary(
@@ -205,9 +362,7 @@ export async function getSettlement(req, res, orderId) {
     payload.quoteSummary = quoteSummary;
   }
 
-  const handoverComp = getHandoverCompensation(db, orderId);
   payload.handoverCompensation = handoverComp;
-
   return sendJson(res, 200, payload);
 }
 
@@ -216,29 +371,11 @@ export async function updateSettlement(req, res, orderId) {
   const order = db.orders.find((o) => o.id === orderId);
   if (!order) return sendJson(res, 404, { error: "order_not_found" });
 
-  let settlement = (db.settlements || []).find((s) => s.orderId === orderId);
-  const isNew = !settlement;
-
-  if (isNew) {
-    settlement = {
-      id: genSettlementId(),
-      orderId,
-      quotationId: null,
-      status: "draft",
-      fees: [],
-      note: "",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-
-    const quote = getQuoteForOrder(db, orderId);
-    if (quote) {
-      settlement.quotationId = quote.id;
-    }
-
-    if (!db.settlements) db.settlements = [];
-    db.settlements.unshift(settlement);
+  if (order.status === "已取消") {
+    return sendJson(res, 400, { error: "已取消订单无法修改结算" });
   }
+
+  const { settlement } = ensureSettlement(db, orderId);
 
   const input = await parseBody(req);
 
@@ -265,23 +402,11 @@ export async function addFee(req, res, orderId) {
   const order = db.orders.find((o) => o.id === orderId);
   if (!order) return sendJson(res, 404, { error: "order_not_found" });
 
-  let settlement = (db.settlements || []).find((s) => s.orderId === orderId);
-  if (!settlement) {
-    settlement = {
-      id: genSettlementId(),
-      orderId,
-      quotationId: null,
-      status: "draft",
-      fees: [],
-      note: "",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    const quote = getQuoteForOrder(db, orderId);
-    if (quote) settlement.quotationId = quote.id;
-    if (!db.settlements) db.settlements = [];
-    db.settlements.unshift(settlement);
+  if (order.status === "已取消") {
+    return sendJson(res, 400, { error: "已取消订单无法添加费用" });
   }
+
+  const { settlement } = ensureSettlement(db, orderId);
 
   const input = await parseBody(req);
 
@@ -339,6 +464,10 @@ export async function updateFee(req, res, orderId, feeId) {
   const order = db.orders.find((o) => o.id === orderId);
   if (!order) return sendJson(res, 404, { error: "order_not_found" });
 
+  if (order.status === "已取消") {
+    return sendJson(res, 400, { error: "已取消订单无法修改费用" });
+  }
+
   const settlement = (db.settlements || []).find((s) => s.orderId === orderId);
   if (!settlement) return sendJson(res, 404, { error: "settlement_not_found" });
 
@@ -379,6 +508,10 @@ export async function deleteFee(req, res, orderId, feeId) {
   const order = db.orders.find((o) => o.id === orderId);
   if (!order) return sendJson(res, 404, { error: "order_not_found" });
 
+  if (order.status === "已取消") {
+    return sendJson(res, 400, { error: "已取消订单无法删除费用" });
+  }
+
   const settlement = (db.settlements || []).find((s) => s.orderId === orderId);
   if (!settlement) return sendJson(res, 404, { error: "settlement_not_found" });
 
@@ -398,106 +531,22 @@ export async function syncQuoteFees(req, res, orderId) {
   const order = db.orders.find((o) => o.id === orderId);
   if (!order) return sendJson(res, 404, { error: "order_not_found" });
 
+  if (order.status === "已取消") {
+    return sendJson(res, 400, { error: "已取消订单无法同步报价单" });
+  }
+
   const quote = getQuoteForOrder(db, orderId);
   if (!quote) {
     return sendJson(res, 400, { error: "该订单没有关联的报价单" });
   }
 
-  let settlement = (db.settlements || []).find((s) => s.orderId === orderId);
-  if (!settlement) {
-    settlement = {
-      id: genSettlementId(),
-      orderId,
-      quotationId: quote.id,
-      status: "draft",
-      fees: [],
-      note: "",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    if (!db.settlements) db.settlements = [];
-    db.settlements.unshift(settlement);
-  }
+  const { settlement } = ensureSettlement(db, orderId);
 
-  const quoteSummary = buildQuoteSummary(
-    db.equipment,
-    quote.itemIds,
-    quote.startDate,
-    quote.endDate,
-    quote.depositOverride || {},
-    quote.discount || 0
-  );
+  syncQuoteFeesToSettlement(db, settlement, quote);
 
-  const existingRental = (settlement.fees || []).find(
-    (f) => f.type === "rental" && f.source === "quotation" && f.sourceId === quote.id
-  );
-  if (existingRental) {
-    existingRental.amount = quoteSummary.discounted;
-    existingRental.description = `报价单 ${quote.id} 租金`;
-    existingRental.updatedAt = new Date().toISOString();
-  } else {
-    settlement.fees.push({
-      id: genSettlementFeeId(),
-      type: "rental",
-      amount: quoteSummary.discounted,
-      description: `报价单 ${quote.id} 租金`,
-      source: "quotation",
-      sourceId: quote.id,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    });
-  }
-
-  const existingDeposit = (settlement.fees || []).find(
-    (f) => f.type === "deposit" && f.source === "quotation" && f.sourceId === quote.id
-  );
-  if (existingDeposit) {
-    existingDeposit.amount = quoteSummary.totalDeposit;
-    existingDeposit.description = `报价单 ${quote.id} 押金`;
-    existingDeposit.updatedAt = new Date().toISOString();
-  } else {
-    settlement.fees.push({
-      id: genSettlementFeeId(),
-      type: "deposit",
-      amount: quoteSummary.totalDeposit,
-      description: `报价单 ${quote.id} 押金`,
-      source: "quotation",
-      sourceId: quote.id,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    });
-  }
-
-  if (quoteSummary.discountAmount > 0) {
-    const existingDiscount = (settlement.fees || []).find(
-      (f) => f.type === "discount" && f.source === "quotation" && f.sourceId === quote.id
-    );
-    if (existingDiscount) {
-      existingDiscount.amount = quoteSummary.discountAmount;
-      existingDiscount.description = `报价单 ${quote.id} 优惠`;
-      existingDiscount.updatedAt = new Date().toISOString();
-    } else {
-      settlement.fees.push({
-        id: genSettlementFeeId(),
-        type: "discount",
-        amount: quoteSummary.discountAmount,
-        description: `报价单 ${quote.id} 优惠`,
-        source: "quotation",
-        sourceId: quote.id,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      });
-    }
-  } else {
-    settlement.fees = (settlement.fees || []).filter(
-      (f) => !(f.type === "discount" && f.source === "quotation" && f.sourceId === quote.id)
-    );
-  }
-
-  settlement.quotationId = quote.id;
   settlement.updatedAt = new Date().toISOString();
-
   await saveDb(db);
+
   const payload = buildSettlementPayload(db, settlement, order);
   return sendJson(res, 200, payload);
 }
@@ -507,51 +556,17 @@ export async function syncHandoverFees(req, res, orderId) {
   const order = db.orders.find((o) => o.id === orderId);
   if (!order) return sendJson(res, 404, { error: "order_not_found" });
 
-  let settlement = (db.settlements || []).find((s) => s.orderId === orderId);
-  if (!settlement) {
-    settlement = {
-      id: genSettlementId(),
-      orderId,
-      quotationId: null,
-      status: "draft",
-      fees: [],
-      note: "",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    const quote = getQuoteForOrder(db, orderId);
-    if (quote) settlement.quotationId = quote.id;
-    if (!db.settlements) db.settlements = [];
-    db.settlements.unshift(settlement);
+  if (order.status === "已取消") {
+    return sendJson(res, 400, { error: "已取消订单无法同步交接费用" });
   }
 
-  const handoverComp = getHandoverCompensation(db, orderId);
+  const { settlement } = ensureSettlement(db, orderId);
 
-  for (const item of handoverComp.items) {
-    const existing = (settlement.fees || []).find(
-      (f) => f.type === "compensation" && f.source === "handover" && f.sourceId === item.handoverId
-    );
-    if (existing) {
-      existing.amount = item.amount;
-      existing.description = item.description;
-      existing.updatedAt = new Date().toISOString();
-    } else {
-      settlement.fees.push({
-        id: genSettlementFeeId(),
-        type: "compensation",
-        amount: item.amount,
-        description: item.description,
-        source: "handover",
-        sourceId: item.handoverId,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      });
-    }
-  }
+  syncHandoverFeesToSettlement(db, settlement, orderId);
 
   settlement.updatedAt = new Date().toISOString();
-
   await saveDb(db);
+
   const payload = buildSettlementPayload(db, settlement, order);
   return sendJson(res, 200, payload);
 }
@@ -561,23 +576,11 @@ export async function addPayment(req, res, orderId) {
   const order = db.orders.find((o) => o.id === orderId);
   if (!order) return sendJson(res, 404, { error: "order_not_found" });
 
-  let settlement = (db.settlements || []).find((s) => s.orderId === orderId);
-  if (!settlement) {
-    settlement = {
-      id: genSettlementId(),
-      orderId,
-      quotationId: null,
-      status: "draft",
-      fees: [],
-      note: "",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    const quote = getQuoteForOrder(db, orderId);
-    if (quote) settlement.quotationId = quote.id;
-    if (!db.settlements) db.settlements = [];
-    db.settlements.unshift(settlement);
+  if (order.status === "已取消") {
+    return sendJson(res, 400, { error: "已取消订单无法添加收款" });
   }
+
+  const { settlement } = ensureSettlement(db, orderId);
 
   const input = await parseBody(req);
 
@@ -639,6 +642,10 @@ export async function updatePayment(req, res, orderId, paymentId) {
   const order = db.orders.find((o) => o.id === orderId);
   if (!order) return sendJson(res, 404, { error: "order_not_found" });
 
+  if (order.status === "已取消") {
+    return sendJson(res, 400, { error: "已取消订单无法修改收款" });
+  }
+
   const settlement = (db.settlements || []).find((s) => s.orderId === orderId);
   if (!settlement) return sendJson(res, 404, { error: "settlement_not_found" });
 
@@ -690,6 +697,10 @@ export async function deletePayment(req, res, orderId, paymentId) {
   const db = await loadDb();
   const order = db.orders.find((o) => o.id === orderId);
   if (!order) return sendJson(res, 404, { error: "order_not_found" });
+
+  if (order.status === "已取消") {
+    return sendJson(res, 400, { error: "已取消订单无法删除收款" });
+  }
 
   const settlement = (db.settlements || []).find((s) => s.orderId === orderId);
   if (!settlement) return sendJson(res, 404, { error: "settlement_not_found" });

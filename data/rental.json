@@ -47,7 +47,7 @@
       "customer": "测试客户",
       "startDate": "2026-07-01",
       "endDate": "2026-07-03",
-      "status": "已归还",
+      "status": "已取消",
       "itemIds": [
         "L-001"
       ],
@@ -852,38 +852,77 @@
   ],
   "settlements": [
     {
-      "id": "S-057255",
-      "orderId": "O-1001",
+      "id": "S-859747",
+      "orderId": "O-1781421615815",
       "quotationId": null,
-      "status": "partial",
+      "status": "cancelled",
+      "fees": [],
+      "note": "",
+      "createdAt": "2026-06-14T12:24:19.747Z",
+      "updatedAt": "2026-06-14T12:24:59.003Z"
+    },
+    {
+      "id": "S-678081",
+      "orderId": "O-1781394904983",
+      "quotationId": "Q-891569",
+      "status": "draft",
       "fees": [
         {
-          "id": "SF-057255",
+          "id": "SF-678084",
+          "type": "rental",
+          "amount": 1620,
+          "description": "报价单 Q-891569 租金",
+          "source": "quotation",
+          "sourceId": "Q-891569",
+          "createdAt": "2026-06-14T12:21:18.084Z",
+          "updatedAt": "2026-06-14T12:21:18.084Z"
+        },
+        {
+          "id": "SF-678084",
+          "type": "deposit",
+          "amount": 3000,
+          "description": "报价单 Q-891569 押金",
+          "source": "quotation",
+          "sourceId": "Q-891569",
+          "createdAt": "2026-06-14T12:21:18.084Z",
+          "updatedAt": "2026-06-14T12:21:18.084Z"
+        },
+        {
+          "id": "SF-678084",
+          "type": "discount",
+          "amount": 162,
+          "description": "报价单 Q-891569 优惠",
+          "source": "quotation",
+          "sourceId": "Q-891569",
+          "createdAt": "2026-06-14T12:21:18.084Z",
+          "updatedAt": "2026-06-14T12:21:18.084Z"
+        }
+      ],
+      "note": "",
+      "createdAt": "2026-06-14T12:21:18.081Z",
+      "updatedAt": "2026-06-14T12:21:18.084Z"
+    },
+    {
+      "id": "S-408511",
+      "orderId": "O-1001",
+      "quotationId": null,
+      "status": "draft",
+      "fees": [
+        {
+          "id": "SF-408512",
           "type": "compensation",
           "amount": 500,
           "description": "损坏设备按成本价赔偿500元",
           "source": "handover",
           "sourceId": "H-089447",
-          "createdAt": "2026-06-14T11:54:17.255Z",
-          "updatedAt": "2026-06-14T11:54:40.056Z"
+          "createdAt": "2026-06-14T12:16:48.512Z",
+          "updatedAt": "2026-06-14T12:16:48.512Z"
         }
       ],
       "note": "",
-      "createdAt": "2026-06-14T11:54:17.255Z",
-      "updatedAt": "2026-06-14T11:54:40.056Z"
+      "createdAt": "2026-06-14T12:16:48.511Z",
+      "updatedAt": "2026-06-14T12:16:48.512Z"
     }
   ],
-  "payments": [
-    {
-      "id": "P-067600",
-      "settlementId": "S-057255",
-      "orderId": "O-1001",
-      "amount": 300,
-      "type": "payment",
-      "method": "cash",
-      "paymentDate": "2026-06-15",
-      "remark": "首付款",
-      "createdAt": "2026-06-14T11:54:27.600Z"
-    }
-  ]
+  "payments": []
 }
