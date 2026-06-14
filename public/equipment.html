@@ -20,6 +20,8 @@
       <a href="/customers">客户管理</a>
       <a href="/repairs">维修工单</a>
       <a href="/schedule">排期日历</a>
+      <button id="importBtn" class="ghost">⬆ 批量导入</button>
+      <button id="exportBtn" class="ghost">⬇ 导出</button>
       <button id="addBtn">+ 新增设备</button>
     </nav>
   </header>
@@ -133,6 +135,92 @@
         <button id="submitRepairBtn" type="button" class="danger">提交维修工单</button>
       </div>
     </div>
+  </div>
+
+  <div id="importModal" class="modal-backdrop hidden">
+    <div class="modal wide" style="max-width:960px">
+      <header>
+        <h3>批量导入设备</h3>
+        <button id="closeImportModal" class="ghost">×</button>
+      </header>
+      <div class="body">
+        <div id="importStep1">
+          <div class="hint-box">
+            <p><strong>支持格式：</strong>CSV 或 JSON</p>
+            <p><strong>必填字段：</strong>设备编号(id)、设备名称(name)、设备类别(category)</p>
+            <p><strong>可选字段：</strong>规格参数(spec)、存放位置(location)、设备状态(condition：在库可用/维修中)</p>
+            <p class="meta">CSV 表头支持中英文（如"设备编号"或"id"均可识别）。JSON 格式可为数组或 <code>{equipment: [...]}</code> 结构。</p>
+          </div>
+
+          <div class="drop-zone" id="dropZone">
+            <input type="file" id="importFileInput" accept=".csv,.json" hidden>
+            <div style="text-align:center;padding:30px">
+              <div style="font-size:42px;margin-bottom:10px">📁</div>
+              <p><strong>点击选择文件</strong> 或拖拽到此处</p>
+              <p class="meta" style="margin-top:6px">仅支持 .csv 和 .json 文件</p>
+            </div>
+            <div id="selectedFileInfo" class="hidden">
+              <strong>已选文件：</strong><span id="selectedFileName"></span>
+              <button id="clearFileBtn" class="ghost small" style="margin-left:10px">清除</button>
+            </div>
+          </div>
+
+          <div class="download-template">
+            <span>没有模板？</span>
+            <button id="downloadTemplateBtn" class="ghost small">下载 CSV 模板</button>
+          </div>
+        </div>
+
+        <div id="importStep2" class="hidden">
+          <div class="import-summary" id="importSummary"></div>
+
+          <div class="tabs">
+            <button class="tab-btn active" data-tab="valid">可写入 <span id="validCount" class="tab-count ok">0</span></button>
+            <button class="tab-btn" data-tab="duplicates">重复编号 <span id="duplicateCount" class="tab-count warn">0</span></button>
+            <button class="tab-btn" data-tab="missing">字段缺失 <span id="missingCount" class="tab-count err">0</span></button>
+          </div>
+
+          <div class="tab-content">
+            <div class="tab-panel active" data-panel="valid">
+              <div class="preview-table-wrap">
+                <table class="preview-table" id="validTable">
+                  <thead><tr><th>行号</th><th>编号</th><th>名称</th><th>类别</th><th>规格</th><th>位置</th><th>状态</th></tr></thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="tab-panel" data-panel="duplicates">
+              <div class="preview-table-wrap">
+                <table class="preview-table" id="duplicateTable">
+                  <thead><tr><th>行号</th><th>编号</th><th>名称</th><th>类别</th><th>原因</th></tr></thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="tab-panel" data-panel="missing">
+              <div class="preview-table-wrap">
+                <table class="preview-table" id="missingTable">
+                  <thead><tr><th>行号</th><th>编号</th><th>名称</th><th>类别</th><th>缺失字段</th></tr></thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="actions">
+        <button id="backStepBtn" type="button" class="ghost hidden">← 返回</button>
+        <button id="cancelImportBtn" type="button" class="ghost">取消</button>
+        <button id="previewImportBtn" type="button" class="secondary" disabled>预览校验</button>
+        <button id="confirmImportBtn" type="button" class="primary hidden" disabled>确认写入</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="exportMenu" class="dropdown-menu hidden">
+    <div class="dropdown-title">导出当前筛选结果</div>
+    <button class="dropdown-item" data-format="csv">📄 导出 CSV</button>
+    <button class="dropdown-item" data-format="json">📋 导出 JSON</button>
   </div>
 
   <script type="module" src="/js/equipment.js"></script>

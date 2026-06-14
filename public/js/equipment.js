@@ -8,7 +8,9 @@ const state = {
     search: "",
     category: "",
     condition: ""
-  }
+  },
+  importFile: null,
+  importPreview: null
 };
 
 const $ = (id) => document.getElementById(id);
@@ -25,6 +27,15 @@ const modalTitle = $("modalTitle");
 const repairModal = $("repairModal");
 const repairForm = $("repairForm");
 const repairModalTitle = $("repairModalTitle");
+
+const importModal = $("importModal");
+const importStep1 = $("importStep1");
+const importStep2 = $("importStep2");
+const importFileInput = $("importFileInput");
+const dropZone = $("dropZone");
+const selectedFileInfo = $("selectedFileInfo");
+const selectedFileName = $("selectedFileName");
+const exportMenu = $("exportMenu");
 
 function getActiveRepair(equipmentId) {
   return state.repairs.find(
@@ -355,10 +366,245 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
     if (!modal.classList.contains("hidden")) closeModal();
     if (!repairModal.classList.contains("hidden")) closeRepairModal();
+    if (!importModal.classList.contains("hidden")) closeImportModal();
   }
   if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
     if (!modal.classList.contains("hidden")) submitForm();
     if (!repairModal.classList.contains("hidden")) submitRepairForm();
+  }
+});
+
+function openImportModal() {
+  resetImportState();
+  importModal.classList.remove("hidden");
+}
+
+function closeImportModal() {
+  importModal.classList.add("hidden");
+}
+
+function resetImportState() {
+  state.importFile = null;
+  state.importPreview = null;
+  importStep1.classList.remove("hidden");
+  importStep2.classList.add("hidden");
+  $("backStepBtn").classList.add("hidden");
+  $("previewImportBtn").classList.remove("hidden");
+  $("previewImportBtn").disabled = true;
+  $("confirmImportBtn").classList.add("hidden");
+  $("confirmImportBtn").disabled = true;
+  selectedFileInfo.classList.add("hidden");
+  importFileInput.value = "";
+}
+
+function setImportFile(file) {
+  if (!file) return;
+  const ext = file.name.toLowerCase().split(".").pop();
+  if (ext !== "csv" && ext !== "json") {
+    showToast("仅支持 CSV 或 JSON 文件", "error");
+    return;
+  }
+  state.importFile = file;
+  selectedFileName.textContent = `${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+  selectedFileInfo.classList.remove("hidden");
+  $("previewImportBtn").disabled = false;
+  dropZone.classList.add("has-file");
+}
+
+function downloadTemplate() {
+  const headers = ["设备编号", "设备名称", "设备类别", "规格参数", "存放位置", "设备状态"];
+  const sample = [
+    ["L-TEST01", "示例光束灯", "灯具", "230W 7R", "主仓A", "在库可用"],
+    ["C-TEST01", "示例控台", "控台", "Command Wing", "控台柜", "在库可用"]
+  ];
+  const csv = "\uFEFF" + [headers.join(","), ...sample.map((r) => r.join(","))].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "equipment_template.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function runPreview() {
+  if (!state.importFile) return;
+  const fd = new FormData();
+  fd.append("file", state.importFile);
+  try {
+    const result = await Equipment.previewImport(fd);
+    state.importPreview = result;
+    renderImportPreview(result);
+    importStep1.classList.add("hidden");
+    importStep2.classList.remove("hidden");
+    $("backStepBtn").classList.remove("hidden");
+    $("previewImportBtn").classList.add("hidden");
+    $("confirmImportBtn").classList.remove("hidden");
+    $("confirmImportBtn").disabled = result.validCount === 0;
+  } catch (err) {
+    showToast(err.message, "error");
+  }
+}
+
+function backToStep1() {
+  importStep1.classList.remove("hidden");
+  importStep2.classList.add("hidden");
+  $("backStepBtn").classList.add("hidden");
+  $("previewImportBtn").classList.remove("hidden");
+  $("confirmImportBtn").classList.add("hidden");
+}
+
+function renderImportPreview(r) {
+  const COND_LABEL = { available: "在库可用", repair: "维修中" };
+  $("importSummary").innerHTML = `
+    <div class="summary-row">
+      <div class="summary-card ok"><span>可写入</span><strong>${r.validCount}</strong></div>
+      <div class="summary-card warn"><span>重复编号</span><strong>${r.duplicateCount}</strong></div>
+      <div class="summary-card err"><span>字段缺失</span><strong>${r.missingCount}</strong></div>
+      <div class="summary-card info"><span>总计</span><strong>${r.total}</strong></div>
+    </div>
+  `;
+  $("validCount").textContent = r.validCount;
+  $("duplicateCount").textContent = r.duplicateCount;
+  $("missingCount").textContent = r.missingCount;
+
+  const validBody = $("validTable").querySelector("tbody");
+  validBody.innerHTML = r.valid.length
+    ? r.valid.map(({ row, record }) => `
+        <tr>
+          <td>${row}</td>
+          <td class="mono">${escapeHtml(record.id)}</td>
+          <td>${escapeHtml(record.name)}</td>
+          <td>${escapeHtml(record.category)}</td>
+          <td>${escapeHtml(record.spec || "-")}</td>
+          <td>${escapeHtml(record.location || "-")}</td>
+          <td><span class="badge ${record.condition}">${COND_LABEL[record.condition] || record.condition}</span></td>
+        </tr>
+      `).join("")
+    : `<tr><td colspan="7" class="empty-row">无可写入记录</td></tr>`;
+
+  const dupBody = $("duplicateTable").querySelector("tbody");
+  dupBody.innerHTML = r.duplicates.length
+    ? r.duplicates.map(({ row, record, reason }) => `
+        <tr>
+          <td>${row}</td>
+          <td class="mono">${escapeHtml(record.id)}</td>
+          <td>${escapeHtml(record.name || "-")}</td>
+          <td>${escapeHtml(record.category || "-")}</td>
+          <td class="err-text">${escapeHtml(reason)}</td>
+        </tr>
+      `).join("")
+    : `<tr><td colspan="5" class="empty-row">无重复记录</td></tr>`;
+
+  const missBody = $("missingTable").querySelector("tbody");
+  missBody.innerHTML = r.missing.length
+    ? r.missing.map(({ row, record, fields }) => `
+        <tr>
+          <td>${row}</td>
+          <td class="mono">${escapeHtml(record.id || "-")}</td>
+          <td>${escapeHtml(record.name || "-")}</td>
+          <td>${escapeHtml(record.category || "-")}</td>
+          <td class="err-text">${escapeHtml(fields.join(", "))}</td>
+        </tr>
+      `).join("")
+    : `<tr><td colspan="5" class="empty-row">无字段缺失记录</td></tr>`;
+}
+
+async function runConfirmImport() {
+  if (!state.importFile) return;
+  if (!confirm(`确定导入 ${state.importPreview.validCount} 条设备记录吗？`)) return;
+  const fd = new FormData();
+  fd.append("file", state.importFile);
+  try {
+    const result = await Equipment.confirmImport(fd);
+    showToast(`成功导入 ${result.inserted} 条设备`);
+    state.list = await Equipment.list();
+    renderStats();
+    renderCategoryOptions();
+    renderList();
+    closeImportModal();
+  } catch (err) {
+    showToast(err.message, "error");
+  }
+}
+
+function openExportMenu(e) {
+  e.stopPropagation();
+  const rect = e.currentTarget.getBoundingClientRect();
+  exportMenu.style.top = `${rect.bottom + 6}px`;
+  exportMenu.style.right = `${window.innerWidth - rect.right}px`;
+  exportMenu.classList.toggle("hidden");
+}
+
+function runExport(format) {
+  const params = {
+    format,
+    search: state.filters.search,
+    category: state.filters.category,
+    condition: state.filters.condition
+  };
+  const url = Equipment.exportUrl(params);
+  const a = document.createElement("a");
+  a.href = url;
+  a.style.display = "none";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  exportMenu.classList.add("hidden");
+  showToast("导出已开始");
+}
+
+$("importBtn").addEventListener("click", openImportModal);
+$("closeImportModal").addEventListener("click", closeImportModal);
+$("cancelImportBtn").addEventListener("click", closeImportModal);
+$("backStepBtn").addEventListener("click", backToStep1);
+$("previewImportBtn").addEventListener("click", runPreview);
+$("confirmImportBtn").addEventListener("click", runConfirmImport);
+$("clearFileBtn").addEventListener("click", (e) => {
+  e.stopPropagation();
+  state.importFile = null;
+  importFileInput.value = "";
+  selectedFileInfo.classList.add("hidden");
+  $("previewImportBtn").disabled = true;
+  dropZone.classList.remove("has-file");
+});
+
+dropZone.addEventListener("click", () => importFileInput.click());
+importFileInput.addEventListener("change", (e) => setImportFile(e.target.files[0]));
+dropZone.addEventListener("dragover", (e) => {
+  e.preventDefault();
+  dropZone.classList.add("dragover");
+});
+dropZone.addEventListener("dragleave", () => dropZone.classList.remove("dragover"));
+dropZone.addEventListener("drop", (e) => {
+  e.preventDefault();
+  dropZone.classList.remove("dragover");
+  setImportFile(e.dataTransfer.files[0]);
+});
+
+$("downloadTemplateBtn").addEventListener("click", downloadTemplate);
+
+document.querySelectorAll(".tab-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const tab = btn.dataset.tab;
+    document.querySelectorAll(".tab-btn").forEach((b) => b.classList.toggle("active", b === btn));
+    document.querySelectorAll(".tab-panel").forEach((p) =>
+      p.classList.toggle("active", p.dataset.panel === tab)
+    );
+  });
+});
+
+$("exportBtn").addEventListener("click", openExportMenu);
+document.querySelectorAll(".dropdown-item").forEach((btn) => {
+  btn.addEventListener("click", () => runExport(btn.dataset.format));
+});
+
+document.addEventListener("click", (e) => {
+  if (!exportMenu.classList.contains("hidden") && !e.target.closest("#exportMenu") && !e.target.closest("#exportBtn")) {
+    exportMenu.classList.add("hidden");
+  }
+  if (!importModal.classList.contains("hidden") && e.target === importModal) {
+    closeImportModal();
   }
 });
 

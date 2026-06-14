@@ -10,7 +10,10 @@ import {
   createEquipment,
   updateEquipment,
   patchCondition,
-  deleteEquipment
+  deleteEquipment,
+  previewImport,
+  confirmImport,
+  exportEquipment
 } from "./routes/equipment.js";
 
 import { listOrders, getOrder, createOrder, updateOrder, listHandovers, createHandover, getHandover } from "./routes/orders.js";
@@ -118,6 +121,9 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "GET" && p === "/api/equipment") return listEquipment(req, res);
     if (req.method === "POST" && p === "/api/equipment") return createEquipment(req, res);
+    if (req.method === "GET" && p === "/api/equipment/export") return exportEquipment(req, res);
+    if (req.method === "POST" && p === "/api/equipment/import/preview") return previewImport(req, res);
+    if (req.method === "POST" && p === "/api/equipment/import") return confirmImport(req, res);
 
     const eqMatch = p.match(/^\/api\/equipment\/([^/]+)$/);
     if (eqMatch) {

@@ -1,6 +1,38 @@
 {
   "equipment": [
     {
+      "id": "T-NEW001",
+      "name": "新桁架",
+      "category": "桁架",
+      "spec": "400mm 3m",
+      "location": "外场架",
+      "condition": "repair"
+    },
+    {
+      "id": "C-NEW001",
+      "name": "新控台",
+      "category": "控台",
+      "spec": "",
+      "location": "控台柜",
+      "condition": "available"
+    },
+    {
+      "id": "L-NEW002",
+      "name": "LED染色灯",
+      "category": "灯具",
+      "spec": "18颗四合一",
+      "location": "主仓B",
+      "condition": "available"
+    },
+    {
+      "id": "L-NEW001",
+      "name": "新光束灯",
+      "category": "灯具",
+      "spec": "230W 7R",
+      "location": "主仓A",
+      "condition": "available"
+    },
+    {
       "id": "L-443651",
       "name": "230W光束灯",
       "category": "灯具",

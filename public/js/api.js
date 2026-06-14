@@ -24,7 +24,21 @@ export const Equipment = {
   update: (id, data) => api(`/api/equipment/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
   setCondition: (id, condition) => api(`/api/equipment/${id}/condition`, { method: "PATCH", body: JSON.stringify({ condition }) }),
   remove: (id) => api(`/api/equipment/${id}`, { method: "DELETE" }),
-  listRepairs: (id) => api(`/api/equipment/${id}/repairs`)
+  listRepairs: (id) => api(`/api/equipment/${id}/repairs`),
+  previewImport: (formData) => fetch("/api/equipment/import/preview", { method: "POST", body: formData }).then(async (r) => {
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || "预览失败");
+    return data;
+  }),
+  confirmImport: (formData) => fetch("/api/equipment/import", { method: "POST", body: formData }).then(async (r) => {
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || "导入失败");
+    return data;
+  }),
+  exportUrl: (params) => {
+    const qs = params ? "?" + new URLSearchParams(params).toString() : "";
+    return `/api/equipment/export${qs}`;
+  }
 };
 
 export const Orders = {
