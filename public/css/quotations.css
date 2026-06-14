@@ -477,6 +477,7 @@ select.mini {
 .badge.version-pending { background: #fff4e5; color: #e67e22; }
 .badge.version-approved { background: #e1f3d8; color: #67c23a; }
 .badge.version-rejected { background: #fde2e2; color: #f56c6c; }
+.badge.version-superseded { background: #f0f0f0; color: #909399; }
 .badge.version-current { background: #e6f7ff; color: #1890ff; }
 .badge.version-approved-tag { background: #e1edfb; color: var(--blue); }
 

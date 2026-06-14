@@ -46,6 +46,7 @@ function versionStatusBadgeClass(status) {
     case "pending": return "version-pending";
     case "approved": return "version-approved";
     case "rejected": return "version-rejected";
+    case "superseded": return "version-superseded";
     default: return "";
   }
 }
@@ -750,6 +751,8 @@ function renderVersionsTab(q) {
           approvalBadge = `<span class="badge ${versionStatusBadgeClass(v.approvalStatus)}">✅ ${escapeHtml(v.approvalStatusLabel)}</span>`;
         } else if (v.approvalStatus === "rejected") {
           approvalBadge = `<span class="badge ${versionStatusBadgeClass(v.approvalStatus)}">❌ ${escapeHtml(v.approvalStatusLabel)}</span>`;
+        } else if (v.approvalStatus === "superseded") {
+          approvalBadge = `<span class="badge ${versionStatusBadgeClass(v.approvalStatus)}">♻️ ${escapeHtml(v.approvalStatusLabel)}</span>`;
         } else {
           approvalBadge = `<span class="badge ${versionStatusBadgeClass(v.approvalStatus)}">⏳ ${escapeHtml(v.approvalStatusLabel)}</span>`;
         }

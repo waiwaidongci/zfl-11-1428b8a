@@ -198,8 +198,18 @@ export async function approveVersion(req, res, quoteId, versionId) {
   if (version.approvalStatus === "approved") {
     return sendJson(res, 400, { error: "该版本已通过审批" });
   }
+  if (version.approvalStatus === "superseded") {
+    return sendJson(res, 400, { error: "已取代的版本不能审批" });
+  }
 
   const input = await parseBody(req);
+
+  const oldApprovedVersion = (quote.versions || []).find(
+    (v) => v.versionId === quote.approvedVersionId && v.approvalStatus === "approved"
+  );
+  if (oldApprovedVersion) {
+    oldApprovedVersion.approvalStatus = "superseded";
+  }
 
   version.approvalStatus = "approved";
   version.approvedAt = new Date().toISOString();
@@ -288,8 +298,14 @@ export async function restoreVersion(req, res, quoteId, versionId) {
   quote.note = snapshot.note;
   quote.currentVersionId = version.versionId;
 
-  if (quote.status === "已取消") {
-    quote.status = "草稿";
+  if (version.approvalStatus === "approved" && quote.approvedVersionId === version.versionId) {
+    if (quote.status !== "已转订单") {
+      quote.status = "已确认";
+    }
+  } else {
+    if (quote.status === "已确认" || quote.status === "已取消") {
+      quote.status = "草稿";
+    }
   }
   quote.updatedAt = new Date().toISOString();
 
@@ -505,6 +521,10 @@ export async function updateQuotation(req, res, id) {
     versions.push(newVersion);
     merged.versions = versions;
     merged.currentVersionId = newVersion.versionId;
+
+    if (merged.status === "已确认") {
+      merged.status = "草稿";
+    }
   }
 
   db.quotations[idx] = merged;

@@ -105,6 +105,326 @@
   ],
   "quotations": [
     {
+      "id": "Q-771752",
+      "customer": "审批流转测试客户-修改后",
+      "startDate": "2026-07-01",
+      "endDate": "2026-07-03",
+      "rentalDays": 3,
+      "itemIds": [
+        "L-443651"
+      ],
+      "discount": 100,
+      "depositOverride": {},
+      "status": "已确认",
+      "note": "",
+      "createdAt": "2026-06-14T11:16:11.752Z",
+      "updatedAt": "2026-06-14T11:16:11.852Z",
+      "versions": [
+        {
+          "versionId": "V-771752",
+          "versionNumber": 1,
+          "createdAt": "2026-06-14T11:16:11.752Z",
+          "createdBy": "user",
+          "snapshot": {
+            "customer": "审批流转测试客户",
+            "startDate": "2026-07-01",
+            "endDate": "2026-07-03",
+            "rentalDays": 3,
+            "itemIds": [
+              "L-443651"
+            ],
+            "items": [
+              {
+                "id": "L-443651",
+                "name": "230W光束灯",
+                "spec": "7R 230W",
+                "category": "灯具"
+              }
+            ],
+            "discount": 0,
+            "depositOverride": {},
+            "note": "",
+            "summary": {
+              "rentalDays": 3,
+              "subtotal": 360,
+              "discountAmount": 0,
+              "discounted": 360,
+              "totalDeposit": 500,
+              "grandTotal": 860,
+              "itemBreakdown": [
+                {
+                  "id": "L-443651",
+                  "name": "230W光束灯",
+                  "category": "灯具",
+                  "spec": "7R 230W",
+                  "daily": 120,
+                  "subtotal": 360,
+                  "deposit": 500
+                }
+              ]
+            }
+          },
+          "approvalStatus": "superseded",
+          "approvedAt": "2026-06-14T11:16:11.760Z",
+          "approvedBy": "测试员",
+          "approvalNote": "同意V1",
+          "rejectedAt": null,
+          "rejectedBy": null,
+          "rejectionReason": ""
+        },
+        {
+          "versionId": "V-771795",
+          "versionNumber": 2,
+          "createdAt": "2026-06-14T11:16:11.795Z",
+          "createdBy": "user",
+          "snapshot": {
+            "customer": "审批流转测试客户-修改后",
+            "startDate": "2026-07-01",
+            "endDate": "2026-07-03",
+            "rentalDays": 3,
+            "itemIds": [
+              "L-443651"
+            ],
+            "items": [
+              {
+                "id": "L-443651",
+                "name": "230W光束灯",
+                "spec": "7R 230W",
+                "category": "灯具"
+              }
+            ],
+            "discount": 100,
+            "depositOverride": {},
+            "note": "",
+            "summary": {
+              "rentalDays": 3,
+              "subtotal": 360,
+              "discountAmount": 100,
+              "discounted": 260,
+              "totalDeposit": 500,
+              "grandTotal": 760,
+              "itemBreakdown": [
+                {
+                  "id": "L-443651",
+                  "name": "230W光束灯",
+                  "category": "灯具",
+                  "spec": "7R 230W",
+                  "daily": 120,
+                  "subtotal": 360,
+                  "deposit": 500
+                }
+              ]
+            }
+          },
+          "approvalStatus": "approved",
+          "approvedAt": "2026-06-14T11:16:11.803Z",
+          "approvedBy": "测试员",
+          "approvalNote": "同意V2",
+          "rejectedAt": null,
+          "rejectedBy": null,
+          "rejectionReason": ""
+        }
+      ],
+      "currentVersionId": "V-771795",
+      "approvedVersionId": "V-771795"
+    },
+    {
+      "id": "Q-678004",
+      "customer": "审批流转测试客户-修改后",
+      "startDate": "2026-07-01",
+      "endDate": "2026-07-03",
+      "rentalDays": 3,
+      "itemIds": [
+        "L-443651"
+      ],
+      "discount": 100,
+      "depositOverride": {},
+      "status": "已确认",
+      "note": "",
+      "createdAt": "2026-06-14T11:14:38.004Z",
+      "updatedAt": "2026-06-14T11:14:38.688Z",
+      "versions": [
+        {
+          "versionId": "V-678004",
+          "versionNumber": 1,
+          "createdAt": "2026-06-14T11:14:38.004Z",
+          "createdBy": "user",
+          "snapshot": {
+            "customer": "审批流转测试客户",
+            "startDate": "2026-07-01",
+            "endDate": "2026-07-03",
+            "rentalDays": 3,
+            "itemIds": [
+              "L-443651"
+            ],
+            "items": [
+              {
+                "id": "L-443651",
+                "name": "230W光束灯",
+                "spec": "7R 230W",
+                "category": "灯具"
+              }
+            ],
+            "discount": 0,
+            "depositOverride": {},
+            "note": "",
+            "summary": {
+              "rentalDays": 3,
+              "subtotal": 360,
+              "discountAmount": 0,
+              "discounted": 360,
+              "totalDeposit": 500,
+              "grandTotal": 860,
+              "itemBreakdown": [
+                {
+                  "id": "L-443651",
+                  "name": "230W光束灯",
+                  "category": "灯具",
+                  "spec": "7R 230W",
+                  "daily": 120,
+                  "subtotal": 360,
+                  "deposit": 500
+                }
+              ]
+            }
+          },
+          "approvalStatus": "superseded",
+          "approvedAt": "2026-06-14T11:14:38.185Z",
+          "approvedBy": "测试员",
+          "approvalNote": "同意V1",
+          "rejectedAt": null,
+          "rejectedBy": null,
+          "rejectionReason": ""
+        },
+        {
+          "versionId": "V-678588",
+          "versionNumber": 2,
+          "createdAt": "2026-06-14T11:14:38.572Z",
+          "createdBy": "user",
+          "snapshot": {
+            "customer": "审批流转测试客户-修改后",
+            "startDate": "2026-07-01",
+            "endDate": "2026-07-03",
+            "rentalDays": 3,
+            "itemIds": [
+              "L-443651"
+            ],
+            "items": [
+              {
+                "id": "L-443651",
+                "name": "230W光束灯",
+                "spec": "7R 230W",
+                "category": "灯具"
+              }
+            ],
+            "discount": 100,
+            "depositOverride": {},
+            "note": "",
+            "summary": {
+              "rentalDays": 3,
+              "subtotal": 360,
+              "discountAmount": 100,
+              "discounted": 260,
+              "totalDeposit": 500,
+              "grandTotal": 760,
+              "itemBreakdown": [
+                {
+                  "id": "L-443651",
+                  "name": "230W光束灯",
+                  "category": "灯具",
+                  "spec": "7R 230W",
+                  "daily": 120,
+                  "subtotal": 360,
+                  "deposit": 500
+                }
+              ]
+            }
+          },
+          "approvalStatus": "approved",
+          "approvedAt": "2026-06-14T11:14:38.688Z",
+          "approvedBy": "测试员",
+          "approvalNote": "同意V2",
+          "rejectedAt": null,
+          "rejectedBy": null,
+          "rejectionReason": ""
+        }
+      ],
+      "currentVersionId": "V-678588",
+      "approvedVersionId": "V-678588"
+    },
+    {
+      "id": "Q-618731",
+      "customer": "审批流转测试客户",
+      "startDate": "2026-07-01",
+      "endDate": "2026-07-03",
+      "rentalDays": 3,
+      "itemIds": [
+        "L-443651"
+      ],
+      "discount": 0,
+      "depositOverride": {},
+      "status": "已确认",
+      "note": "",
+      "createdAt": "2026-06-14T11:13:38.731Z",
+      "updatedAt": "2026-06-14T11:13:39.342Z",
+      "versions": [
+        {
+          "versionId": "V-618764",
+          "versionNumber": 1,
+          "createdAt": "2026-06-14T11:13:38.731Z",
+          "createdBy": "user",
+          "snapshot": {
+            "customer": "审批流转测试客户",
+            "startDate": "2026-07-01",
+            "endDate": "2026-07-03",
+            "rentalDays": 3,
+            "itemIds": [
+              "L-443651"
+            ],
+            "items": [
+              {
+                "id": "L-443651",
+                "name": "230W光束灯",
+                "spec": "7R 230W",
+                "category": "灯具"
+              }
+            ],
+            "discount": 0,
+            "depositOverride": {},
+            "note": "",
+            "summary": {
+              "rentalDays": 3,
+              "subtotal": 360,
+              "discountAmount": 0,
+              "discounted": 360,
+              "totalDeposit": 500,
+              "grandTotal": 860,
+              "itemBreakdown": [
+                {
+                  "id": "L-443651",
+                  "name": "230W光束灯",
+                  "category": "灯具",
+                  "spec": "7R 230W",
+                  "daily": 120,
+                  "subtotal": 360,
+                  "deposit": 500
+                }
+              ]
+            }
+          },
+          "approvalStatus": "approved",
+          "approvedAt": "2026-06-14T11:13:39.342Z",
+          "approvedBy": "测试员",
+          "approvalNote": "同意V1",
+          "rejectedAt": null,
+          "rejectedBy": null,
+          "rejectionReason": ""
+        }
+      ],
+      "currentVersionId": "V-618764",
+      "approvedVersionId": "V-618764"
+    },
+    {
       "id": "Q-707092",
       "customer": "版本测试客户",
       "startDate": "2026-07-01",

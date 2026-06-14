@@ -128,11 +128,12 @@ export function genVersionId() {
   return `V-${Date.now().toString().slice(-6)}`;
 }
 
-export const VERSION_APPROVAL_STATUSES = ["pending", "approved", "rejected"];
+export const VERSION_APPROVAL_STATUSES = ["pending", "approved", "rejected", "superseded"];
 export const VERSION_APPROVAL_LABELS = {
   pending: "待审批",
   approved: "已通过",
-  rejected: "已驳回"
+  rejected: "已驳回",
+  superseded: "已取代"
 };
 
 export const QUOTE_KEY_FIELDS = [
