@@ -105,6 +105,215 @@
   ],
   "quotations": [
     {
+      "id": "Q-707092",
+      "customer": "版本测试客户",
+      "startDate": "2026-07-01",
+      "endDate": "2026-07-03",
+      "rentalDays": 3,
+      "itemIds": [
+        "L-443651",
+        "C-001"
+      ],
+      "discount": 0,
+      "depositOverride": {},
+      "status": "已确认",
+      "note": "版本功能测试",
+      "createdAt": "2026-06-14T10:41:47.092Z",
+      "updatedAt": "2026-06-14T10:45:08.716Z",
+      "versions": [
+        {
+          "versionId": "V-707092",
+          "versionNumber": 1,
+          "createdAt": "2026-06-14T10:41:47.092Z",
+          "createdBy": "user",
+          "snapshot": {
+            "customer": "版本测试客户",
+            "startDate": "2026-07-01",
+            "endDate": "2026-07-03",
+            "rentalDays": 3,
+            "itemIds": [
+              "L-443651",
+              "C-001"
+            ],
+            "items": [
+              {
+                "id": "L-443651",
+                "name": "230W光束灯",
+                "spec": "7R 230W",
+                "category": "灯具"
+              },
+              {
+                "id": "C-001",
+                "name": "MA控台",
+                "spec": "Command Wing",
+                "category": "控台"
+              }
+            ],
+            "discount": 0,
+            "depositOverride": {},
+            "note": "版本功能测试",
+            "summary": {
+              "rentalDays": 3,
+              "subtotal": 1260,
+              "discountAmount": 0,
+              "discounted": 1260,
+              "totalDeposit": 2500,
+              "grandTotal": 3760,
+              "itemBreakdown": [
+                {
+                  "id": "L-443651",
+                  "name": "230W光束灯",
+                  "category": "灯具",
+                  "spec": "7R 230W",
+                  "daily": 120,
+                  "subtotal": 360,
+                  "deposit": 500
+                },
+                {
+                  "id": "C-001",
+                  "name": "MA控台",
+                  "category": "控台",
+                  "spec": "Command Wing",
+                  "daily": 300,
+                  "subtotal": 900,
+                  "deposit": 2000
+                }
+              ]
+            }
+          },
+          "approvalStatus": "pending",
+          "approvedAt": null,
+          "approvedBy": null,
+          "approvalNote": "",
+          "rejectedAt": null,
+          "rejectedBy": null,
+          "rejectionReason": ""
+        },
+        {
+          "versionId": "V-721204",
+          "versionNumber": 2,
+          "createdAt": "2026-06-14T10:42:01.204Z",
+          "createdBy": "user",
+          "snapshot": {
+            "customer": "版本测试客户",
+            "startDate": "2026-07-01",
+            "endDate": "2026-07-03",
+            "rentalDays": 3,
+            "itemIds": [
+              "L-443651",
+              "C-001"
+            ],
+            "items": [
+              {
+                "id": "L-443651",
+                "name": "230W光束灯",
+                "spec": "7R 230W",
+                "category": "灯具"
+              },
+              {
+                "id": "C-001",
+                "name": "MA控台",
+                "spec": "Command Wing",
+                "category": "控台"
+              }
+            ],
+            "discount": 0.1,
+            "depositOverride": {},
+            "note": "修改了折扣，应该生成新版本",
+            "summary": {
+              "rentalDays": 3,
+              "subtotal": 1260,
+              "discountAmount": 126,
+              "discounted": 1134,
+              "totalDeposit": 2500,
+              "grandTotal": 3634,
+              "itemBreakdown": [
+                {
+                  "id": "L-443651",
+                  "name": "230W光束灯",
+                  "category": "灯具",
+                  "spec": "7R 230W",
+                  "daily": 120,
+                  "subtotal": 360,
+                  "deposit": 500
+                },
+                {
+                  "id": "C-001",
+                  "name": "MA控台",
+                  "category": "控台",
+                  "spec": "Command Wing",
+                  "daily": 300,
+                  "subtotal": 900,
+                  "deposit": 2000
+                }
+              ]
+            }
+          },
+          "approvalStatus": "approved",
+          "approvedAt": "2026-06-14T10:42:37.031Z",
+          "approvedBy": "user",
+          "approvalNote": "审批通过，价格合理",
+          "rejectedAt": null,
+          "rejectedBy": null,
+          "rejectionReason": ""
+        },
+        {
+          "versionId": "V-785256",
+          "versionNumber": 3,
+          "createdAt": "2026-06-14T10:43:05.155Z",
+          "createdBy": "user",
+          "snapshot": {
+            "customer": "修改客户名测试V3",
+            "startDate": "2026-07-01",
+            "endDate": "2026-07-03",
+            "rentalDays": 3,
+            "itemIds": [
+              "L-002"
+            ],
+            "items": [
+              {
+                "id": "L-002",
+                "name": "LED帕灯",
+                "spec": "18x10W",
+                "category": "灯具"
+              }
+            ],
+            "discount": 0.1,
+            "depositOverride": {},
+            "note": "修改了折扣，应该生成新版本",
+            "summary": {
+              "rentalDays": 3,
+              "subtotal": 360,
+              "discountAmount": 36,
+              "discounted": 324,
+              "totalDeposit": 500,
+              "grandTotal": 824,
+              "itemBreakdown": [
+                {
+                  "id": "L-002",
+                  "name": "LED帕灯",
+                  "category": "灯具",
+                  "spec": "18x10W",
+                  "daily": 120,
+                  "subtotal": 360,
+                  "deposit": 500
+                }
+              ]
+            }
+          },
+          "approvalStatus": "rejected",
+          "approvedAt": null,
+          "approvedBy": null,
+          "approvalNote": "",
+          "rejectedAt": "2026-06-14T10:45:08.716Z",
+          "rejectedBy": "user",
+          "rejectionReason": "客户名称不正确，请修改后重新提交"
+        }
+      ],
+      "currentVersionId": "V-707092",
+      "approvedVersionId": "V-721204"
+    },
+    {
       "id": "Q-081615",
       "customer": "浏览器集成测试客户",
       "startDate": "2026-08-20",
@@ -120,7 +329,38 @@
       "status": "已确认",
       "note": "浏览器自动化集成测试",
       "createdAt": "2026-06-13T23:58:01.616Z",
-      "updatedAt": "2026-06-13T23:58:01.616Z"
+      "updatedAt": "2026-06-13T23:58:01.616Z",
+      "versions": [
+        {
+          "versionId": "V-081616",
+          "versionNumber": 1,
+          "createdAt": "2026-06-13T23:58:01.616Z",
+          "createdBy": "system",
+          "snapshot": {
+            "customer": "浏览器集成测试客户",
+            "startDate": "2026-08-20",
+            "endDate": "2026-08-24",
+            "rentalDays": 5,
+            "itemIds": [
+              "L-443651",
+              "L-001",
+              "L-002"
+            ],
+            "discount": 0.1,
+            "depositOverride": {},
+            "note": "浏览器自动化集成测试"
+          },
+          "approvalStatus": "approved",
+          "approvedAt": "2026-06-13T23:58:01.616Z",
+          "approvedBy": "system",
+          "approvalNote": "",
+          "rejectedAt": null,
+          "rejectedBy": null,
+          "rejectionReason": ""
+        }
+      ],
+      "currentVersionId": "V-081616",
+      "approvedVersionId": "V-081616"
     },
     {
       "id": "Q-891569",
@@ -140,7 +380,38 @@
       "createdAt": "2026-06-13T23:54:51.569Z",
       "updatedAt": "2026-06-13T23:55:04.692Z",
       "convertedOrderId": "O-1781394904983",
-      "convertedAt": "2026-06-13T23:55:04.983Z"
+      "convertedAt": "2026-06-13T23:55:04.983Z",
+      "versions": [
+        {
+          "versionId": "V-891569",
+          "versionNumber": 1,
+          "createdAt": "2026-06-13T23:54:51.569Z",
+          "createdBy": "system",
+          "snapshot": {
+            "customer": "测试客户A",
+            "startDate": "2026-07-10",
+            "endDate": "2026-07-12",
+            "rentalDays": 3,
+            "itemIds": [
+              "L-001",
+              "L-002",
+              "C-001"
+            ],
+            "discount": 0.1,
+            "depositOverride": {},
+            "note": "周年庆活动测试"
+          },
+          "approvalStatus": "approved",
+          "approvedAt": "2026-06-13T23:55:04.692Z",
+          "approvedBy": "system",
+          "approvalNote": "",
+          "rejectedAt": null,
+          "rejectedBy": null,
+          "rejectionReason": ""
+        }
+      ],
+      "currentVersionId": "V-891569",
+      "approvedVersionId": "V-891569"
     }
   ],
   "repairs": [

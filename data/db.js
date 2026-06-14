@@ -50,6 +50,39 @@ export async function loadDb() {
   if (!db.quotations) db.quotations = [];
   if (!db.repairs) db.repairs = [];
   if (!db.handovers) db.handovers = [];
+
+  db.quotations = db.quotations.map((q) => {
+    if (!q.versions || !Array.isArray(q.versions)) {
+      const initialVersion = {
+        versionId: `V-${(q.createdAt ? new Date(q.createdAt).getTime() : Date.now()).toString().slice(-6)}`,
+        versionNumber: 1,
+        createdAt: q.createdAt || new Date().toISOString(),
+        createdBy: "system",
+        snapshot: {
+          customer: q.customer,
+          startDate: q.startDate,
+          endDate: q.endDate,
+          rentalDays: q.rentalDays,
+          itemIds: q.itemIds ? [...q.itemIds] : [],
+          discount: q.discount,
+          depositOverride: q.depositOverride ? { ...q.depositOverride } : {},
+          note: q.note
+        },
+        approvalStatus: q.status === "已确认" || q.status === "已转订单" ? "approved" : "pending",
+        approvedAt: (q.status === "已确认" || q.status === "已转订单") ? (q.updatedAt || q.createdAt) : null,
+        approvedBy: (q.status === "已确认" || q.status === "已转订单") ? "system" : null,
+        approvalNote: "",
+        rejectedAt: null,
+        rejectedBy: null,
+        rejectionReason: ""
+      };
+      q.versions = [initialVersion];
+      q.currentVersionId = initialVersion.versionId;
+      q.approvedVersionId = (q.status === "已确认" || q.status === "已转订单") ? initialVersion.versionId : null;
+    }
+    return q;
+  });
+
   return db;
 }
 
@@ -89,6 +122,47 @@ export function genRepairId() {
 
 export function genHandoverId() {
   return `H-${Date.now().toString().slice(-6)}`;
+}
+
+export function genVersionId() {
+  return `V-${Date.now().toString().slice(-6)}`;
+}
+
+export const VERSION_APPROVAL_STATUSES = ["pending", "approved", "rejected"];
+export const VERSION_APPROVAL_LABELS = {
+  pending: "待审批",
+  approved: "已通过",
+  rejected: "已驳回"
+};
+
+export const QUOTE_KEY_FIELDS = [
+  "customer",
+  "startDate",
+  "endDate",
+  "itemIds",
+  "discount",
+  "depositOverride",
+  "note"
+];
+
+export function hasKeyFieldChanged(oldData, newData) {
+  for (const field of QUOTE_KEY_FIELDS) {
+    const oldVal = oldData[field];
+    const newVal = newData[field];
+    if (field === "itemIds") {
+      const oldArr = Array.isArray(oldVal) ? [...oldVal].sort() : [];
+      const newArr = Array.isArray(newVal) ? [...newVal].sort() : [];
+      if (oldArr.length !== newArr.length) return true;
+      if (oldArr.some((v, i) => v !== newArr[i])) return true;
+    } else if (field === "depositOverride") {
+      const oldStr = JSON.stringify(oldVal || {});
+      const newStr = JSON.stringify(newVal || {});
+      if (oldStr !== newStr) return true;
+    } else {
+      if (oldVal !== newVal) return true;
+    }
+  }
+  return false;
 }
 
 export const REPAIR_STATUSES = ["pending", "repairing", "completed", "cancelled"];

@@ -1,4 +1,4 @@
-import { loadDb, saveDb, genQuotationId } from "../data/db.js";
+import { loadDb, saveDb, genQuotationId, genVersionId, hasKeyFieldChanged, VERSION_APPROVAL_STATUSES, VERSION_APPROVAL_LABELS } from "../data/db.js";
 import { sendJson, parseBody } from "../lib/http.js";
 import { buildQuoteSummary, calcRentalDays } from "../lib/quoteCalculator.js";
 import { convertQuotationToOrder, isQuoteConvertible } from "../lib/quoteToOrder.js";
@@ -41,6 +41,284 @@ function buildQuotationPayload(db, quote, withSummary = true) {
   }
 
   return payload;
+}
+
+function buildVersionSnapshot(db, quote) {
+  const eqMap = new Map(db.equipment.map((e) => [e.id, e]));
+  const items = (quote.itemIds || []).map((iid) => {
+    const eq = eqMap.get(iid);
+    return {
+      id: iid,
+      name: eq ? eq.name : "（已删除）",
+      spec: eq ? eq.spec : "",
+      category: eq ? eq.category : ""
+    };
+  });
+
+  let summary = null;
+  if (quote.itemIds?.length && quote.startDate && quote.endDate) {
+    summary = buildQuoteSummary(
+      db.equipment,
+      quote.itemIds,
+      quote.startDate,
+      quote.endDate,
+      quote.depositOverride || {},
+      quote.discount || 0
+    );
+  }
+
+  return {
+    customer: quote.customer,
+    startDate: quote.startDate,
+    endDate: quote.endDate,
+    rentalDays: quote.rentalDays,
+    itemIds: quote.itemIds ? [...quote.itemIds] : [],
+    items,
+    discount: quote.discount,
+    depositOverride: quote.depositOverride ? { ...quote.depositOverride } : {},
+    note: quote.note,
+    summary
+  };
+}
+
+function buildVersionPayload(db, quote, version) {
+  const eqMap = new Map(db.equipment.map((e) => [e.id, e]));
+  const snapshot = version.snapshot;
+  const items = (snapshot.itemIds || []).map((iid) => {
+    const eq = eqMap.get(iid);
+    return {
+      id: iid,
+      name: eq ? eq.name : "（已删除）",
+      spec: eq ? eq.spec : "",
+      category: eq ? eq.category : ""
+    };
+  });
+
+  return {
+    versionId: version.versionId,
+    versionNumber: version.versionNumber,
+    createdAt: version.createdAt,
+    createdBy: version.createdBy,
+    approvalStatus: version.approvalStatus,
+    approvalStatusLabel: VERSION_APPROVAL_LABELS[version.approvalStatus] || version.approvalStatus,
+    approvedAt: version.approvedAt,
+    approvedBy: version.approvedBy,
+    approvalNote: version.approvalNote,
+    rejectedAt: version.rejectedAt,
+    rejectedBy: version.rejectedBy,
+    rejectionReason: version.rejectionReason,
+    isCurrent: quote.currentVersionId === version.versionId,
+    isApproved: quote.approvedVersionId === version.versionId,
+    snapshot: {
+      ...snapshot,
+      items
+    }
+  };
+}
+
+export async function listVersions(req, res, quoteId) {
+  const db = await loadDb();
+  const quote = db.quotations.find((q) => q.id === quoteId);
+  if (!quote) return sendJson(res, 404, { error: "quotation_not_found" });
+
+  const versions = [...(quote.versions || [])]
+    .sort((a, b) => b.versionNumber - a.versionNumber)
+    .map((v) => buildVersionPayload(db, quote, v));
+
+  return sendJson(res, 200, versions);
+}
+
+export async function getVersion(req, res, quoteId, versionId) {
+  const db = await loadDb();
+  const quote = db.quotations.find((q) => q.id === quoteId);
+  if (!quote) return sendJson(res, 404, { error: "quotation_not_found" });
+
+  const version = (quote.versions || []).find((v) => v.versionId === versionId);
+  if (!version) return sendJson(res, 404, { error: "version_not_found" });
+
+  return sendJson(res, 200, buildVersionPayload(db, quote, version));
+}
+
+export async function createVersion(req, res, quoteId) {
+  const db = await loadDb();
+  const idx = db.quotations.findIndex((q) => q.id === quoteId);
+  if (idx === -1) return sendJson(res, 404, { error: "quotation_not_found" });
+
+  const quote = db.quotations[idx];
+  if (quote.status === "已转订单") {
+    return sendJson(res, 400, { error: "已转订单的报价单不能创建新版本" });
+  }
+
+  const input = await parseBody(req);
+
+  const versions = quote.versions || [];
+  const newVersionNumber = versions.length > 0
+    ? Math.max(...versions.map((v) => v.versionNumber)) + 1
+    : 1;
+
+  const snapshot = buildVersionSnapshot(db, quote);
+
+  const newVersion = {
+    versionId: genVersionId(),
+    versionNumber: newVersionNumber,
+    createdAt: new Date().toISOString(),
+    createdBy: input.createdBy || "user",
+    snapshot,
+    approvalStatus: "pending",
+    approvedAt: null,
+    approvedBy: null,
+    approvalNote: "",
+    rejectedAt: null,
+    rejectedBy: null,
+    rejectionReason: ""
+  };
+
+  versions.push(newVersion);
+  quote.versions = versions;
+  quote.currentVersionId = newVersion.versionId;
+  quote.updatedAt = new Date().toISOString();
+
+  await saveDb(db);
+  return sendJson(res, 201, buildVersionPayload(db, quote, newVersion));
+}
+
+export async function approveVersion(req, res, quoteId, versionId) {
+  const db = await loadDb();
+  const idx = db.quotations.findIndex((q) => q.id === quoteId);
+  if (idx === -1) return sendJson(res, 404, { error: "quotation_not_found" });
+
+  const quote = db.quotations[idx];
+  if (quote.status === "已转订单") {
+    return sendJson(res, 400, { error: "已转订单的报价单不能审批" });
+  }
+
+  const version = (quote.versions || []).find((v) => v.versionId === versionId);
+  if (!version) return sendJson(res, 404, { error: "version_not_found" });
+
+  if (version.approvalStatus === "approved") {
+    return sendJson(res, 400, { error: "该版本已通过审批" });
+  }
+
+  const input = await parseBody(req);
+
+  version.approvalStatus = "approved";
+  version.approvedAt = new Date().toISOString();
+  version.approvedBy = input.approvedBy || "user";
+  version.approvalNote = input.approvalNote || "";
+  version.rejectedAt = null;
+  version.rejectedBy = null;
+  version.rejectionReason = "";
+
+  quote.approvedVersionId = version.versionId;
+  quote.currentVersionId = version.versionId;
+
+  const snapshot = version.snapshot;
+  quote.customer = snapshot.customer;
+  quote.startDate = snapshot.startDate;
+  quote.endDate = snapshot.endDate;
+  quote.rentalDays = snapshot.rentalDays;
+  quote.itemIds = [...(snapshot.itemIds || [])];
+  quote.discount = snapshot.discount;
+  quote.depositOverride = snapshot.depositOverride ? { ...snapshot.depositOverride } : {};
+  quote.note = snapshot.note;
+
+  if (quote.status === "草稿") {
+    quote.status = "已确认";
+  }
+  quote.updatedAt = new Date().toISOString();
+
+  await saveDb(db);
+  return sendJson(res, 200, {
+    version: buildVersionPayload(db, quote, version),
+    quotation: buildQuotationPayload(db, quote, true)
+  });
+}
+
+export async function rejectVersion(req, res, quoteId, versionId) {
+  const db = await loadDb();
+  const idx = db.quotations.findIndex((q) => q.id === quoteId);
+  if (idx === -1) return sendJson(res, 404, { error: "quotation_not_found" });
+
+  const quote = db.quotations[idx];
+  if (quote.status === "已转订单") {
+    return sendJson(res, 400, { error: "已转订单的报价单不能审批" });
+  }
+
+  const version = (quote.versions || []).find((v) => v.versionId === versionId);
+  if (!version) return sendJson(res, 404, { error: "version_not_found" });
+
+  if (version.approvalStatus === "approved") {
+    return sendJson(res, 400, { error: "已通过审批的版本不能驳回" });
+  }
+
+  const input = await parseBody(req);
+
+  version.approvalStatus = "rejected";
+  version.rejectedAt = new Date().toISOString();
+  version.rejectedBy = input.rejectedBy || "user";
+  version.rejectionReason = input.rejectionReason || "";
+
+  quote.updatedAt = new Date().toISOString();
+
+  await saveDb(db);
+  return sendJson(res, 200, buildVersionPayload(db, quote, version));
+}
+
+export async function restoreVersion(req, res, quoteId, versionId) {
+  const db = await loadDb();
+  const idx = db.quotations.findIndex((q) => q.id === quoteId);
+  if (idx === -1) return sendJson(res, 404, { error: "quotation_not_found" });
+
+  const quote = db.quotations[idx];
+  if (quote.status === "已转订单") {
+    return sendJson(res, 400, { error: "已转订单的报价单不能恢复" });
+  }
+
+  const version = (quote.versions || []).find((v) => v.versionId === versionId);
+  if (!version) return sendJson(res, 404, { error: "version_not_found" });
+
+  const snapshot = version.snapshot;
+  quote.customer = snapshot.customer;
+  quote.startDate = snapshot.startDate;
+  quote.endDate = snapshot.endDate;
+  quote.rentalDays = snapshot.rentalDays;
+  quote.itemIds = [...(snapshot.itemIds || [])];
+  quote.discount = snapshot.discount;
+  quote.depositOverride = snapshot.depositOverride ? { ...snapshot.depositOverride } : {};
+  quote.note = snapshot.note;
+  quote.currentVersionId = version.versionId;
+
+  if (quote.status === "已取消") {
+    quote.status = "草稿";
+  }
+  quote.updatedAt = new Date().toISOString();
+
+  await saveDb(db);
+  return sendJson(res, 200, buildQuotationPayload(db, quote, true));
+}
+
+export async function compareVersions(req, res, quoteId) {
+  const db = await loadDb();
+  const quote = db.quotations.find((q) => q.id === quoteId);
+  if (!quote) return sendJson(res, 404, { error: "quotation_not_found" });
+
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const versionId1 = url.searchParams.get("v1");
+  const versionId2 = url.searchParams.get("v2");
+
+  if (!versionId1 || !versionId2) {
+    return sendJson(res, 400, { error: "请指定两个版本ID进行对比" });
+  }
+
+  const v1 = (quote.versions || []).find((v) => v.versionId === versionId1);
+  const v2 = (quote.versions || []).find((v) => v.versionId === versionId2);
+
+  if (!v1 || !v2) return sendJson(res, 404, { error: "version_not_found" });
+
+  return sendJson(res, 200, {
+    v1: buildVersionPayload(db, quote, v1),
+    v2: buildVersionPayload(db, quote, v2)
+  });
 }
 
 export async function listQuotations(req, res) {
@@ -121,6 +399,24 @@ export async function createQuotation(req, res) {
     });
   }
 
+  const initialSnapshot = buildVersionSnapshot(db, quotation);
+  quotation.versions = [{
+    versionId: genVersionId(),
+    versionNumber: 1,
+    createdAt: quotation.createdAt,
+    createdBy: "user",
+    snapshot: initialSnapshot,
+    approvalStatus: "pending",
+    approvedAt: null,
+    approvedBy: null,
+    approvalNote: "",
+    rejectedAt: null,
+    rejectedBy: null,
+    rejectionReason: ""
+  }];
+  quotation.currentVersionId = quotation.versions[0].versionId;
+  quotation.approvedVersionId = null;
+
   db.quotations.unshift(quotation);
   await saveDb(db);
   return sendJson(res, 201, buildQuotationPayload(db, quotation, true));
@@ -181,9 +477,45 @@ export async function updateQuotation(req, res, id) {
     }
   }
 
+  const keyFieldsChanged = hasKeyFieldChanged(current, merged);
+
+  if (keyFieldsChanged) {
+    const versions = current.versions || [];
+    const newVersionNumber = versions.length > 0
+      ? Math.max(...versions.map((v) => v.versionNumber)) + 1
+      : 1;
+
+    const snapshot = buildVersionSnapshot(db, merged);
+
+    const newVersion = {
+      versionId: genVersionId(),
+      versionNumber: newVersionNumber,
+      createdAt: merged.updatedAt,
+      createdBy: "user",
+      snapshot,
+      approvalStatus: "pending",
+      approvedAt: null,
+      approvedBy: null,
+      approvalNote: "",
+      rejectedAt: null,
+      rejectedBy: null,
+      rejectionReason: ""
+    };
+
+    versions.push(newVersion);
+    merged.versions = versions;
+    merged.currentVersionId = newVersion.versionId;
+  }
+
   db.quotations[idx] = merged;
   await saveDb(db);
-  return sendJson(res, 200, buildQuotationPayload(db, merged, true));
+
+  const payload = buildQuotationPayload(db, merged, true);
+  if (keyFieldsChanged) {
+    payload.newVersionCreated = true;
+    payload.currentVersionId = merged.currentVersionId;
+  }
+  return sendJson(res, 200, payload);
 }
 
 export async function deleteQuotation(req, res, id) {

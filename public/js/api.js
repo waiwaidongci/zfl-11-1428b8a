@@ -55,7 +55,14 @@ export const Quotations = {
   remove: (id) => api(`/api/quotations/${id}`, { method: "DELETE" }),
   preview: (data) => api("/api/quotations/preview", { method: "POST", body: JSON.stringify(data) }),
   convert: (id) => api(`/api/quotations/${id}/convert`, { method: "POST" }),
-  checkConvert: (id) => api(`/api/quotations/${id}/check`)
+  checkConvert: (id) => api(`/api/quotations/${id}/check`),
+  listVersions: (quoteId) => api(`/api/quotations/${quoteId}/versions`),
+  getVersion: (quoteId, versionId) => api(`/api/quotations/${quoteId}/versions/${versionId}`),
+  createVersion: (quoteId, data) => api(`/api/quotations/${quoteId}/versions`, { method: "POST", body: JSON.stringify(data || {}) }),
+  approveVersion: (quoteId, versionId, data) => api(`/api/quotations/${quoteId}/versions/${versionId}/approve`, { method: "POST", body: JSON.stringify(data || {}) }),
+  rejectVersion: (quoteId, versionId, data) => api(`/api/quotations/${quoteId}/versions/${versionId}/reject`, { method: "POST", body: JSON.stringify(data || {}) }),
+  restoreVersion: (quoteId, versionId) => api(`/api/quotations/${quoteId}/versions/${versionId}/restore`, { method: "POST" }),
+  compareVersions: (quoteId, v1, v2) => api(`/api/quotations/${quoteId}/versions/compare?v1=${encodeURIComponent(v1)}&v2=${encodeURIComponent(v2)}`)
 };
 
 export function overlap(a, b, c, d) {

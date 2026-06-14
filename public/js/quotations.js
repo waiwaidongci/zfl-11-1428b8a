@@ -13,6 +13,10 @@ const depositOverrides = {};
 let editingId = null;
 let currentPreview = null;
 let currentDetailId = null;
+let allVersions = [];
+let currentCompareV1 = null;
+let currentCompareV2 = null;
+let detailTab = "info";
 
 function escapeHtml(str) {
   return String(str || "")
@@ -35,6 +39,27 @@ function statusBadgeClass(status) {
     case "已取消": return "canceled";
     default: return "";
   }
+}
+
+function versionStatusBadgeClass(status) {
+  switch (status) {
+    case "pending": return "version-pending";
+    case "approved": return "version-approved";
+    case "rejected": return "version-rejected";
+    default: return "";
+  }
+}
+
+function formatDateTime(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return d.toLocaleString("zh-CN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
 }
 
 function renderStats() {
@@ -471,7 +496,11 @@ async function submitQuote() {
     let result;
     if (editingId) {
       result = await Quotations.update(editingId, data);
-      showToast(`报价单 ${result.id} 已更新`);
+      if (result.newVersionCreated) {
+        showToast(`报价单 ${result.id} 已更新，已生成新版本 V${(allVersions.length + 1) || result.currentVersionId}`);
+      } else {
+        showToast(`报价单 ${result.id} 已更新`);
+      }
     } else {
       result = await Quotations.create(data);
       showToast(`报价单 ${result.id} 创建成功`);
@@ -489,12 +518,17 @@ async function openDetail(id) {
   $("#detailModal").classList.remove("hidden");
   $("#detailTitle").textContent = "报价单详情";
   $("#detailBody").innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">加载中…</div>';
+  detailTab = "info";
+  currentCompareV1 = null;
+  currentCompareV2 = null;
 
   try {
-    const [q, check] = await Promise.all([
+    const [q, check, versions] = await Promise.all([
       Quotations.get(id),
-      Quotations.checkConvert(id).catch(() => null)
+      Quotations.checkConvert(id).catch(() => null),
+      Quotations.listVersions(id).catch(() => [])
     ]);
+    allVersions = versions || [];
     renderDetail(q, check);
   } catch (err) {
     $("#detailBody").innerHTML = `<div style="text-align:center;padding:40px;color:var(--red)">加载失败：${escapeHtml(err.message)}</div>`;
@@ -545,7 +579,10 @@ function renderDetail(q, check) {
     </div>`;
   }
 
-  $("#detailBody").innerHTML = `
+  const versionsHtml = renderVersionsTab(q);
+  const compareHtml = renderCompareTab(q);
+
+  const infoTabContent = `
     ${alertHtml}
     <div class="detail-section">
       <div class="q-id">${escapeHtml(q.id)}</div>
@@ -624,6 +661,30 @@ function renderDetail(q, check) {
     </table>
   `;
 
+  $("#detailBody").innerHTML = `
+    <div class="detail-tabs">
+      <button class="tab-btn ${detailTab === 'info' ? 'active' : ''}" data-tab="info">📋 基本信息</button>
+      <button class="tab-btn ${detailTab === 'versions' ? 'active' : ''}" data-tab="versions">📜 版本历史 (${allVersions.length})</button>
+      <button class="tab-btn ${detailTab === 'compare' ? 'active' : ''}" data-tab="compare">⚖️ 版本对比</button>
+    </div>
+    <div class="tab-content" style="display:${detailTab === 'info' ? 'block' : 'none'}" data-tab="info">${infoTabContent}</div>
+    <div class="tab-content" style="display:${detailTab === 'versions' ? 'block' : 'none'}" data-tab="versions">${versionsHtml}</div>
+    <div class="tab-content" style="display:${detailTab === 'compare' ? 'block' : 'none'}" data-tab="compare">${compareHtml}</div>
+  `;
+
+  $$(".tab-btn").forEach((btn) => {
+    btn.onclick = () => {
+      detailTab = btn.dataset.tab;
+      $$(".tab-btn").forEach((b) => b.classList.toggle("active", b === btn));
+      $$(".tab-content").forEach((c) => {
+        c.style.display = c.dataset.tab === detailTab ? "block" : "none";
+      });
+      bindDetailTabEvents(q);
+    };
+  });
+
+  bindDetailTabEvents(q);
+
   const canEdit = q.status !== "已转订单";
   const canConvert = q.status === "已确认";
   const canDelete = q.status !== "已转订单";
@@ -668,6 +729,362 @@ function renderDetail(q, check) {
   };
   if (deleteBtn) deleteBtn.onclick = () => handleDeleteClick(q.id);
   if (closeBtn) closeBtn.onclick = closeDetail;
+}
+
+function renderVersionsTab(q) {
+  if (!allVersions.length) {
+    return `<div style="text-align:center;padding:40px;color:var(--muted)">暂无版本历史</div>`;
+  }
+
+  const canApprove = q.status !== "已转订单";
+
+  return `
+    <div class="versions-list">
+      ${allVersions.map((v) => {
+        const snapshot = v.snapshot || {};
+        const items = snapshot.items || [];
+        const summary = snapshot.summary || {};
+
+        let approvalBadge = "";
+        if (v.approvalStatus === "approved") {
+          approvalBadge = `<span class="badge ${versionStatusBadgeClass(v.approvalStatus)}">✅ ${escapeHtml(v.approvalStatusLabel)}</span>`;
+        } else if (v.approvalStatus === "rejected") {
+          approvalBadge = `<span class="badge ${versionStatusBadgeClass(v.approvalStatus)}">❌ ${escapeHtml(v.approvalStatusLabel)}</span>`;
+        } else {
+          approvalBadge = `<span class="badge ${versionStatusBadgeClass(v.approvalStatus)}">⏳ ${escapeHtml(v.approvalStatusLabel)}</span>`;
+        }
+
+        const tags = items
+          .slice(0, 5)
+          .map((it) => `<span class="item-tag">${escapeHtml(it.id)} ${escapeHtml(it.name)}</span>`)
+          .join("");
+
+        const moreTag = items.length > 5 ? `<span class="item-tag">+${items.length - 5} 件</span>` : "";
+
+        return `
+          <div class="version-card" data-version-id="${escapeHtml(v.versionId)}">
+            <div class="version-head">
+              <div class="version-title">
+                <strong>版本 ${v.versionNumber}</strong>
+                <span class="version-id">${escapeHtml(v.versionId)}</span>
+              </div>
+              <div class="version-status">
+                ${approvalBadge}
+                ${v.isCurrent ? '<span class="badge version-current">当前</span>' : ''}
+                ${v.isApproved ? '<span class="badge version-approved-tag">已生效</span>' : ''}
+              </div>
+            </div>
+            <div class="version-meta">
+              <span>创建时间：${formatDateTime(v.createdAt)}</span>
+              <span>创建人：${escapeHtml(v.createdBy)}</span>
+              ${v.approvedAt ? `<span>审批时间：${formatDateTime(v.approvedAt)}</span>` : ''}
+              ${v.rejectedAt ? `<span>驳回时间：${formatDateTime(v.rejectedAt)}</span>` : ''}
+            </div>
+            <div class="version-snapshot">
+              <div class="snapshot-row">
+                <span class="snapshot-label">客户：</span>
+                <span>${escapeHtml(snapshot.customer || "—")}</span>
+              </div>
+              <div class="snapshot-row">
+                <span class="snapshot-label">租期：</span>
+                <span>${escapeHtml(snapshot.startDate || "—")} 至 ${escapeHtml(snapshot.endDate || "—")}${snapshot.rentalDays ? ` · ${snapshot.rentalDays}天` : ""}</span>
+              </div>
+              <div class="snapshot-row">
+                <span class="snapshot-label">折扣：</span>
+                <span>${snapshot.discount ? (Number(snapshot.discount) <= 1 ? `${Math.round((1 - Number(snapshot.discount)) * 100)}% 折扣` : `减 ¥${Number(snapshot.discount)}`) : "无折扣"}</span>
+              </div>
+              <div class="snapshot-row">
+                <span class="snapshot-label">合计：</span>
+                <span class="snapshot-total">¥${fmtMoney(summary.grandTotal || 0)}</span>
+              </div>
+              <div class="version-items">
+                ${tags}${moreTag}
+              </div>
+              ${snapshot.note ? `<div class="snapshot-note">📝 ${escapeHtml(snapshot.note)}</div>` : ""}
+              ${v.rejectionReason ? `<div class="rejection-note">❌ 驳回原因：${escapeHtml(v.rejectionReason)}</div>` : ""}
+            </div>
+            <div class="version-actions">
+              ${v.approvalStatus === "pending" && canApprove ? `
+                <button class="approve-version-btn success small" data-version-id="${escapeHtml(v.versionId)}">✅ 通过审批</button>
+                <button class="reject-version-btn danger small" data-version-id="${escapeHtml(v.versionId)}">❌ 驳回</button>
+              ` : ""}
+              ${!v.isCurrent && canApprove ? `
+                <button class="restore-version-btn secondary small" data-version-id="${escapeHtml(v.versionId)}">↩️ 恢复此版本</button>
+              ` : ""}
+              ${allVersions.length >= 2 ? `
+                <button class="compare-select-btn ghost small" data-version-id="${escapeHtml(v.versionId)}">⚖️ 选为对比项</button>
+              ` : ""}
+            </div>
+          </div>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
+function renderCompareTab(q) {
+  if (allVersions.length < 2) {
+    return `<div style="text-align:center;padding:40px;color:var(--muted)">至少需要两个版本才能进行对比</div>`;
+  }
+
+  const versionOptions = allVersions
+    .map((v) => `<option value="${escapeHtml(v.versionId)}">版本 ${v.versionNumber} (${escapeHtml(v.versionId)})</option>`)
+    .join("");
+
+  let compareContent = "";
+  if (currentCompareV1 && currentCompareV2) {
+    const v1 = allVersions.find((v) => v.versionId === currentCompareV1);
+    const v2 = allVersions.find((v) => v.versionId === currentCompareV2);
+
+    if (v1 && v2) {
+      compareContent = renderVersionComparison(v1, v2);
+    }
+  } else {
+    compareContent = `<div style="text-align:center;padding:40px;color:var(--muted)">请选择两个版本进行对比</div>`;
+  }
+
+  return `
+    <div class="compare-selector">
+      <div class="compare-select-row">
+        <label>版本 1：</label>
+        <select class="compare-select" id="compareSelect1">
+          <option value="">— 请选择 —</option>
+          ${versionOptions}
+        </select>
+      </div>
+      <div class="compare-vs">VS</div>
+      <div class="compare-select-row">
+        <label>版本 2：</label>
+        <select class="compare-select" id="compareSelect2">
+          <option value="">— 请选择 —</option>
+          ${versionOptions}
+        </select>
+      </div>
+      <button class="do-compare-btn primary" id="doCompareBtn">开始对比</button>
+    </div>
+    <div class="compare-result">
+      ${compareContent}
+    </div>
+  `;
+}
+
+function renderVersionComparison(v1, v2) {
+  const s1 = v1.snapshot || {};
+  const s2 = v2.snapshot || {};
+  const sum1 = s1.summary || {};
+  const sum2 = s2.summary || {};
+
+  function diffField(val1, val2, formatFn = (v) => v || "—") {
+    const f1 = formatFn(val1);
+    const f2 = formatFn(val2);
+    const changed = f1 !== f2;
+    return {
+      v1: f1,
+      v2: f2,
+      changed
+    };
+  }
+
+  function formatDiscount(d) {
+    if (!d) return "无折扣";
+    return Number(d) <= 1 ? `${Math.round((1 - Number(d)) * 100)}% 折扣` : `减 ¥${Number(d)}`;
+  }
+
+  function formatDateRange(d) {
+    if (!d.startDate || !d.endDate) return "—";
+    return `${d.startDate} 至 ${d.endDate}${d.rentalDays ? ` · ${d.rentalDays}天` : ""}`;
+  }
+
+  const fields = [
+    { label: "客户", ...diffField(s1.customer, s2.customer) },
+    { label: "租期", ...diffField(s1, s2, formatDateRange) },
+    { label: "折扣", ...diffField(s1.discount, s2.discount, formatDiscount) },
+    { label: "设备数量", ...diffField((s1.itemIds || []).length, (s2.itemIds || []).length, (v) => `${v} 件`) },
+    { label: "租金小计", ...diffField(sum1.subtotal, sum2.subtotal, (v) => `¥${fmtMoney(v)}`) },
+    { label: "优惠金额", ...diffField(sum1.discountAmount, sum2.discountAmount, (v) => `¥${fmtMoney(v)}`) },
+    { label: "折后租金", ...diffField(sum1.discounted, sum2.discounted, (v) => `¥${fmtMoney(v)}`) },
+    { label: "押金合计", ...diffField(sum1.totalDeposit, sum2.totalDeposit, (v) => `¥${fmtMoney(v)}`) },
+    { label: "应收合计", ...diffField(sum1.grandTotal, sum2.grandTotal, (v) => `¥${fmtMoney(v)}`) },
+    { label: "备注", ...diffField(s1.note, s2.note) }
+  ];
+
+  const items1 = s1.items || [];
+  const items2 = s2.items || [];
+  const itemIds1 = new Set(items1.map((i) => i.id));
+  const itemIds2 = new Set(items2.map((i) => i.id));
+  const allItemIds = new Set([...itemIds1, ...itemIds2]);
+
+  const itemDiffRows = [...allItemIds].map((id) => {
+    const it1 = items1.find((i) => i.id === id);
+    const it2 = items2.find((i) => i.id === id);
+    const in1 = !!it1;
+    const in2 = !!it2;
+    let status = "unchanged";
+    if (in1 && !in2) status = "removed";
+    else if (!in1 && in2) status = "added";
+
+    return `
+      <tr class="${status}">
+        <td>${escapeHtml(id)}</td>
+        <td>${in1 ? escapeHtml(it1.name) : "—"}</td>
+        <td>${in2 ? escapeHtml(it2.name) : "—"}</td>
+        <td class="num">${in1 ? `¥${fmtMoney(sum1.itemBreakdown?.find((x) => x.id === id)?.subtotal || 0)}` : "—"}</td>
+        <td class="num">${in2 ? `¥${fmtMoney(sum2.itemBreakdown?.find((x) => x.id === id)?.subtotal || 0)}` : "—"}</td>
+        <td>${status === "added" ? "新增" : status === "removed" ? "删除" : "未变"}</td>
+      </tr>
+    `;
+  }).join("");
+
+  return `
+    <div class="compare-summary">
+      <div class="compare-headers">
+        <div class="compare-header v1">
+          <strong>版本 ${v1.versionNumber}</strong>
+          <span class="meta">${formatDateTime(v1.createdAt)} · ${escapeHtml(v1.approvalStatusLabel)}</span>
+        </div>
+        <div class="compare-header v2">
+          <strong>版本 ${v2.versionNumber}</strong>
+          <span class="meta">${formatDateTime(v2.createdAt)} · ${escapeHtml(v2.approvalStatusLabel)}</span>
+        </div>
+      </div>
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th>字段</th>
+            <th>版本 ${v1.versionNumber}</th>
+            <th>版本 ${v2.versionNumber}</th>
+            <th>变化</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${fields.map((f) => `
+            <tr class="${f.changed ? 'changed' : ''}">
+              <td class="field-label">${f.label}</td>
+              <td>${escapeHtml(f.v1)}</td>
+              <td>${escapeHtml(f.v2)}</td>
+              <td class="change-indicator">${f.changed ? '🔄 变更' : '—'}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="detail-subtitle">设备差异</div>
+    <table class="compare-table">
+      <thead>
+        <tr>
+          <th>设备编号</th>
+          <th>版本 ${v1.versionNumber}</th>
+          <th>版本 ${v2.versionNumber}</th>
+          <th class="num">V1 小计</th>
+          <th class="num">V2 小计</th>
+          <th>状态</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${itemDiffRows || '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--muted)">无设备差异</td></tr>'}
+      </tbody>
+    </table>
+  `;
+}
+
+function bindDetailTabEvents(q) {
+  if (detailTab === "versions") {
+    $$(".approve-version-btn").forEach((btn) => {
+      btn.onclick = async () => {
+        const versionId = btn.dataset.versionId;
+        const note = prompt("请输入审批备注（可选）：", "");
+        if (note === null) return;
+        try {
+          await Quotations.approveVersion(q.id, versionId, { approvalNote: note });
+          showToast("版本审批通过，报价单已确认");
+          await load();
+          openDetail(q.id);
+        } catch (err) {
+          showToast(err.message, "error");
+        }
+      };
+    });
+
+    $$(".reject-version-btn").forEach((btn) => {
+      btn.onclick = async () => {
+        const versionId = btn.dataset.versionId;
+        const reason = prompt("请输入驳回原因：", "");
+        if (!reason) {
+          showToast("请输入驳回原因", "error");
+          return;
+        }
+        try {
+          await Quotations.rejectVersion(q.id, versionId, { rejectionReason: reason });
+          showToast("版本已驳回");
+          await load();
+          openDetail(q.id);
+        } catch (err) {
+          showToast(err.message, "error");
+        }
+      };
+    });
+
+    $$(".restore-version-btn").forEach((btn) => {
+      btn.onclick = async () => {
+        const versionId = btn.dataset.versionId;
+        if (!confirm("确定要恢复到此版本吗？这将覆盖当前报价单内容。")) return;
+        try {
+          await Quotations.restoreVersion(q.id, versionId);
+          showToast("已恢复到该版本");
+          await load();
+          openDetail(q.id);
+        } catch (err) {
+          showToast(err.message, "error");
+        }
+      };
+    });
+
+    $$(".compare-select-btn").forEach((btn) => {
+      btn.onclick = () => {
+        const versionId = btn.dataset.versionId;
+        if (!currentCompareV1) {
+          currentCompareV1 = versionId;
+          showToast(`已选为对比项 1`);
+        } else if (!currentCompareV2) {
+          currentCompareV2 = versionId;
+          showToast(`已选为对比项 2`);
+          detailTab = "compare";
+          renderDetail(q, null);
+        } else {
+          currentCompareV1 = currentCompareV2;
+          currentCompareV2 = versionId;
+          showToast(`已选为对比项 2`);
+          detailTab = "compare";
+          renderDetail(q, null);
+        }
+      };
+    });
+  }
+
+  if (detailTab === "compare") {
+    const sel1 = $("#compareSelect1");
+    const sel2 = $("#compareSelect2");
+    if (sel1 && currentCompareV1) sel1.value = currentCompareV1;
+    if (sel2 && currentCompareV2) sel2.value = currentCompareV2;
+
+    const doCompareBtn = $("#doCompareBtn");
+    if (doCompareBtn) {
+      doCompareBtn.onclick = () => {
+        currentCompareV1 = sel1.value;
+        currentCompareV2 = sel2.value;
+        if (!currentCompareV1 || !currentCompareV2) {
+          showToast("请选择两个版本", "error");
+          return;
+        }
+        if (currentCompareV1 === currentCompareV2) {
+          showToast("请选择不同的版本进行对比", "error");
+          return;
+        }
+        renderDetail(q, null);
+      };
+    }
+  }
 }
 
 function closeDetail() {

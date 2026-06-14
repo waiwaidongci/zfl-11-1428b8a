@@ -31,7 +31,14 @@ import {
   deleteQuotation,
   previewQuote,
   convertToOrder,
-  checkConvertibility
+  checkConvertibility,
+  listVersions,
+  getVersion,
+  createVersion,
+  approveVersion,
+  rejectVersion,
+  restoreVersion,
+  compareVersions
 } from "./routes/quotations.js";
 
 import {
@@ -152,6 +159,40 @@ const server = http.createServer(async (req, res) => {
     const quoteCheckMatch = p.match(/^\/api\/quotations\/([^/]+)\/check$/);
     if (quoteCheckMatch && req.method === "GET") {
       return checkConvertibility(req, res, decodeURIComponent(quoteCheckMatch[1]));
+    }
+
+    const quoteVersionsMatch = p.match(/^\/api\/quotations\/([^/]+)\/versions$/);
+    if (quoteVersionsMatch) {
+      const quoteId = decodeURIComponent(quoteVersionsMatch[1]);
+      if (req.method === "GET") return listVersions(req, res, quoteId);
+      if (req.method === "POST") return createVersion(req, res, quoteId);
+    }
+
+    const quoteVersionsCompareMatch = p.match(/^\/api\/quotations\/([^/]+)\/versions\/compare$/);
+    if (quoteVersionsCompareMatch && req.method === "GET") {
+      return compareVersions(req, res, decodeURIComponent(quoteVersionsCompareMatch[1]));
+    }
+
+    const quoteVersionApproveMatch = p.match(/^\/api\/quotations\/([^/]+)\/versions\/([^/]+)\/approve$/);
+    if (quoteVersionApproveMatch && req.method === "POST") {
+      return approveVersion(req, res, decodeURIComponent(quoteVersionApproveMatch[1]), decodeURIComponent(quoteVersionApproveMatch[2]));
+    }
+
+    const quoteVersionRejectMatch = p.match(/^\/api\/quotations\/([^/]+)\/versions\/([^/]+)\/reject$/);
+    if (quoteVersionRejectMatch && req.method === "POST") {
+      return rejectVersion(req, res, decodeURIComponent(quoteVersionRejectMatch[1]), decodeURIComponent(quoteVersionRejectMatch[2]));
+    }
+
+    const quoteVersionRestoreMatch = p.match(/^\/api\/quotations\/([^/]+)\/versions\/([^/]+)\/restore$/);
+    if (quoteVersionRestoreMatch && req.method === "POST") {
+      return restoreVersion(req, res, decodeURIComponent(quoteVersionRestoreMatch[1]), decodeURIComponent(quoteVersionRestoreMatch[2]));
+    }
+
+    const quoteVersionMatch = p.match(/^\/api\/quotations\/([^/]+)\/versions\/([^/]+)$/);
+    if (quoteVersionMatch) {
+      const quoteId = decodeURIComponent(quoteVersionMatch[1]);
+      const versionId = decodeURIComponent(quoteVersionMatch[2]);
+      if (req.method === "GET") return getVersion(req, res, quoteId, versionId);
     }
 
     if (req.method === "GET" && p === "/api/repairs") return listRepairs(req, res);
