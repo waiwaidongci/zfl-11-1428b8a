@@ -43,25 +43,51 @@ function renderItems() {
     itemsEl.innerHTML = visible
       .map((item) => {
         const isRepair = item.condition === "repair";
+        const isMissing = item.condition === "missing";
+        const isRented = item.condition === "rented";
         const isOccupied = occupied(item.id, start, end);
-        const unavailable = isRepair || isOccupied;
+        const unavailable = isRepair || isMissing || isRented || isOccupied;
         const cls =
           "item " + (selected.has(item.id) ? "selected " : "") + (unavailable ? "disabled" : "");
         let statusText = item.location;
-        if (isRepair) statusText = "维修中";
-        else if (isOccupied) statusText = "该租期已占用";
+        let badgeClass = "available";
+        let badgeText = "在库";
+        let textClass = "meta";
+
+        if (isRepair) {
+          statusText = "维修中";
+          badgeClass = "repair";
+          badgeText = "维修中";
+          textClass = "repair";
+        } else if (isMissing) {
+          statusText = "已缺失";
+          badgeClass = "repair";
+          badgeText = "缺失";
+          textClass = "repair";
+        } else if (isRented) {
+          statusText = "已出租";
+          badgeClass = "";
+          badgeText = "出租中";
+          textClass = "meta";
+        } else if (isOccupied) {
+          statusText = "该租期已占用";
+          badgeClass = "";
+          badgeText = "占用";
+          textClass = "meta";
+        }
+
+        const badgeStyle =
+          badgeClass === ""
+            ? isRented
+              ? 'style="background:#e6eaf4;color:var(--blue)"'
+              : 'style="background:#f7eadd;color:#8a5a2e"'
+            : "";
 
         return `<div class="${cls}" data-id="${item.id}" title="${unavailable ? "不可选择" : "点击选择"}">
           <b>${escapeHtml(item.name)}</b>
           <div class="meta">${escapeHtml(item.id)} · ${escapeHtml(item.category)} · ${escapeHtml(item.spec || "—")}</div>
-          <div class="${isRepair ? "repair" : "meta"}">
-            ${
-              item.condition === "repair"
-                ? '<span class="badge repair">维修中</span> '
-                : isOccupied
-                ? '<span class="badge" style="background:#f7eadd;color:#8a5a2e">占用</span> '
-                : '<span class="badge available">在库</span> '
-            }
+          <div class="${textClass}">
+            <span class="badge ${badgeClass}" ${badgeStyle}>${badgeText}</span>
             ${escapeHtml(statusText)}
           </div>
         </div>`;

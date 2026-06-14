@@ -22,12 +22,20 @@ export async function createOrder(req, res) {
 
   const occupied = occupiedItems(db, input.startDate, input.endDate);
   const repair = db.equipment.filter((item) => input.itemIds.includes(item.id) && item.condition === "repair").map((item) => item.id);
+  const missing = db.equipment.filter((item) => input.itemIds.includes(item.id) && item.condition === "missing").map((item) => item.id);
+  const rented = db.equipment.filter((item) => input.itemIds.includes(item.id) && item.condition === "rented").map((item) => item.id);
   const conflict = input.itemIds.filter((id) => occupied.has(id));
 
-  if (repair.length || conflict.length) {
+  const idSet = new Set(input.itemIds);
+  const duplicates = input.itemIds.filter((id, i) => input.itemIds.indexOf(id) !== i);
+
+  if (repair.length || missing.length || rented.length || conflict.length || duplicates.length) {
     const reasons = [];
     if (repair.length) reasons.push(`维修中: ${repair.join("、")}`);
+    if (missing.length) reasons.push(`已缺失: ${missing.join("、")}`);
+    if (rented.length) reasons.push(`租赁中: ${rented.join("、")}`);
     if (conflict.length) reasons.push(`租期占用: ${conflict.join("、")}`);
+    if (duplicates.length) reasons.push(`重复选择: ${[...new Set(duplicates)].join("、")}`);
     return sendJson(res, 409, { error: `设备不可用（${reasons.join("；")}）` });
   }
 
@@ -106,6 +114,37 @@ export async function updateOrder(req, res, id) {
     }
   }
 
+  const newStartDate = input.startDate || order.startDate;
+  const newEndDate = input.endDate || order.endDate;
+  const newItemIds = input.itemIds || order.itemIds;
+
+  if (new Date(newEndDate) < new Date(newStartDate)) {
+    return sendJson(res, 400, { error: "结束日期不能早于开始日期" });
+  }
+
+  if (input.itemIds?.length === 0) {
+    return sendJson(res, 400, { error: "请至少选择一件设备" });
+  }
+
+  if (input.itemIds) {
+    const occupied = occupiedItems(db, newStartDate, newEndDate, id);
+    const repair = db.equipment.filter((item) => input.itemIds.includes(item.id) && item.condition === "repair").map((item) => item.id);
+    const missing = db.equipment.filter((item) => input.itemIds.includes(item.id) && item.condition === "missing").map((item) => item.id);
+    const rented = db.equipment.filter((item) => input.itemIds.includes(item.id) && item.condition === "rented" && order.status !== "已出库").map((item) => item.id);
+    const conflict = input.itemIds.filter((id) => occupied.has(id));
+    const duplicates = input.itemIds.filter((id, i) => input.itemIds.indexOf(id) !== i);
+
+    if (repair.length || missing.length || rented.length || conflict.length || duplicates.length) {
+      const reasons = [];
+      if (repair.length) reasons.push(`维修中: ${repair.join("、")}`);
+      if (missing.length) reasons.push(`已缺失: ${missing.join("、")}`);
+      if (rented.length) reasons.push(`租赁中: ${rented.join("、")}`);
+      if (conflict.length) reasons.push(`租期占用: ${conflict.join("、")}`);
+      if (duplicates.length) reasons.push(`重复选择: ${[...new Set(duplicates)].join("、")}`);
+      return sendJson(res, 409, { error: `设备不可用（${reasons.join("；")}）` });
+    }
+  }
+
   const { status, ...otherFields } = input;
   Object.assign(order, otherFields);
   if (status) {
@@ -161,11 +200,40 @@ export async function createHandover(req, res, orderId) {
     }
 
     const validItemIds = new Set(order.itemIds);
-    const allConfirmed = input.itemConfirmations.every(
-      (c) => validItemIds.has(c.itemId) && c.confirmed
-    );
-    if (!allConfirmed) {
-      return sendJson(res, 400, { error: "所有设备必须确认后才能出库" });
+    const inputItemIds = input.itemConfirmations.map((c) => c.itemId);
+    const inputItemIdSet = new Set(inputItemIds);
+    const duplicates = inputItemIds.filter((id, i) => inputItemIds.indexOf(id) !== i);
+    const extraIds = inputItemIds.filter((id) => !validItemIds.has(id));
+    const missingIds = order.itemIds.filter((id) => !inputItemIdSet.has(id));
+
+    if (duplicates.length) {
+      return sendJson(res, 400, { error: `设备重复: ${[...new Set(duplicates)].join("、")}` });
+    }
+    if (extraIds.length) {
+      return sendJson(res, 400, { error: `不在订单中的设备: ${extraIds.join("、")}` });
+    }
+    if (missingIds.length) {
+      return sendJson(res, 400, { error: `遗漏的设备: ${missingIds.join("、")}` });
+    }
+
+    const unconfirmed = input.itemConfirmations.filter((c) => !c.confirmed).map((c) => c.itemId);
+    if (unconfirmed.length) {
+      return sendJson(res, 400, { error: `未确认的设备: ${unconfirmed.join("、")}` });
+    }
+
+    const itemMap = new Map(db.equipment.map((e) => [e.id, e]));
+    const notAvailable = input.itemConfirmations
+      .filter((c) => {
+        const eq = itemMap.get(c.itemId);
+        return eq && eq.condition !== "available";
+      })
+      .map((c) => {
+        const eq = itemMap.get(c.itemId);
+        const statusText = { repair: "维修中", missing: "已缺失", rented: "租赁中", available: "在库" };
+        return `${c.itemId}（${statusText[eq?.condition] || eq?.condition || "未知状态"}）`;
+      });
+    if (notAvailable.length) {
+      return sendJson(res, 400, { error: `设备状态不可出库: ${notAvailable.join("、")}` });
     }
 
     const handover = {
@@ -216,11 +284,26 @@ export async function createHandover(req, res, orderId) {
     }
 
     const validItemIds = new Set(order.itemIds);
-    const allHaveStatus = input.itemStatuses.every(
-      (s) => validItemIds.has(s.itemId) && ["intact", "damaged", "missing"].includes(s.status)
-    );
-    if (!allHaveStatus) {
-      return sendJson(res, 400, { error: "设备状态无效，必须为完好、损坏或缺失" });
+    const validStatuses = ["intact", "damaged", "missing"];
+
+    const inputItemIds = input.itemStatuses.map((s) => s.itemId);
+    const inputItemIdSet = new Set(inputItemIds);
+    const duplicates = inputItemIds.filter((id, i) => inputItemIds.indexOf(id) !== i);
+    const extraIds = inputItemIds.filter((id) => !validItemIds.has(id));
+    const missingIds = order.itemIds.filter((id) => !inputItemIdSet.has(id));
+    const invalidStatus = input.itemStatuses.filter((s) => !validStatuses.includes(s.status)).map((s) => s.itemId);
+
+    if (duplicates.length) {
+      return sendJson(res, 400, { error: `设备重复: ${[...new Set(duplicates)].join("、")}` });
+    }
+    if (extraIds.length) {
+      return sendJson(res, 400, { error: `不在订单中的设备: ${extraIds.join("、")}` });
+    }
+    if (missingIds.length) {
+      return sendJson(res, 400, { error: `遗漏的设备: ${missingIds.join("、")}` });
+    }
+    if (invalidStatus.length) {
+      return sendJson(res, 400, { error: `状态无效的设备: ${invalidStatus.join("、")}（必须为完好、损坏或缺失）` });
     }
 
     const handover = {
