@@ -236,5 +236,7 @@ export const BLOCK_TYPE_LABELS = {
   occupied: "占用中",
   pending_return: "待归还",
   repairing: "维修中",
-  quote_locked: "报价锁定"
+  quote_locked: "报价锁定",
+  quote_lock_expired: "锁定已过期",
+  quotation: "报价草稿"
 };

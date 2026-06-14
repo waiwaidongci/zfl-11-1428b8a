@@ -98,6 +98,8 @@
 .badge.confirmed { background: #e1edfb; color: var(--blue); }
 .badge.converted { background: #d7ead8; color: var(--green); }
 .badge.canceled { background: #f1f1f1; color: #888; }
+.badge.lock-active { background: #fef3c7; color: #92400e; border: 1px solid #f59e0b; }
+.badge.lock-expired { background: #f3f4f6; color: #6b7280; border: 1px dashed #9ca3af; }
 
 .modal.wide { max-width: 960px; }
 

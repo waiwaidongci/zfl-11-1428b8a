@@ -109,6 +109,31 @@
               <label>备注</label>
               <textarea name="note" placeholder="活动名称、特殊要求等" id="noteInput"></textarea>
 
+              <div class="lock-section">
+                <div class="sel-head">
+                  <label style="margin:0">🔒 临时锁定设备</label>
+                  <span class="meta" id="lockStatusHint" style="color:var(--muted)">设置锁定后，在有效期内将阻止其他订单/报价占用这些设备</span>
+                </div>
+                <div class="row" id="lockControls">
+                  <div>
+                    <label>锁定有效期至 *</label>
+                    <input type="datetime-local" id="lockEndAtInput" name="lockEndAt">
+                  </div>
+                  <div>
+                    <label>锁定开始（可选）</label>
+                    <input type="datetime-local" id="lockStartAtInput" name="lockStartAt">
+                  </div>
+                  <div style="display:flex;align-items:flex-end;gap:8px">
+                    <button type="button" id="applyLockBtn" class="secondary small">应用锁定</button>
+                    <button type="button" id="clearLockBtn" class="ghost small">取消锁定</button>
+                  </div>
+                </div>
+                <div id="lockAppliedHint" class="hidden" style="margin-top:8px;padding:10px 12px;background:rgba(255,170,0,0.08);border:1px solid rgba(255,170,0,0.3);border-radius:6px;">
+                  <strong style="color:var(--orange)">⏳ 已设置临时锁定</strong>
+                  <span id="lockAppliedRange" class="meta" style="margin-left:8px"></span>
+                </div>
+              </div>
+
               <div class="sel-head">
                 <label style="margin:0">选择设备 *</label>
                 <select id="itemCategoryFilter" class="mini">

@@ -1,14 +1,17 @@
-import { loadDb, saveDb, genQuotationId, genVersionId, hasKeyFieldChanged, VERSION_APPROVAL_STATUSES, VERSION_APPROVAL_LABELS } from "../data/db.js";
+import { loadDb, saveDb, genQuotationId, genVersionId, hasKeyFieldChanged, VERSION_APPROVAL_STATUSES, VERSION_APPROVAL_LABELS, getQuoteLockStatus, findQuoteLockConflicts, addQuoteLockHistory } from "../data/db.js";
 import { sendJson, parseBody } from "../lib/http.js";
 import { buildQuoteSummary, calcRentalDays } from "../lib/quoteCalculator.js";
 import { convertQuotationToOrder, isQuoteConvertible } from "../lib/quoteToOrder.js";
-import { validateEquipmentForOrder, findRepairItems } from "../lib/equipmentValidator.js";
+import { validateEquipmentForOrder, findRepairItems, validateEquipmentForQuotation } from "../lib/equipmentValidator.js";
 
 const QUOTE_STATUSES = ["草稿", "已确认", "已转订单", "已取消"];
+
+export const QUOTE_LOCK_KEY_FIELDS = ["lockStartAt", "lockEndAt", "lockedBy"];
 
 function buildQuotationPayload(db, quote, withSummary = true) {
   const eqMap = new Map(db.equipment.map((e) => [e.id, e]));
   const customer = (db.customers || []).find((c) => c.name === quote.customer);
+  const lockStatus = getQuoteLockStatus(quote);
 
   const items = quote.itemIds.map((iid) => {
     const eq = eqMap.get(iid);
@@ -26,7 +29,8 @@ function buildQuotationPayload(db, quote, withSummary = true) {
     items,
     customerContact: customer ? customer.contact : "",
     customerPhone: customer ? customer.phone : "",
-    customerActivity: customer ? customer.activityType : ""
+    customerActivity: customer ? customer.activityType : "",
+    lockStatus
   };
 
   if (withSummary && quote.itemIds?.length && quote.startDate && quote.endDate) {
@@ -77,7 +81,10 @@ function buildVersionSnapshot(db, quote) {
     discount: quote.discount,
     depositOverride: quote.depositOverride ? { ...quote.depositOverride } : {},
     note: quote.note,
-    summary
+    summary,
+    lockStartAt: quote.lockStartAt,
+    lockEndAt: quote.lockEndAt,
+    lockedBy: quote.lockedBy
   };
 }
 
@@ -93,6 +100,16 @@ function buildVersionPayload(db, quote, version) {
       category: eq ? eq.category : ""
     };
   });
+
+  const lockInfo = {
+    lockStartAt: snapshot.lockStartAt ?? null,
+    lockEndAt: snapshot.lockEndAt ?? null,
+    lockedBy: snapshot.lockedBy ?? null
+  };
+  if (lockInfo.lockEndAt) {
+    const pseudoQuote = { ...quote, ...lockInfo };
+    lockInfo.lockStatus = getQuoteLockStatus(pseudoQuote);
+  }
 
   return {
     versionId: version.versionId,
@@ -111,7 +128,8 @@ function buildVersionPayload(db, quote, version) {
     isApproved: quote.approvedVersionId === version.versionId,
     snapshot: {
       ...snapshot,
-      items
+      items,
+      ...lockInfo
     }
   };
 }
@@ -231,6 +249,9 @@ export async function approveVersion(req, res, quoteId, versionId) {
   quote.discount = snapshot.discount;
   quote.depositOverride = snapshot.depositOverride ? { ...snapshot.depositOverride } : {};
   quote.note = snapshot.note;
+  quote.lockStartAt = snapshot.lockStartAt ?? null;
+  quote.lockEndAt = snapshot.lockEndAt ?? null;
+  quote.lockedBy = snapshot.lockedBy ?? null;
 
   if (quote.status === "草稿") {
     quote.status = "已确认";
@@ -296,6 +317,9 @@ export async function restoreVersion(req, res, quoteId, versionId) {
   quote.discount = snapshot.discount;
   quote.depositOverride = snapshot.depositOverride ? { ...snapshot.depositOverride } : {};
   quote.note = snapshot.note;
+  quote.lockStartAt = snapshot.lockStartAt ?? null;
+  quote.lockEndAt = snapshot.lockEndAt ?? null;
+  quote.lockedBy = snapshot.lockedBy ?? null;
   quote.currentVersionId = version.versionId;
 
   if (version.approvalStatus === "approved" && quote.approvedVersionId === version.versionId) {
@@ -375,6 +399,17 @@ function validateQuoteInput(input) {
     const d = Number(input.discount);
     if (Number.isNaN(d)) errors.push("折扣格式不正确");
   }
+  if (input.lockEndAt != null && input.lockEndAt !== "") {
+    const lockEnd = new Date(input.lockEndAt);
+    if (Number.isNaN(lockEnd.getTime())) {
+      errors.push("锁定有效期格式不正确");
+    } else if (input.lockStartAt != null && input.lockStartAt !== "") {
+      const lockStart = new Date(input.lockStartAt);
+      if (!Number.isNaN(lockStart.getTime()) && lockEnd < lockStart) {
+        errors.push("锁定结束时间不能早于开始时间");
+      }
+    }
+  }
   return errors;
 }
 
@@ -384,6 +419,13 @@ function isCurrentVersionApproved(quote) {
     (quote.versions || []).some(
       (v) => v.versionId === quote.currentVersionId && v.approvalStatus === "approved"
     );
+}
+
+function hasLockFieldChanged(oldData, newData) {
+  for (const field of QUOTE_LOCK_KEY_FIELDS) {
+    if (oldData[field] !== newData[field]) return true;
+  }
+  return false;
 }
 
 export async function createQuotation(req, res) {
@@ -406,6 +448,10 @@ export async function createQuotation(req, res) {
     depositOverride: input.depositOverride || {},
     status: "草稿",
     note: input.note?.trim() || "",
+    lockStartAt: input.lockStartAt || null,
+    lockEndAt: input.lockEndAt || null,
+    lockedBy: input.lockedBy || null,
+    lockHistory: [],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
@@ -418,6 +464,32 @@ export async function createQuotation(req, res) {
   if (repairItems.length) {
     return sendJson(res, 409, {
       error: `维修中设备不可加入报价单：${repairItems.map((r) => `${r.id} ${r.name}`).join("、")}`
+    });
+  }
+
+  if (quotation.lockEndAt) {
+    const lockValidation = validateEquipmentForQuotation(
+      db,
+      quotation.itemIds,
+      quotation.startDate,
+      quotation.endDate,
+      quotation.id
+    );
+    if (!lockValidation.valid) {
+      return sendJson(res, 409, {
+        error: `设置锁定失败：${lockValidation.errors.join("；")}`,
+        details: {
+          repair: lockValidation.repair,
+          conflicts: lockValidation.conflicts,
+          quoteLocks: lockValidation.quoteLocks,
+          missing: lockValidation.missing
+        }
+      });
+    }
+    addQuoteLockHistory(quotation, "set", {
+      lockStartAt: quotation.lockStartAt,
+      lockEndAt: quotation.lockEndAt,
+      lockedBy: quotation.lockedBy
     });
   }
 
@@ -475,6 +547,15 @@ export async function updateQuotation(req, res, id) {
   if (input.depositOverride !== undefined) merged.depositOverride = input.depositOverride;
   if (input.status !== undefined) merged.status = input.status;
   if (input.note !== undefined) merged.note = String(input.note || "").trim();
+
+  const lockChanged = input.lockStartAt !== undefined || input.lockEndAt !== undefined || input.lockedBy !== undefined;
+  const oldLockEnd = current.lockEndAt;
+  const newLockEnd = input.lockEndAt !== undefined ? input.lockEndAt : current.lockEndAt;
+
+  if (input.lockStartAt !== undefined) merged.lockStartAt = input.lockStartAt || null;
+  if (input.lockEndAt !== undefined) merged.lockEndAt = input.lockEndAt || null;
+  if (input.lockedBy !== undefined) merged.lockedBy = input.lockedBy || null;
+
   merged.updatedAt = new Date().toISOString();
 
   if (merged.startDate && merged.endDate && merged.itemIds?.length) {
@@ -483,7 +564,9 @@ export async function updateQuotation(req, res, id) {
       startDate: merged.startDate,
       endDate: merged.endDate,
       itemIds: merged.itemIds,
-      discount: merged.discount
+      discount: merged.discount,
+      lockStartAt: merged.lockStartAt,
+      lockEndAt: merged.lockEndAt
     });
     if (errors.length) {
       return sendJson(res, 400, { error: errors.join("；") });
@@ -499,11 +582,51 @@ export async function updateQuotation(req, res, id) {
     }
   }
 
-  const keyFieldsChanged = hasKeyFieldChanged(current, merged);
+  if (lockChanged && newLockEnd && newLockEnd !== oldLockEnd) {
+    const lockValidation = validateEquipmentForQuotation(
+      db,
+      merged.itemIds,
+      merged.startDate,
+      merged.endDate,
+      merged.id
+    );
+    if (!lockValidation.valid) {
+      return sendJson(res, 409, {
+        error: `设置锁定失败：${lockValidation.errors.join("；")}`,
+        details: {
+          repair: lockValidation.repair,
+          conflicts: lockValidation.conflicts,
+          quoteLocks: lockValidation.quoteLocks,
+          missing: lockValidation.missing
+        }
+      });
+    }
+    if (!current.lockHistory) current.lockHistory = [];
+    addQuoteLockHistory(current, "update", {
+      oldLockStartAt: current.lockStartAt,
+      oldLockEndAt: current.lockEndAt,
+      oldLockedBy: current.lockedBy,
+      newLockStartAt: merged.lockStartAt,
+      newLockEndAt: merged.lockEndAt,
+      newLockedBy: merged.lockedBy
+    });
+    merged.lockHistory = current.lockHistory;
+  } else if (lockChanged && !newLockEnd && oldLockEnd) {
+    if (!current.lockHistory) current.lockHistory = [];
+    addQuoteLockHistory(current, "cancel", {
+      oldLockStartAt: current.lockStartAt,
+      oldLockEndAt: current.lockEndAt,
+      oldLockedBy: current.lockedBy,
+      canceledBy: input.lockedBy || "user"
+    });
+    merged.lockHistory = current.lockHistory;
+  }
 
-  if (input.status === "已确认" && !keyFieldsChanged && !isCurrentVersionApproved(merged)) {
+  if (input.status === "已确认" && !hasKeyFieldChanged(current, merged) && !hasLockFieldChanged(current, merged) && !isCurrentVersionApproved(merged)) {
     return sendJson(res, 400, { error: "只有当前版本审批通过后才能确认报价单" });
   }
+
+  const keyFieldsChanged = hasKeyFieldChanged(current, merged) || hasLockFieldChanged(current, merged);
 
   if (keyFieldsChanged) {
     const versions = current.versions || [];
@@ -588,7 +711,18 @@ export async function previewQuote(req, res) {
     });
   }
 
+  const validation = validateEquipmentForQuotation(db, itemIds, startDate, endDate, input.quotationId || null);
   const summary = buildQuoteSummary(db.equipment, itemIds, startDate, endDate, depositOverride, discount);
+
+  summary.lockCheck = {
+    valid: validation.valid,
+    repair: validation.repair,
+    conflicts: validation.conflicts,
+    quoteLocks: validation.quoteLocks,
+    missing: validation.missing,
+    errors: validation.errors
+  };
+
   return sendJson(res, 200, summary);
 }
 
@@ -618,11 +752,12 @@ export async function checkConvertibility(req, res, id) {
   const response = { convertible: check.ok, reason: check.ok ? null : check.reason };
 
   if (check.ok && quote.itemIds?.length && quote.startDate && quote.endDate) {
-    const validation = validateEquipmentForOrder(db, quote.itemIds, quote.startDate, quote.endDate);
+    const validation = validateEquipmentForOrder(db, quote.itemIds, quote.startDate, quote.endDate, null, quote.id);
     response.equipmentCheck = {
       valid: validation.valid,
       repair: validation.repair,
       conflicts: validation.conflicts,
+      quoteLocks: validation.quoteLocks,
       missing: validation.missing
     };
     if (!validation.valid) {
@@ -630,6 +765,9 @@ export async function checkConvertibility(req, res, id) {
       response.reason = `转订单校验失败：${validation.errors.join("；")}`;
     }
   }
+
+  const lockStatus = getQuoteLockStatus(quote);
+  response.lockStatus = lockStatus;
 
   return sendJson(res, 200, response);
 }

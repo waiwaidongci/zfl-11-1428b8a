@@ -18,6 +18,8 @@ let allVersions = [];
 let currentCompareV1 = null;
 let currentCompareV2 = null;
 let detailTab = "info";
+let pendingLockStartAt = null;
+let pendingLockEndAt = null;
 
 function escapeHtml(str) {
   return String(str || "")
@@ -119,6 +121,18 @@ function renderGrid() {
         ? `<span class="quote-total">¥${fmtMoney(q.summary.grandTotal)}</span>`
         : `<span class="quote-counts">${q.itemIds?.length || 0} 台 · ${q.rentalDays || 0} 天</span>`;
 
+      const lockStatus = q.lockStatus || {};
+      let lockBadge = "";
+      if (lockStatus.locked) {
+        const remainHours = Math.ceil(lockStatus.remainingMs / (1000 * 60 * 60));
+        const remainText = remainHours < 24
+          ? `剩${remainHours}小时`
+          : `剩${Math.round(remainHours / 24 * 10) / 10}天`;
+        lockBadge = `<span class="badge lock-active" title="设备临时锁定中，有效期至 ${new Date(lockStatus.lockEndAt).toLocaleString('zh-CN')}">🔒 锁定${remainText}</span>`;
+      } else if (lockStatus.expired && !lockStatus.neverLocked) {
+        lockBadge = `<span class="badge lock-expired" title="曾于 ${new Date(lockStatus.lockStartAt || '').toLocaleString('zh-CN')} 至 ${new Date(lockStatus.lockEndAt || '').toLocaleString('zh-CN')} 锁定过">🔓 已过期</span>`;
+      }
+
       const canEdit = q.status !== "已转订单";
       const canDelete = q.status !== "已转订单";
       const canConvert = q.status === "已确认";
@@ -136,6 +150,7 @@ function renderGrid() {
         <div class="quote-summary">
           ${totalHtml}
           <span class="badge ${statusBadgeClass(q.status)}">${escapeHtml(q.status)}</span>
+          ${lockBadge}
         </div>
         ${q.note ? `<div class="meta">📝 ${escapeHtml(q.note)}</div>` : ""}
         <div class="quote-actions">
@@ -394,6 +409,8 @@ function resetEditForm() {
   selectedItems.clear();
   Object.keys(depositOverrides).forEach((k) => delete depositOverrides[k]);
   currentPreview = null;
+  pendingLockStartAt = null;
+  pendingLockEndAt = null;
   $("#modalTitle").textContent = "新建报价单";
   $("#statusSelect").innerHTML = '<option value="草稿">草稿</option>';
   $("#previewEmpty").classList.remove("hidden");
@@ -402,6 +419,10 @@ function resetEditForm() {
   $("#customerInfo").classList.add("hidden");
   $("#customerSelect").value = "";
   $("#itemCategoryFilter").value = "";
+  $("#lockStartAtInput").value = "";
+  $("#lockEndAtInput").value = "";
+  $("#lockAppliedHint").classList.add("hidden");
+  $("#lockAppliedRange").textContent = "";
 }
 
 async function openEdit(id = null) {
@@ -447,6 +468,20 @@ async function openEdit(id = null) {
         });
       }
 
+      if (q.lockEndAt) {
+        pendingLockStartAt = q.lockStartAt || null;
+        pendingLockEndAt = q.lockEndAt;
+        if (q.lockStartAt) {
+          const d = new Date(q.lockStartAt);
+          const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+          $("#lockStartAtInput").value = local.toISOString().slice(0, 16);
+        }
+        const d2 = new Date(q.lockEndAt);
+        const local2 = new Date(d2.getTime() - d2.getTimezoneOffset() * 60000);
+        $("#lockEndAtInput").value = local2.toISOString().slice(0, 16);
+        updateLockAppliedHint();
+      }
+
       const cust = allCustomers.find((c) => c.name === q.customer);
       if (cust) {
         $("#customerSelect").value = cust.id;
@@ -465,9 +500,28 @@ async function openEdit(id = null) {
   }
 }
 
+function updateLockAppliedHint() {
+  if (pendingLockEndAt) {
+    $("#lockAppliedHint").classList.remove("hidden");
+    const startStr = pendingLockStartAt
+      ? new Date(pendingLockStartAt).toLocaleString("zh-CN")
+      : "立即生效";
+    const endStr = new Date(pendingLockEndAt).toLocaleString("zh-CN");
+    $("#lockAppliedRange").textContent = `${startStr} → ${endStr}`;
+  } else {
+    $("#lockAppliedHint").classList.add("hidden");
+  }
+}
+
 function closeEditModal() {
   $("#editModal").classList.add("hidden");
   editingId = null;
+}
+
+function toISOLocalString(datetimeLocal) {
+  if (!datetimeLocal) return null;
+  const d = new Date(datetimeLocal);
+  return d.toISOString();
 }
 
 async function submitQuote() {
@@ -479,6 +533,18 @@ async function submitQuote() {
     if (!data.itemIds.includes(iid)) delete depositOverrides[iid];
   });
   data.depositOverride = { ...depositOverrides };
+
+  if (pendingLockStartAt) {
+    data.lockStartAt = pendingLockStartAt;
+  } else if (data.lockStartAt) {
+    data.lockStartAt = toISOLocalString(data.lockStartAt);
+  }
+  if (pendingLockEndAt) {
+    data.lockEndAt = pendingLockEndAt;
+  } else if (data.lockEndAt) {
+    data.lockEndAt = toISOLocalString(data.lockEndAt);
+  }
+  data.lockedBy = "user";
 
   if (!data.customer || !data.customer.trim()) {
     showToast("请填写客户名称", "error");
@@ -571,6 +637,7 @@ function renderDetail(q, check) {
       if (check.equipmentCheck) {
         (check.equipmentCheck.repair || []).forEach((r) => issues.push(`<li>⚠️ 维修中：${escapeHtml(r.id)} ${escapeHtml(r.name)}</li>`));
         (check.equipmentCheck.conflicts || []).forEach((c) => issues.push(`<li>⚠️ 租期冲突：${escapeHtml(c.id)} ${escapeHtml(c.name)} → ${escapeHtml(c.conflictOrderCustomer || c.conflictOrderId || "")} ${escapeHtml(c.conflictRange || "")}</li>`));
+        (check.equipmentCheck.quoteLocks || []).forEach((c) => issues.push(`<li>🔒 报价锁定冲突：${escapeHtml(c.id)} ${escapeHtml(c.name)} → 报价 ${escapeHtml(c.conflictQuoteId || "")} ${escapeHtml(c.conflictQuoteCustomer || "")}（锁定至 ${escapeHtml(new Date(c.lockEndAt || '').toLocaleString('zh-CN').slice(0, 16))}，租期 ${escapeHtml(c.conflictRange || "")}）</li>`));
         (check.equipmentCheck.missing || []).forEach((m) => issues.push(`<li>⚠️ 设备不存在：${escapeHtml(m)}</li>`));
       }
       alertHtml = `<div class="conflict-alert">
@@ -581,6 +648,39 @@ function renderDetail(q, check) {
     } else {
       alertHtml = `<div class="convert-ok">✅ 当前设备状态正常，可以转订单</div>`;
     }
+  }
+
+  const lockStatus = q.lockStatus || {};
+  let lockInfoHtml = "";
+  if (lockStatus.locked) {
+    const remainHours = Math.ceil(lockStatus.remainingMs / (1000 * 60 * 60));
+    const remainText = remainHours < 24
+      ? `剩余约 ${remainHours} 小时`
+      : `剩余约 ${Math.round(remainHours / 24 * 10) / 10} 天`;
+    lockInfoHtml = `<div style="margin-top:10px;padding:10px 14px;background:rgba(255,170,0,0.08);border:1px solid rgba(255,170,0,0.4);border-radius:8px">
+      <strong style="color:var(--orange)">🔒 临时锁定中 · ${remainText}</strong>
+      <div class="meta" style="margin-top:4px">有效期：${lockStatus.lockStartAt ? escapeHtml(new Date(lockStatus.lockStartAt).toLocaleString('zh-CN')) + " → " : "立即生效 → "}${escapeHtml(new Date(lockStatus.lockEndAt).toLocaleString('zh-CN'))}</div>
+      ${lockStatus.lockedBy ? `<div class="meta">操作人：${escapeHtml(lockStatus.lockedBy)}</div>` : ""}
+    </div>`;
+  } else if (lockStatus.expired && !lockStatus.neverLocked) {
+    const expiredHours = Math.round(lockStatus.expiredMs / (1000 * 60 * 60) * 10) / 10;
+    const expiredText = expiredHours < 24
+      ? `${expiredHours} 小时前`
+      : `${Math.round(expiredHours / 24 * 10) / 10} 天前`;
+    lockInfoHtml = `<div style="margin-top:10px;padding:10px 14px;background:rgba(128,128,128,0.06);border:1px dashed rgba(128,128,128,0.3);border-radius:8px">
+      <span style="color:var(--muted)">🔓 曾临时锁定（已过期 ${expiredText}）</span>
+      <div class="meta" style="margin-top:4px">有效期：${lockStatus.lockStartAt ? escapeHtml(new Date(lockStatus.lockStartAt).toLocaleString('zh-CN')) + " → " : "立即生效 → "}${escapeHtml(new Date(lockStatus.lockEndAt).toLocaleString('zh-CN'))}</div>
+    </div>`;
+  }
+  if (q.lockHistory && q.lockHistory.length) {
+    const historyHtml = q.lockHistory.slice(-5).reverse().map((h) => {
+      const actionText = { set: "设置锁定", update: "更新锁定", cancel: "取消锁定", convert: "转订单解除锁定" }[h.action] || h.action;
+      return `<li class="meta">${escapeHtml(new Date(h.at).toLocaleString('zh-CN'))} · ${actionText}${h.lockEndAt ? `，至 ${escapeHtml(new Date(h.lockEndAt).toLocaleString('zh-CN').slice(0, 16))}` : h.newLockEndAt ? ` → ${escapeHtml(new Date(h.newLockEndAt).toLocaleString('zh-CN').slice(0, 16))}` : ""}</li>`;
+    }).join("");
+    lockInfoHtml += `<div style="margin-top:8px">
+      <div class="meta" style="font-weight:600;margin-bottom:4px">📜 锁定历史：</div>
+      <ul style="margin:0;padding-left:20px">${historyHtml}</ul>
+    </div>`;
   }
 
   let convertedLink = "";
@@ -600,6 +700,7 @@ function renderDetail(q, check) {
       <h3>${escapeHtml(q.customer || "（未填客户）")}</h3>
       <span class="badge ${statusBadgeClass(q.status)}">${escapeHtml(q.status)}</span>
       ${convertedLink}
+      ${lockInfoHtml}
     </div>
 
     <table class="info-table">
@@ -1203,6 +1304,53 @@ $("#customerNameInput").addEventListener("input", () => {
   $("#customerInfo").classList.add("hidden");
 });
 $("#itemCategoryFilter").addEventListener("change", renderItems);
+
+$("#applyLockBtn").onclick = () => {
+  const endVal = $("#lockEndAtInput").value;
+  if (!endVal) {
+    showToast("请填写锁定有效期至", "error");
+    return;
+  }
+  const endDate = new Date(endVal);
+  if (Number.isNaN(endDate.getTime())) {
+    showToast("锁定有效期格式不正确", "error");
+    return;
+  }
+  if (endDate <= new Date()) {
+    showToast("锁定有效期必须晚于当前时间", "error");
+    return;
+  }
+  const startVal = $("#lockStartAtInput").value;
+  let startDate = null;
+  if (startVal) {
+    startDate = new Date(startVal);
+    if (Number.isNaN(startDate.getTime())) {
+      showToast("锁定开始时间格式不正确", "error");
+      return;
+    }
+    if (endDate <= startDate) {
+      showToast("锁定结束时间必须晚于开始时间", "error");
+      return;
+    }
+  }
+  if (!selectedItems.size) {
+    showToast("请先选择设备再设置锁定", "error");
+    return;
+  }
+  pendingLockStartAt = startDate ? startDate.toISOString() : null;
+  pendingLockEndAt = endDate.toISOString();
+  updateLockAppliedHint();
+  showToast("锁定已设置，保存报价单后生效");
+};
+
+$("#clearLockBtn").onclick = () => {
+  pendingLockStartAt = null;
+  pendingLockEndAt = null;
+  $("#lockStartAtInput").value = "";
+  $("#lockEndAtInput").value = "";
+  updateLockAppliedHint();
+  showToast("已取消锁定设置（保存后生效）");
+};
 
 $("#closeDetailModal").onclick = closeDetail;
 

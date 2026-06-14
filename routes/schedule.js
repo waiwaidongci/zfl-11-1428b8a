@@ -1,4 +1,4 @@
-import { loadDb, overlaps } from "../data/db.js";
+import { loadDb, overlaps, getQuoteLockStatus } from "../data/db.js";
 import { sendJson } from "../lib/http.js";
 
 function parseDate(str) {
@@ -57,15 +57,15 @@ export async function getSchedule(req, res) {
   if (equipmentId) equipmentList = equipmentList.filter((e) => e.id === equipmentId);
 
   const activeOrders = db.orders.filter((o) => !["已取消", "已归还"].includes(o.status));
-  const activeQuotations = db.quotations.filter((q) => ["已确认", "草稿"].includes(q.status));
+  const allQuotations = db.quotations.filter((q) => ["已确认", "草稿"].includes(q.status));
   const activeRepairs = db.repairs.filter((r) => ["pending", "repairing"].includes(r.status));
 
   const filteredOrders = customer
     ? activeOrders.filter((o) => (o.customer || "") === customer)
     : activeOrders;
   const filteredQuotations = customer
-    ? activeQuotations.filter((q) => (q.customer || "") === customer)
-    : activeQuotations;
+    ? allQuotations.filter((q) => (q.customer || "") === customer)
+    : allQuotations;
 
   const equipmentSchedule = equipmentList.map((eq) => {
     const dailyStatus = {};
@@ -115,11 +115,22 @@ export async function getSchedule(req, res) {
     const eqQuotes = filteredQuotations.filter((q) => q.itemIds.includes(eq.id));
     for (const quote of eqQuotes) {
       if (!overlaps(startDate, endDate, quote.startDate, quote.endDate)) continue;
+      const lockStatus = getQuoteLockStatus(quote);
+      const isLocked = lockStatus.locked;
+      const wasLocked = !lockStatus.neverLocked;
+      const blockType = isLocked ? "quote_locked" : (wasLocked ? "quote_lock_expired" : "quotation");
+
       blocks.push({
         type: "quotation",
         id: quote.id,
         status: quote.status,
-        blockType: "quote_locked",
+        blockType,
+        isLocked,
+        isLockExpired: wasLocked && !isLocked,
+        lockStartAt: quote.lockStartAt,
+        lockEndAt: quote.lockEndAt,
+        lockRemainingMs: lockStatus.locked ? lockStatus.remainingMs : null,
+        lockExpiredMs: lockStatus.expired ? lockStatus.expiredMs : null,
         startDate: quote.startDate,
         endDate: quote.endDate,
         customer: quote.customer,
@@ -132,12 +143,18 @@ export async function getSchedule(req, res) {
       );
       for (const d of quoteDates) {
         if (dailyStatus[d]) {
-          dailyStatus[d].available = false;
+          if (isLocked) {
+            dailyStatus[d].available = false;
+          }
           dailyStatus[d].statuses.push({
             type: "quotation",
             id: quote.id,
             status: quote.status,
-            blockType: "quote_locked",
+            blockType,
+            isLocked,
+            isLockExpired: wasLocked && !isLocked,
+            lockStartAt: quote.lockStartAt,
+            lockEndAt: quote.lockEndAt,
             customer: quote.customer
           });
         }

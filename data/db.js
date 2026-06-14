@@ -71,7 +71,10 @@ export async function loadDb() {
           itemIds: q.itemIds ? [...q.itemIds] : [],
           discount: q.discount,
           depositOverride: q.depositOverride ? { ...q.depositOverride } : {},
-          note: q.note
+          note: q.note,
+          lockStartAt: q.lockStartAt,
+          lockEndAt: q.lockEndAt,
+          lockedBy: q.lockedBy
         },
         approvalStatus: q.status === "已确认" || q.status === "已转订单" ? "approved" : "pending",
         approvedAt: (q.status === "已确认" || q.status === "已转订单") ? (q.updatedAt || q.createdAt) : null,
@@ -85,6 +88,19 @@ export async function loadDb() {
       q.currentVersionId = initialVersion.versionId;
       q.approvedVersionId = (q.status === "已确认" || q.status === "已转订单") ? initialVersion.versionId : null;
     }
+
+    if (!q.lockStartAt) q.lockStartAt = null;
+    if (!q.lockEndAt) q.lockEndAt = null;
+    if (!q.lockedBy) q.lockedBy = null;
+    if (!q.lockHistory) q.lockHistory = [];
+
+    (q.versions || []).forEach((v) => {
+      if (!v.snapshot) v.snapshot = {};
+      if (v.snapshot.lockStartAt === undefined) v.snapshot.lockStartAt = null;
+      if (v.snapshot.lockEndAt === undefined) v.snapshot.lockEndAt = null;
+      if (v.snapshot.lockedBy === undefined) v.snapshot.lockedBy = null;
+    });
+
     return q;
   });
 
@@ -268,3 +284,103 @@ export const PAYMENT_TYPE_LABELS = {
   deposit_deduction: "押金抵扣",
   deposit_return: "押金退还"
 };
+
+export function isQuoteLockActive(quote, atTime = new Date()) {
+  if (!quote || !quote.lockEndAt) return false;
+  if (["已转订单", "已取消"].includes(quote.status)) return false;
+  const now = new Date(atTime);
+  const lockEnd = new Date(quote.lockEndAt);
+  return now <= lockEnd;
+}
+
+export function getQuoteLockStatus(quote, atTime = new Date()) {
+  if (!quote || !quote.lockEndAt) {
+    return { locked: false, expired: false, neverLocked: true };
+  }
+  if (["已转订单", "已取消"].includes(quote.status)) {
+    return { locked: false, expired: true, neverLocked: false, released: true, releaseReason: `报价单已${quote.status}` };
+  }
+  const now = new Date(atTime);
+  const lockEnd = new Date(quote.lockEndAt);
+  const lockStart = quote.lockStartAt ? new Date(quote.lockStartAt) : null;
+  if (now <= lockEnd) {
+    return {
+      locked: true,
+      expired: false,
+      neverLocked: false,
+      lockStartAt: quote.lockStartAt,
+      lockEndAt: quote.lockEndAt,
+      lockedBy: quote.lockedBy || null,
+      remainingMs: lockEnd.getTime() - now.getTime(),
+      notStartedYet: lockStart ? now < lockStart : false
+    };
+  } else {
+    return {
+      locked: false,
+      expired: true,
+      neverLocked: false,
+      lockStartAt: quote.lockStartAt,
+      lockEndAt: quote.lockEndAt,
+      lockedBy: quote.lockedBy || null,
+      expiredMs: now.getTime() - lockEnd.getTime()
+    };
+  }
+}
+
+export function findQuoteLockConflicts(db, itemIds, startDate, endDate, exceptQuoteId = null, exceptOrderId = null) {
+  const conflicts = [];
+  const eqMap = new Map(db.equipment.map((e) => [e.id, e]));
+
+  for (const quote of db.quotations) {
+    if (quote.id === exceptQuoteId) continue;
+    if (["已转订单", "已取消"].includes(quote.status)) continue;
+    const lockStatus = getQuoteLockStatus(quote);
+    if (!lockStatus.locked) continue;
+    if (!quote.itemIds?.length) continue;
+    if (!overlaps(startDate, endDate, quote.startDate, quote.endDate)) continue;
+
+    const overlapItemIds = quote.itemIds.filter((id) => itemIds.includes(id));
+    if (!overlapItemIds.length) continue;
+
+    for (const id of overlapItemIds) {
+      const eq = eqMap.get(id);
+      conflicts.push({
+        id,
+        name: eq ? eq.name : id,
+        conflictType: "quote_lock",
+        conflictQuoteId: quote.id,
+        conflictQuoteCustomer: quote.customer,
+        conflictRange: `${quote.startDate} ~ ${quote.endDate}`,
+        lockStartAt: quote.lockStartAt,
+        lockEndAt: quote.lockEndAt,
+        lockedBy: quote.lockedBy || null
+      });
+    }
+  }
+
+  return conflicts;
+}
+
+export function occupiedItemsWithLocks(db, startDate, endDate, exceptOrderId = null, exceptQuoteId = null) {
+  const occupied = occupiedItems(db, startDate, endDate, exceptOrderId);
+  for (const quote of db.quotations) {
+    if (quote.id === exceptQuoteId) continue;
+    if (["已转订单", "已取消"].includes(quote.status)) continue;
+    const lockStatus = getQuoteLockStatus(quote);
+    if (!lockStatus.locked) continue;
+    if (!overlaps(startDate, endDate, quote.startDate, quote.endDate)) continue;
+    for (const id of quote.itemIds || []) {
+      occupied.add(id);
+    }
+  }
+  return occupied;
+}
+
+export function addQuoteLockHistory(quote, action, detail = {}) {
+  if (!quote.lockHistory) quote.lockHistory = [];
+  quote.lockHistory.push({
+    action,
+    at: new Date().toISOString(),
+    ...detail
+  });
+}

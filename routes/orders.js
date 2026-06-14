@@ -1,5 +1,6 @@
-import { loadDb, saveDb, occupiedItems, genHandoverId, genRepairId, genHandoverDraftId } from "../data/db.js";
+import { loadDb, saveDb, occupiedItems, genHandoverId, genRepairId, genHandoverDraftId, occupiedItemsWithLocks } from "../data/db.js";
 import { sendJson, parseBody } from "../lib/http.js";
+import { validateEquipmentForOrder, findRepairItems } from "../lib/equipmentValidator.js";
 
 export async function listOrders(req, res) {
   const db = await loadDb();
@@ -25,23 +26,29 @@ export async function createOrder(req, res) {
     return sendJson(res, 400, { error: "结束日期不能早于开始日期" });
   }
 
-  const occupied = occupiedItems(db, input.startDate, input.endDate);
-  const repair = db.equipment.filter((item) => input.itemIds.includes(item.id) && item.condition === "repair").map((item) => item.id);
-  const missing = db.equipment.filter((item) => input.itemIds.includes(item.id) && item.condition === "missing").map((item) => item.id);
-  const rented = db.equipment.filter((item) => input.itemIds.includes(item.id) && item.condition === "rented").map((item) => item.id);
-  const conflict = input.itemIds.filter((id) => occupied.has(id));
-
   const idSet = new Set(input.itemIds);
   const duplicates = input.itemIds.filter((id, i) => input.itemIds.indexOf(id) !== i);
+  if (duplicates.length) {
+    return sendJson(res, 409, { error: `设备不可用（重复选择: ${[...new Set(duplicates)].join("、")}）` });
+  }
 
-  if (repair.length || missing.length || rented.length || conflict.length || duplicates.length) {
-    const reasons = [];
-    if (repair.length) reasons.push(`维修中: ${repair.join("、")}`);
-    if (missing.length) reasons.push(`已缺失: ${missing.join("、")}`);
-    if (rented.length) reasons.push(`租赁中: ${rented.join("、")}`);
-    if (conflict.length) reasons.push(`租期占用: ${conflict.join("、")}`);
-    if (duplicates.length) reasons.push(`重复选择: ${[...new Set(duplicates)].join("、")}`);
-    return sendJson(res, 409, { error: `设备不可用（${reasons.join("；")}）` });
+  const validation = validateEquipmentForOrder(db, input.itemIds, input.startDate, input.endDate, null, null);
+  if (!validation.valid) {
+    const details = {
+      repair: validation.repair,
+      conflicts: validation.conflicts,
+      quoteLocks: validation.quoteLocks,
+      missing: validation.missing
+    };
+    return sendJson(res, 409, {
+      error: `设备不可用（${validation.errors.join("；")}）`,
+      details
+    });
+  }
+
+  const rented = db.equipment.filter((item) => input.itemIds.includes(item.id) && item.condition === "rented").map((item) => item.id);
+  if (rented.length) {
+    return sendJson(res, 409, { error: `设备不可用（租赁中: ${rented.join("、")}）` });
   }
 
   const order = {
@@ -132,21 +139,28 @@ export async function updateOrder(req, res, id) {
   }
 
   if (input.itemIds) {
-    const occupied = occupiedItems(db, newStartDate, newEndDate, id);
-    const repair = db.equipment.filter((item) => input.itemIds.includes(item.id) && item.condition === "repair").map((item) => item.id);
-    const missing = db.equipment.filter((item) => input.itemIds.includes(item.id) && item.condition === "missing").map((item) => item.id);
-    const rented = db.equipment.filter((item) => input.itemIds.includes(item.id) && item.condition === "rented" && order.status !== "已出库").map((item) => item.id);
-    const conflict = input.itemIds.filter((id) => occupied.has(id));
     const duplicates = input.itemIds.filter((id, i) => input.itemIds.indexOf(id) !== i);
+    if (duplicates.length) {
+      return sendJson(res, 409, { error: `设备不可用（重复选择: ${[...new Set(duplicates)].join("、")}）` });
+    }
 
-    if (repair.length || missing.length || rented.length || conflict.length || duplicates.length) {
-      const reasons = [];
-      if (repair.length) reasons.push(`维修中: ${repair.join("、")}`);
-      if (missing.length) reasons.push(`已缺失: ${missing.join("、")}`);
-      if (rented.length) reasons.push(`租赁中: ${rented.join("、")}`);
-      if (conflict.length) reasons.push(`租期占用: ${conflict.join("、")}`);
-      if (duplicates.length) reasons.push(`重复选择: ${[...new Set(duplicates)].join("、")}`);
-      return sendJson(res, 409, { error: `设备不可用（${reasons.join("；")}）` });
+    const validation = validateEquipmentForOrder(db, input.itemIds, newStartDate, newEndDate, id, null);
+    if (!validation.valid) {
+      const details = {
+        repair: validation.repair,
+        conflicts: validation.conflicts,
+        quoteLocks: validation.quoteLocks,
+        missing: validation.missing
+      };
+      return sendJson(res, 409, {
+        error: `设备不可用（${validation.errors.join("；")}）`,
+        details
+      });
+    }
+
+    const rented = db.equipment.filter((item) => input.itemIds.includes(item.id) && item.condition === "rented" && order.status !== "已出库").map((item) => item.id);
+    if (rented.length) {
+      return sendJson(res, 409, { error: `设备不可用（租赁中: ${rented.join("、")}）` });
     }
   }
 
