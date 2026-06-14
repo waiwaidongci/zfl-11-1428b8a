@@ -1,4 +1,4 @@
-import { Orders } from "./api.js";
+import { Orders, Settlements } from "./api.js";
 
 function escapeHtml(str) {
   return String(str || "")
@@ -18,15 +18,22 @@ function calculateRentalDays(start, end) {
 
 async function init() {
   const params = new URLSearchParams(location.search);
+  const type = params.get("type") || "handover";
   const id = params.get("id");
+
   if (!id) {
     showError("缺少订单编号参数");
     return;
   }
 
   try {
-    const order = await Orders.get(id);
-    renderSheet(order);
+    if (type === "settlement") {
+      const settlement = await Settlements.get(id);
+      renderSettlementSheet(settlement);
+    } else {
+      const order = await Orders.get(id);
+      renderHandoverSheet(order);
+    }
   } catch (err) {
     showError(err.message);
   }
@@ -38,9 +45,10 @@ function showError(msg) {
   document.getElementById("error").classList.remove("hidden");
 }
 
-function renderSheet(o) {
+function renderHandoverSheet(o) {
   document.getElementById("loading").classList.add("hidden");
-  document.getElementById("sheet").classList.remove("hidden");
+  const sheet = document.getElementById("handoverSheet");
+  sheet.classList.remove("hidden");
   document.title = `交接单 ${o.id} - ${o.customer}`;
 
   document.getElementById("orderId").textContent = o.id;
@@ -112,9 +120,75 @@ function renderSheet(o) {
       if (returnHandover) {
         footerText = "本交接单含出库与归还记录，一式两份，双方各执一份。";
       }
-      document.querySelector(".sheet-footer").textContent = footerText;
+      document.querySelector("#handoverSheet .sheet-footer").textContent = footerText;
     }
   }
+}
+
+function renderSettlementSheet(s) {
+  document.getElementById("loading").classList.add("hidden");
+  const sheet = document.getElementById("settlementSheet");
+  sheet.classList.remove("hidden");
+  document.title = `结算单 ${s.order.id} - ${s.order.customer}`;
+
+  const o = s.order;
+  const sum = s.summary;
+
+  document.getElementById("settlementId").textContent = s.id || "未生成";
+  document.getElementById("settlementStatus").textContent = s.statusLabel;
+
+  document.getElementById("settlementCustomer").textContent = o.customer;
+  document.getElementById("settlementContact").textContent = o.customerContact || "—";
+  document.getElementById("settlementPhone").textContent = o.customerPhone || "—";
+  document.getElementById("settlementOrderId").textContent = o.id;
+  document.getElementById("settlementStartDate").textContent = o.startDate;
+  document.getElementById("settlementEndDate").textContent = o.endDate;
+
+  const feeTableBody = document.getElementById("feeTableBody");
+  const displayFees = (s.fees || []).filter((f) => f.type !== "deposit");
+  if (displayFees.length === 0) {
+    feeTableBody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">暂无费用项</td></tr>`;
+  } else {
+    feeTableBody.innerHTML = displayFees.map((f, i) => {
+      const isDiscount = f.type === "discount";
+      return `<tr>
+        <td class="center">${i + 1}</td>
+        <td>${escapeHtml(f.typeLabel)}</td>
+        <td>${escapeHtml(f.description || "无")}</td>
+        <td class="${isDiscount ? "status-discount" : ""}">${isDiscount ? "-" : ""}¥${Number(f.amount).toFixed(2)}</td>
+      </tr>`;
+    }).join("");
+  }
+
+  document.getElementById("receivableTotal").textContent = `¥${sum.receivableTotal.toFixed(2)}`;
+
+  document.getElementById("depositFee").textContent = `¥${sum.depositFee.toFixed(2)}`;
+  document.getElementById("depositDeducted").textContent = `¥${sum.depositDeducted.toFixed(2)}`;
+  document.getElementById("depositReturned").textContent = `¥${sum.depositReturned.toFixed(2)}`;
+  document.getElementById("remainingDeposit").textContent = `¥${sum.remainingDeposit.toFixed(2)}`;
+
+  const paymentTableBody = document.getElementById("paymentTableBody");
+  const payments = s.payments || [];
+  if (payments.length === 0) {
+    paymentTableBody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">暂无收款记录</td></tr>`;
+  } else {
+    paymentTableBody.innerHTML = payments.map((p, i) => `<tr>
+      <td class="center">${i + 1}</td>
+      <td>${escapeHtml(p.paymentDate || "")}</td>
+      <td>${escapeHtml(p.typeLabel || p.type)}</td>
+      <td>${escapeHtml(p.methodLabel || p.method)}</td>
+      <td class="${p.type === "deposit_return" ? "status-discount" : ""}">${p.type === "deposit_return" ? "-" : "+"}¥${Number(p.amount).toFixed(2)}</td>
+      <td>${escapeHtml(p.remark || "—")}</td>
+    </tr>`).join("");
+  }
+
+  document.getElementById("totalPaid").textContent = `¥${sum.totalPaid.toFixed(2)}`;
+
+  document.getElementById("sumReceivable").textContent = `¥${sum.receivableTotal.toFixed(2)}`;
+  document.getElementById("sumPaid").textContent = `¥${sum.totalPaid.toFixed(2)}`;
+  document.getElementById("sumBalance").textContent = `¥${sum.balanceDue.toFixed(2)}`;
+
+  document.getElementById("settlementNote").textContent = s.note || "无";
 }
 
 init();

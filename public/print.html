@@ -3,22 +3,22 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>交接单 - 舞台灯光租赁</title>
+  <title>打印 - 舞台灯光租赁</title>
   <link rel="stylesheet" href="/css/common.css">
   <link rel="stylesheet" href="/css/print.css">
 </head>
 <body>
   <div id="toolbar" class="toolbar no-print">
     <button onclick="window.print()" class="secondary">🖨 打印</button>
-    <button onclick="location.href='/'" class="ghost">← 返回订单中心</button>
+    <button onclick="history.back()" class="ghost">← 返回</button>
     <span id="viewHint" class="meta" style="margin-left:auto">管理视图 · 打印时自动切换为打印视图</span>
   </div>
 
-  <div id="printArea" class="print-area">
+  <div class="print-area">
     <div id="loading" style="padding:60px;text-align:center;color:var(--muted)">加载中…</div>
     <div id="error" class="hidden" style="padding:60px;text-align:center;color:var(--red)"></div>
 
-    <div id="sheet" class="sheet hidden">
+    <div id="handoverSheet" class="sheet hidden">
       <div class="sheet-header">
         <h1>设备交接单</h1>
         <div class="sheet-id" id="orderId"></div>
@@ -152,6 +152,150 @@
 
       <div class="sheet-footer">
         本单一式两份，出库方与签收方各执一份。
+      </div>
+    </div>
+
+    <div id="settlementSheet" class="sheet hidden">
+      <div class="sheet-header">
+        <h1>项目结算单</h1>
+        <div class="sheet-id" id="settlementId"></div>
+      </div>
+
+      <div class="settlement-status-bar">
+        <span class="settlement-status-label">结算状态：</span>
+        <span class="settlement-status" id="settlementStatus">—</span>
+      </div>
+
+      <table class="info-table">
+        <tr>
+          <th>客户</th>
+          <td id="settlementCustomer"></td>
+          <th>联系人</th>
+          <td id="settlementContact"></td>
+        </tr>
+        <tr>
+          <th>联系电话</th>
+          <td id="settlementPhone"></td>
+          <th>订单编号</th>
+          <td id="settlementOrderId"></td>
+        </tr>
+        <tr>
+          <th>租期开始</th>
+          <td id="settlementStartDate"></td>
+          <th>租期结束</th>
+          <td id="settlementEndDate"></td>
+        </tr>
+      </table>
+
+      <h3 class="section-title">费用明细</h3>
+      <table class="equip-table fee-table">
+        <thead>
+          <tr>
+            <th class="col-seq">序号</th>
+            <th class="col-feetype">费用类型</th>
+            <th>费用说明</th>
+            <th class="col-amount">金额（元）</th>
+          </tr>
+        </thead>
+        <tbody id="feeTableBody"></tbody>
+        <tfoot>
+          <tr class="fee-subtotal">
+            <td colspan="3">租金 + 运输 + 人工 + 搭建 + 赔偿 - 优惠</td>
+            <td id="receivableTotal">¥0.00</td>
+          </tr>
+        </tfoot>
+      </table>
+
+      <h3 class="section-title">押金</h3>
+      <table class="equip-table deposit-table">
+        <thead>
+          <tr>
+            <th class="col-feetype">项目</th>
+            <th class="col-amount">金额（元）</th>
+            <th>说明</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>应收押金</td>
+            <td id="depositFee">¥0.00</td>
+            <td>根据设备类别计算</td>
+          </tr>
+          <tr>
+            <td>已抵扣押金</td>
+            <td id="depositDeducted">¥0.00</td>
+            <td>用于抵扣应收款项</td>
+          </tr>
+          <tr>
+            <td>已退还押金</td>
+            <td id="depositReturned">¥0.00</td>
+            <td>退还给客户</td>
+          </tr>
+          <tr class="fee-subtotal">
+            <td>剩余押金</td>
+            <td id="remainingDeposit">¥0.00</td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 class="section-title">收款记录</h3>
+      <table class="equip-table payment-table">
+        <thead>
+          <tr>
+            <th class="col-seq">序号</th>
+            <th class="col-date">日期</th>
+            <th class="col-type">类型</th>
+            <th class="col-method">支付方式</th>
+            <th class="col-amount">金额（元）</th>
+            <th>备注</th>
+          </tr>
+        </thead>
+        <tbody id="paymentTableBody"></tbody>
+        <tfoot>
+          <tr class="fee-subtotal">
+            <td colspan="4">已收款合计</td>
+            <td id="totalPaid">¥0.00</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+
+      <div class="settlement-summary-box">
+        <div class="summary-row">
+          <span class="summary-label">应收总额：</span>
+          <span class="summary-value" id="sumReceivable">¥0.00</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-label">已收金额：</span>
+          <span class="summary-value received" id="sumPaid">¥0.00</span>
+        </div>
+        <div class="summary-row total">
+          <span class="summary-label">待收金额：</span>
+          <span class="summary-value due" id="sumBalance">¥0.00</span>
+        </div>
+      </div>
+
+      <div class="note-section">
+        <div class="note-label">备注</div>
+        <div id="settlementNote">—</div>
+      </div>
+
+      <div class="sign-area">
+        <div class="sign-block">
+          <div class="sign-label">制单人签字：</div>
+          <div class="sign-line"></div>
+          <div class="sign-date">日期：____年____月____日</div>
+        </div>
+        <div class="sign-block">
+          <div class="sign-label">客户确认签字：</div>
+          <div class="sign-line"></div>
+          <div class="sign-date">日期：____年____月____日</div>
+        </div>
+      </div>
+
+      <div class="sheet-footer">
+        本结算单一式两份，双方各执一份，具有同等效力。
       </div>
     </div>
   </div>

@@ -1,4 +1,4 @@
-import { Equipment, Orders, Customers, showToast, overlap } from "./api.js";
+import { Equipment, Orders, Customers, Settlements, showToast, overlap } from "./api.js";
 
 const orderForm = document.querySelector("#orderForm");
 const itemsEl = document.querySelector("#items");
@@ -169,6 +169,9 @@ function renderOrders() {
           <button class="print-btn ghost small" data-order-id="${escapeHtml(o.id)}" style="flex:1">🖨 打印交接单</button>
           <button class="view-detail-btn ghost small" data-order-id="${escapeHtml(o.id)}" style="flex:1">📋 查看详情</button>
         </div>
+        <div style="display:flex;gap:8px;margin-top:6px">
+          <button class="settlement-btn ghost small" data-order-id="${escapeHtml(o.id)}" style="flex:1">💰 项目结算</button>
+        </div>
       </article>`;
     })
     .join("");
@@ -191,6 +194,13 @@ function renderOrders() {
     btn.onclick = (e) => {
       e.stopPropagation();
       openOrderDetail(btn.dataset.orderId);
+    };
+  });
+
+  document.querySelectorAll(".settlement-btn").forEach((btn) => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      window.location.href = `/settlement?id=${encodeURIComponent(btn.dataset.orderId)}`;
     };
   });
 
@@ -664,6 +674,14 @@ function renderOrderDetail(o, autoFocusAction) {
   printBtn.onclick = () => {
     window.open(`/print?id=${encodeURIComponent(currentDetailOrderId)}`, "_blank");
   };
+
+  const settlementBtn = document.getElementById("detailSettlementBtn");
+  if (settlementBtn) {
+    settlementBtn.onclick = () => {
+      closeOrderDetail();
+      window.location.href = `/settlement?id=${encodeURIComponent(currentDetailOrderId)}`;
+    };
+  }
 }
 
 window.closeOrderDetail = closeOrderDetail;

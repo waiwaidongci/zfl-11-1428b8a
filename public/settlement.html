@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>项目成本与结算 - 舞台灯光租赁</title>
+  <link rel="stylesheet" href="/css/common.css">
+  <link rel="stylesheet" href="/css/settlement.css">
+</head>
+<body>
+  <header>
+    <div>
+      <h1>项目成本与结算</h1>
+      <div class="subtitle">订单费用管理、收款记录、结算摘要</div>
+    </div>
+    <nav>
+      <a href="/">订单中心</a>
+      <a href="/quotations">报价管理</a>
+      <a href="/equipment">设备管理</a>
+      <a href="/customers">客户管理</a>
+      <a href="/repairs">维修工单</a>
+      <a href="/schedule">排期日历</a>
+      <a href="/settlement" class="active">项目结算</a>
+      <button id="reload" class="ghost small">↻ 刷新</button>
+    </nav>
+  </header>
+
+  <main>
+    <aside class="sidebar">
+      <div class="panel">
+        <h3>订单列表</h3>
+        <div class="order-filters">
+          <select id="statusFilter">
+            <option value="">全部订单</option>
+            <option>待出库</option>
+            <option>已出库</option>
+            <option>待归还</option>
+            <option>已归还</option>
+            <option>已取消</option>
+          </select>
+          <select id="settlementStatusFilter">
+            <option value="">全部结算状态</option>
+            <option value="draft">待结算</option>
+            <option value="partial">部分结算</option>
+            <option value="settled">已结算</option>
+            <option value="cancelled">已取消</option>
+          </select>
+        </div>
+        <div id="orderList" class="order-list">
+          <div style="text-align:center;padding:30px;color:var(--muted)">加载中…</div>
+        </div>
+      </div>
+    </aside>
+
+    <section class="content">
+      <div id="noSelection" class="empty-state">
+        <div class="empty-icon">💰</div>
+        <h3>选择订单查看结算详情</h3>
+        <p>从左侧列表选择一个订单，查看和管理其结算信息</p>
+      </div>
+
+      <div id="settlementDetail" class="settlement-detail hidden">
+        <div class="summary-card">
+          <div class="summary-header">
+            <div>
+              <h2 id="customerName">—</h2>
+              <div class="meta">
+                <span id="orderId">—</span>
+                <span class="sep">·</span>
+                <span id="orderDateRange">—</span>
+              </div>
+            </div>
+            <div class="status-badge" id="settlementStatus">待结算</div>
+          </div>
+
+          <div class="summary-stats">
+            <div class="stat-item">
+              <span class="stat-label">应收总额</span>
+              <span class="stat-value" id="receivableTotal">¥0.00</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">已收金额</span>
+              <span class="stat-value received" id="totalPaid">¥0.00</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">待收金额</span>
+              <span class="stat-value due" id="balanceDue">¥0.00</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">剩余押金</span>
+              <span class="stat-value deposit" id="remainingDeposit">¥0.00</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="action-bar">
+          <button class="secondary" id="syncQuoteBtn">📋 同步报价单</button>
+          <button class="secondary" id="syncHandoverBtn">📦 同步交接赔偿</button>
+          <button class="secondary" id="addFeeBtn">➕ 添加费用</button>
+          <button class="primary" id="addPaymentBtn">💳 登记收款</button>
+          <button class="ghost" id="printBtn" style="margin-left:auto">🖨 打印结算单</button>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h3>费用明细</h3>
+            <span class="meta" id="feeCount">共 0 项</span>
+          </div>
+          <div id="feeList" class="fee-list">
+            <div style="text-align:center;padding:30px;color:var(--muted)">暂无费用项</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h3>收款记录</h3>
+            <span class="meta" id="paymentCount">共 0 笔</span>
+          </div>
+          <div id="paymentList" class="payment-list">
+            <div style="text-align:center;padding:30px;color:var(--muted)">暂无收款记录</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h3>订单信息</h3>
+          </div>
+          <table class="info-table" style="width:100%;border-collapse:collapse;font-size:13px">
+            <tr>
+              <th>客户</th>
+              <td id="orderCustomer">—</td>
+              <th>联系人</th>
+              <td id="orderContact">—</td>
+            </tr>
+            <tr>
+              <th>联系电话</th>
+              <td id="orderPhone">—</td>
+              <th>订单状态</th>
+              <td id="orderStatus">—</td>
+            </tr>
+            <tr>
+              <th>租期开始</th>
+              <td id="orderStartDate">—</td>
+              <th>租期结束</th>
+              <td id="orderEndDate">—</td>
+            </tr>
+            <tr>
+              <th>备注</th>
+              <td colspan="3" id="orderNote">—</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="feeModal" class="modal-backdrop hidden">
+    <div class="modal" style="max-width:480px">
+      <header>
+        <h3 id="feeModalTitle">添加费用</h3>
+        <button onclick="closeFeeModal()">✕</button>
+      </header>
+      <div class="body">
+        <div class="form-group">
+          <label>费用类型 *</label>
+          <select id="feeType">
+            <option value="rental">租金</option>
+            <option value="deposit">押金</option>
+            <option value="transport">运输费</option>
+            <option value="labor">人工费</option>
+            <option value="setup">搭建费</option>
+            <option value="compensation">维修赔偿</option>
+            <option value="discount">优惠减免</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>金额（元）*</label>
+          <input type="number" id="feeAmount" placeholder="0.00" min="0" step="0.01">
+        </div>
+        <div class="form-group">
+          <label>费用说明</label>
+          <input type="text" id="feeDescription" placeholder="简要描述此项费用">
+        </div>
+      </div>
+      <div class="actions">
+        <button class="ghost" onclick="closeFeeModal()">取消</button>
+        <button class="primary" id="submitFeeBtn">确认添加</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="paymentModal" class="modal-backdrop hidden">
+    <div class="modal" style="max-width:480px">
+      <header>
+        <h3 id="paymentModalTitle">登记收款</h3>
+        <button onclick="closePaymentModal()">✕</button>
+      </header>
+      <div class="body">
+        <div class="form-group">
+          <label>收款类型 *</label>
+          <select id="paymentType">
+            <option value="payment">收款</option>
+            <option value="deposit_deduction">押金抵扣</option>
+            <option value="deposit_return">押金退还</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>金额（元）*</label>
+          <input type="number" id="paymentAmount" placeholder="0.00" min="0" step="0.01">
+        </div>
+        <div class="form-group">
+          <label>支付方式 *</label>
+          <select id="paymentMethod">
+            <option value="cash">现金</option>
+            <option value="bank">银行转账</option>
+            <option value="wechat">微信支付</option>
+            <option value="alipay">支付宝</option>
+            <option value="other">其他</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>收款日期</label>
+          <input type="date" id="paymentDate">
+        </div>
+        <div class="form-group">
+          <label>备注</label>
+          <input type="text" id="paymentRemark" placeholder="可选备注信息">
+        </div>
+      </div>
+      <div class="actions">
+        <button class="ghost" onclick="closePaymentModal()">取消</button>
+        <button class="primary" id="submitPaymentBtn">确认登记</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/js/settlement.js"></script>
+</body>
+</html>

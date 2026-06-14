@@ -849,5 +849,41 @@
       "remarks": "",
       "createdAt": "2026-06-14T09:20:32.923Z"
     }
+  ],
+  "settlements": [
+    {
+      "id": "S-057255",
+      "orderId": "O-1001",
+      "quotationId": null,
+      "status": "partial",
+      "fees": [
+        {
+          "id": "SF-057255",
+          "type": "compensation",
+          "amount": 500,
+          "description": "损坏设备按成本价赔偿500元",
+          "source": "handover",
+          "sourceId": "H-089447",
+          "createdAt": "2026-06-14T11:54:17.255Z",
+          "updatedAt": "2026-06-14T11:54:40.056Z"
+        }
+      ],
+      "note": "",
+      "createdAt": "2026-06-14T11:54:17.255Z",
+      "updatedAt": "2026-06-14T11:54:40.056Z"
+    }
+  ],
+  "payments": [
+    {
+      "id": "P-067600",
+      "settlementId": "S-057255",
+      "orderId": "O-1001",
+      "amount": 300,
+      "type": "payment",
+      "method": "cash",
+      "paymentDate": "2026-06-15",
+      "remark": "首付款",
+      "createdAt": "2026-06-14T11:54:27.600Z"
+    }
   ]
 }

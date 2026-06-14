@@ -50,6 +50,8 @@ export async function loadDb() {
   if (!db.quotations) db.quotations = [];
   if (!db.repairs) db.repairs = [];
   if (!db.handovers) db.handovers = [];
+  if (!db.settlements) db.settlements = [];
+  if (!db.payments) db.payments = [];
 
   db.quotations = db.quotations.map((q) => {
     if (!q.versions || !Array.isArray(q.versions)) {
@@ -128,6 +130,18 @@ export function genVersionId() {
   return `V-${Date.now().toString().slice(-6)}`;
 }
 
+export function genSettlementId() {
+  return `S-${Date.now().toString().slice(-6)}`;
+}
+
+export function genPaymentId() {
+  return `P-${Date.now().toString().slice(-6)}`;
+}
+
+export function genSettlementFeeId() {
+  return `SF-${Date.now().toString().slice(-6)}`;
+}
+
 export const VERSION_APPROVAL_STATUSES = ["pending", "approved", "rejected", "superseded"];
 export const VERSION_APPROVAL_LABELS = {
   pending: "待审批",
@@ -179,3 +193,48 @@ export function getActiveRepairByEquipmentId(db, equipmentId) {
     (r) => r.equipmentId === equipmentId && ["pending", "repairing"].includes(r.status)
   );
 }
+
+export const SETTLEMENT_STATUSES = ["draft", "partial", "settled", "cancelled"];
+export const SETTLEMENT_STATUS_LABELS = {
+  draft: "待结算",
+  partial: "部分结算",
+  settled: "已结算",
+  cancelled: "已取消"
+};
+
+export const FEE_TYPES = [
+  "rental",
+  "deposit",
+  "transport",
+  "labor",
+  "setup",
+  "compensation",
+  "discount"
+];
+export const FEE_TYPE_LABELS = {
+  rental: "租金",
+  deposit: "押金",
+  transport: "运输费",
+  labor: "人工费",
+  setup: "搭建费",
+  compensation: "维修赔偿",
+  discount: "优惠减免"
+};
+
+export const FEE_SOURCE_TYPES = ["system", "manual", "handover", "quotation"];
+
+export const PAYMENT_METHODS = ["cash", "bank", "wechat", "alipay", "other"];
+export const PAYMENT_METHOD_LABELS = {
+  cash: "现金",
+  bank: "银行转账",
+  wechat: "微信支付",
+  alipay: "支付宝",
+  other: "其他"
+};
+
+export const PAYMENT_TYPES = ["payment", "deposit_deduction", "deposit_return"];
+export const PAYMENT_TYPE_LABELS = {
+  payment: "收款",
+  deposit_deduction: "押金抵扣",
+  deposit_return: "押金退还"
+};

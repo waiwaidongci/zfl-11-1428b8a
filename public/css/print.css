@@ -228,6 +228,106 @@ body {
   margin-top: 20px;
 }
 
+.section-title {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  letter-spacing: 2px;
+  border-bottom: 2px solid var(--line);
+  padding-bottom: 8px;
+  color: var(--ink);
+}
+
+.settlement-status-bar {
+  background: #f3faf6;
+  border: 1px solid #c9e2d2;
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+}
+
+.settlement-status-label {
+  color: var(--muted);
+  margin-right: 10px;
+}
+
+.settlement-status {
+  font-weight: 600;
+  color: var(--green);
+}
+
+.col-feetype { width: 100px; }
+.col-amount { width: 120px; text-align: right; }
+.col-date { width: 110px; }
+.col-type { width: 100px; }
+.col-method { width: 100px; }
+
+.equip-table tfoot td {
+  font-weight: 600;
+  background: #f0f7f2;
+}
+
+.fee-subtotal td {
+  border-top: 2px solid var(--line);
+}
+
+.status-discount {
+  color: #a64236;
+  font-weight: 500;
+}
+
+.deposit-table {
+  margin-bottom: 20px;
+}
+
+.payment-table {
+  margin-bottom: 20px;
+}
+
+.settlement-summary-box {
+  background: #f3faf6;
+  border: 1px solid #c9e2d2;
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin: 20px 0;
+}
+
+.settlement-summary-box .summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 14px;
+}
+
+.settlement-summary-box .summary-row.total {
+  border-top: 2px solid #c9e2d2;
+  padding-top: 10px;
+  margin-top: 4px;
+}
+
+.settlement-summary-box .summary-label {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.settlement-summary-box .summary-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.settlement-summary-box .summary-value.received {
+  color: #2f6b4f;
+}
+
+.settlement-summary-box .summary-value.due {
+  color: #a64236;
+  font-size: 20px;
+}
+
 .hidden { display: none !important; }
 
 @media print {
@@ -314,6 +414,37 @@ body {
   .handover-print-table th,
   .handover-print-table td {
     border-color: #999;
+  }
+
+  .section-title {
+    border-bottom-color: #000;
+  }
+
+  .settlement-status-bar {
+    background: #f3faf6 !important;
+    border-color: #c9e2d2 !important;
+  }
+
+  .settlement-summary-box {
+    background: #f3faf6 !important;
+    border-color: #c9e2d2 !important;
+  }
+
+  .settlement-summary-box .summary-row.total {
+    border-top-color: #c9e2d2 !important;
+  }
+
+  .fee-subtotal td {
+    border-top-color: #000 !important;
+  }
+
+  .equip-table tfoot td {
+    background: #eee !important;
+  }
+
+  .deposit-table tfoot td,
+  .payment-table tfoot td {
+    background: #eee !important;
   }
 
   @page {

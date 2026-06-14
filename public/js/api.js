@@ -95,6 +95,86 @@ export const Schedule = {
   }
 };
 
+export const Settlements = {
+  list: (params) => {
+    const qs = params ? "?" + new URLSearchParams(params).toString() : "";
+    return api(`/api/settlements${qs}`);
+  },
+  get: (orderId) => api(`/api/orders/${orderId}/settlement`),
+  update: (orderId, data) =>
+    api(`/api/orders/${orderId}/settlement`, {
+      method: "PATCH",
+      body: JSON.stringify(data)
+    }),
+  addFee: (orderId, data) =>
+    api(`/api/orders/${orderId}/settlement/fees`, {
+      method: "POST",
+      body: JSON.stringify(data)
+    }),
+  updateFee: (orderId, feeId, data) =>
+    api(`/api/orders/${orderId}/settlement/fees/${feeId}`, {
+      method: "PATCH",
+      body: JSON.stringify(data)
+    }),
+  deleteFee: (orderId, feeId) =>
+    api(`/api/orders/${orderId}/settlement/fees/${feeId}`, {
+      method: "DELETE"
+    }),
+  syncQuote: (orderId) =>
+    api(`/api/orders/${orderId}/settlement/sync-quote`, {
+      method: "POST"
+    }),
+  syncHandover: (orderId) =>
+    api(`/api/orders/${orderId}/settlement/sync-handover`, {
+      method: "POST"
+    }),
+  addPayment: (orderId, data) =>
+    api(`/api/orders/${orderId}/settlement/payments`, {
+      method: "POST",
+      body: JSON.stringify(data)
+    }),
+  updatePayment: (orderId, paymentId, data) =>
+    api(`/api/orders/${orderId}/settlement/payments/${paymentId}`, {
+      method: "PATCH",
+      body: JSON.stringify(data)
+    }),
+  deletePayment: (orderId, paymentId) =>
+    api(`/api/orders/${orderId}/settlement/payments/${paymentId}`, {
+      method: "DELETE"
+    })
+};
+
+export const SETTLEMENT_STATUS_LABELS = {
+  draft: "待结算",
+  partial: "部分结算",
+  settled: "已结算",
+  cancelled: "已取消"
+};
+
+export const FEE_TYPE_LABELS = {
+  rental: "租金",
+  deposit: "押金",
+  transport: "运输费",
+  labor: "人工费",
+  setup: "搭建费",
+  compensation: "维修赔偿",
+  discount: "优惠减免"
+};
+
+export const PAYMENT_METHOD_LABELS = {
+  cash: "现金",
+  bank: "银行转账",
+  wechat: "微信支付",
+  alipay: "支付宝",
+  other: "其他"
+};
+
+export const PAYMENT_TYPE_LABELS = {
+  payment: "收款",
+  deposit_deduction: "押金抵扣",
+  deposit_return: "押金退还"
+};
+
 export const BLOCK_TYPE_LABELS = {
   pending_out: "待出库",
   occupied: "占用中",

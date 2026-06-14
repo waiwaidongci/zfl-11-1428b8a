@@ -53,6 +53,20 @@ import {
 
 import { getSchedule } from "./routes/schedule.js";
 
+import {
+  listSettlements,
+  getSettlement,
+  updateSettlement,
+  addFee,
+  updateFee,
+  deleteFee,
+  syncQuoteFees,
+  syncHandoverFees,
+  addPayment,
+  updatePayment,
+  deletePayment
+} from "./routes/settlements.js";
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const publicDir = join(__dirname, "public");
 const port = Number(process.env.PORT || 3011);
@@ -84,7 +98,7 @@ const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, `http://${req.headers.host}`);
     const p = url.pathname;
 
-    if (req.method === "GET" && (p === "/" || p === "/equipment" || p === "/customers" || p === "/quotations" || p === "/repairs" || p === "/schedule" || p === "/print" || p.startsWith("/css/") || p.startsWith("/js/"))) {
+    if (req.method === "GET" && (p === "/" || p === "/equipment" || p === "/customers" || p === "/quotations" || p === "/repairs" || p === "/schedule" || p === "/print" || p === "/settlement" || p.startsWith("/css/") || p.startsWith("/js/"))) {
       const served = await serveStatic(req, res, p);
       if (served) return;
     }
@@ -218,6 +232,53 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "GET" && p === "/api/schedule") return getSchedule(req, res);
 
+    if (req.method === "GET" && p === "/api/settlements") return listSettlements(req, res);
+
+    const settlementMatch = p.match(/^\/api\/orders\/([^/]+)\/settlement$/);
+    if (settlementMatch) {
+      const orderId = decodeURIComponent(settlementMatch[1]);
+      if (req.method === "GET") return getSettlement(req, res, orderId);
+      if (req.method === "PATCH") return updateSettlement(req, res, orderId);
+    }
+
+    const settlementFeesMatch = p.match(/^\/api\/orders\/([^/]+)\/settlement\/fees$/);
+    if (settlementFeesMatch) {
+      const orderId = decodeURIComponent(settlementFeesMatch[1]);
+      if (req.method === "POST") return addFee(req, res, orderId);
+    }
+
+    const settlementFeeMatch = p.match(/^\/api\/orders\/([^/]+)\/settlement\/fees\/([^/]+)$/);
+    if (settlementFeeMatch) {
+      const orderId = decodeURIComponent(settlementFeeMatch[1]);
+      const feeId = decodeURIComponent(settlementFeeMatch[2]);
+      if (req.method === "PATCH") return updateFee(req, res, orderId, feeId);
+      if (req.method === "DELETE") return deleteFee(req, res, orderId, feeId);
+    }
+
+    const syncQuoteFeesMatch = p.match(/^\/api\/orders\/([^/]+)\/settlement\/sync-quote$/);
+    if (syncQuoteFeesMatch && req.method === "POST") {
+      return syncQuoteFees(req, res, decodeURIComponent(syncQuoteFeesMatch[1]));
+    }
+
+    const syncHandoverFeesMatch = p.match(/^\/api\/orders\/([^/]+)\/settlement\/sync-handover$/);
+    if (syncHandoverFeesMatch && req.method === "POST") {
+      return syncHandoverFees(req, res, decodeURIComponent(syncHandoverFeesMatch[1]));
+    }
+
+    const settlementPaymentsMatch = p.match(/^\/api\/orders\/([^/]+)\/settlement\/payments$/);
+    if (settlementPaymentsMatch) {
+      const orderId = decodeURIComponent(settlementPaymentsMatch[1]);
+      if (req.method === "POST") return addPayment(req, res, orderId);
+    }
+
+    const settlementPaymentMatch = p.match(/^\/api\/orders\/([^/]+)\/settlement\/payments\/([^/]+)$/);
+    if (settlementPaymentMatch) {
+      const orderId = decodeURIComponent(settlementPaymentMatch[1]);
+      const paymentId = decodeURIComponent(settlementPaymentMatch[2]);
+      if (req.method === "PATCH") return updatePayment(req, res, orderId, paymentId);
+      if (req.method === "DELETE") return deletePayment(req, res, orderId, paymentId);
+    }
+
     notFound(res);
   } catch (error) {
     console.error("[server error]", error);
@@ -233,4 +294,5 @@ server.listen(port, () => {
   console.log(`  客户管理:   http://localhost:${port}/customers`);
   console.log(`  维修工单:   http://localhost:${port}/repairs`);
   console.log(`  租期排期:   http://localhost:${port}/schedule`);
+  console.log(`  项目结算:   http://localhost:${port}/settlement`);
 });
