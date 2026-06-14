@@ -20,7 +20,23 @@ const seed = {
     { id: "CU-001", name: "星桥活动", contact: "张经理", phone: "13800138001", activityType: "发布会", note: "长期合作客户" },
     { id: "CU-002", name: "光影传媒", contact: "李总监", phone: "13900139002", activityType: "演唱会", note: "" }
   ],
-  quotations: []
+  quotations: [],
+  repairs: [
+    {
+      id: "R-000001",
+      equipmentId: "T-001",
+      equipmentName: "铝合金桁架",
+      faultDescription: "桁架接口变形，焊接处有开裂",
+      sendTime: "2026-06-10",
+      expectedReturn: "2026-06-20",
+      repairCost: 350,
+      status: "repairing",
+      note: "已送合作焊接厂维修",
+      createdAt: "2026-06-10T09:30:00.000Z",
+      updatedAt: "2026-06-10T09:30:00.000Z",
+      completedAt: null
+    }
+  ]
 };
 
 export async function loadDb() {
@@ -31,6 +47,7 @@ export async function loadDb() {
   const db = JSON.parse(await readFile(dbPath, "utf8"));
   if (!db.customers) db.customers = [];
   if (!db.quotations) db.quotations = [];
+  if (!db.repairs) db.repairs = [];
   return db;
 }
 
@@ -62,4 +79,22 @@ export function genCustomerId() {
 
 export function genQuotationId() {
   return `Q-${Date.now().toString().slice(-6)}`;
+}
+
+export function genRepairId() {
+  return `R-${Date.now().toString().slice(-6)}`;
+}
+
+export const REPAIR_STATUSES = ["pending", "repairing", "completed", "cancelled"];
+export const REPAIR_STATUS_LABELS = {
+  pending: "待送修",
+  repairing: "维修中",
+  completed: "维修完成",
+  cancelled: "已取消"
+};
+
+export function getActiveRepairByEquipmentId(db, equipmentId) {
+  return db.repairs.find(
+    (r) => r.equipmentId === equipmentId && ["pending", "repairing"].includes(r.status)
+  );
 }

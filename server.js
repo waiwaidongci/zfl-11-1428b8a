@@ -34,6 +34,16 @@ import {
   checkConvertibility
 } from "./routes/quotations.js";
 
+import {
+  listRepairs,
+  getRepair,
+  createRepair,
+  updateRepair,
+  advanceRepairStatus,
+  deleteRepair,
+  getEquipmentRepairs
+} from "./routes/repairs.js";
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const publicDir = join(__dirname, "public");
 const port = Number(process.env.PORT || 3011);
@@ -65,7 +75,7 @@ const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, `http://${req.headers.host}`);
     const p = url.pathname;
 
-    if (req.method === "GET" && (p === "/" || p === "/equipment" || p === "/customers" || p === "/quotations" || p === "/print" || p.startsWith("/css/") || p.startsWith("/js/"))) {
+    if (req.method === "GET" && (p === "/" || p === "/equipment" || p === "/customers" || p === "/quotations" || p === "/repairs" || p === "/print" || p.startsWith("/css/") || p.startsWith("/js/"))) {
       const served = await serveStatic(req, res, p);
       if (served) return;
     }
@@ -128,6 +138,27 @@ const server = http.createServer(async (req, res) => {
       return checkConvertibility(req, res, decodeURIComponent(quoteCheckMatch[1]));
     }
 
+    if (req.method === "GET" && p === "/api/repairs") return listRepairs(req, res);
+    if (req.method === "POST" && p === "/api/repairs") return createRepair(req, res);
+
+    const repairMatch = p.match(/^\/api\/repairs\/([^/]+)$/);
+    if (repairMatch) {
+      const id = decodeURIComponent(repairMatch[1]);
+      if (req.method === "GET") return getRepair(req, res, id);
+      if (req.method === "PATCH") return updateRepair(req, res, id);
+      if (req.method === "DELETE") return deleteRepair(req, res, id);
+    }
+
+    const repairAdvanceMatch = p.match(/^\/api\/repairs\/([^/]+)\/advance$/);
+    if (repairAdvanceMatch && req.method === "POST") {
+      return advanceRepairStatus(req, res, decodeURIComponent(repairAdvanceMatch[1]));
+    }
+
+    const eqRepairsMatch = p.match(/^\/api\/equipment\/([^/]+)\/repairs$/);
+    if (eqRepairsMatch && req.method === "GET") {
+      return getEquipmentRepairs(req, res, decodeURIComponent(eqRepairsMatch[1]));
+    }
+
     notFound(res);
   } catch (error) {
     console.error("[server error]", error);
@@ -141,4 +172,5 @@ server.listen(port, () => {
   console.log(`  报价管理:   http://localhost:${port}/quotations`);
   console.log(`  设备管理:   http://localhost:${port}/equipment`);
   console.log(`  客户管理:   http://localhost:${port}/customers`);
+  console.log(`  维修工单:   http://localhost:${port}/repairs`);
 });

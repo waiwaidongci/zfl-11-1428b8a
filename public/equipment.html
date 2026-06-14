@@ -18,6 +18,7 @@
       <a href="/quotations">报价管理</a>
       <a href="/equipment" class="active">设备管理</a>
       <a href="/customers">客户管理</a>
+      <a href="/repairs">维修工单</a>
       <button id="addBtn">+ 新增设备</button>
     </nav>
   </header>
@@ -85,6 +86,50 @@
       <div class="actions">
         <button id="cancelBtn" type="button" class="ghost">取消</button>
         <button id="submitBtn" type="button" class="secondary">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="repairModal" class="modal-backdrop hidden">
+    <div class="modal wide">
+      <header>
+        <h3 id="repairModalTitle">发起维修工单</h3>
+        <button id="closeRepairModal" class="ghost">×</button>
+      </header>
+      <div class="body">
+        <form id="repairForm" autocomplete="off">
+          <input type="hidden" name="equipmentId">
+
+          <div class="panel" style="padding:10px;margin-bottom:14px;background:#f5f8f5;border:1px dashed var(--line)">
+            <strong style="font-size:13px">目标设备：</strong>
+            <span id="repairEqName" style="margin-left:6px"></span>
+            <span id="repairEqId" class="meta" style="margin-left:6px"></span>
+          </div>
+
+          <label>故障描述 *</label>
+          <textarea name="faultDescription" required placeholder="请详细描述设备故障现象..."></textarea>
+
+          <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px">
+            <label>送修日期</label>
+            <label>预计恢复日期</label>
+            <input name="sendTime" type="date" style="grid-column:1">
+            <input name="expectedReturn" type="date" style="grid-column:2">
+            <label>维修费用（元）</label>
+            <label>工单初始状态</label>
+            <input name="repairCost" type="number" min="0" step="0.01" placeholder="0.00" style="grid-column:1">
+            <select name="status" style="grid-column:2">
+              <option value="pending">待送修</option>
+              <option value="repairing">维修中</option>
+            </select>
+          </div>
+
+          <label>备注</label>
+          <textarea name="note" placeholder="维修商、联系方式等其他信息..."></textarea>
+        </form>
+      </div>
+      <div class="actions">
+        <button id="cancelRepairBtn" type="button" class="ghost">取消</button>
+        <button id="submitRepairBtn" type="button" class="danger">提交维修工单</button>
       </div>
     </div>
   </div>

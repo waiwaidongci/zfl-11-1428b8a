@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>维修工单管理 - 舞台灯光租赁</title>
+  <link rel="stylesheet" href="/css/common.css">
+  <link rel="stylesheet" href="/css/repairs.css">
+</head>
+<body>
+  <header>
+    <div>
+      <h1>舞台灯光租赁管理</h1>
+      <div class="subtitle">维修工单管理 · 设备维修流程跟踪</div>
+    </div>
+    <nav>
+      <a href="/">订单中心</a>
+      <a href="/quotations">报价管理</a>
+      <a href="/equipment">设备管理</a>
+      <a href="/customers">客户管理</a>
+      <a href="/repairs" class="active">维修工单</a>
+      <button id="addBtn">+ 新建工单</button>
+    </nav>
+  </header>
+
+  <main>
+    <div class="stats" id="stats"></div>
+
+    <div class="panel">
+      <div class="toolbar">
+        <input id="search" type="search" placeholder="搜索工单编号/设备/故障描述...">
+        <select id="statusFilter">
+          <option value="">全部状态</option>
+          <option value="pending">待送修</option>
+          <option value="repairing">维修中</option>
+          <option value="completed">维修完成</option>
+          <option value="cancelled">已取消</option>
+        </select>
+        <span class="toolbar-spacer"></span>
+        <span class="meta" id="countInfo"></span>
+        <button id="reloadBtn" class="ghost small">↻ 刷新</button>
+      </div>
+
+      <div id="repairGrid" class="repair-grid"></div>
+    </div>
+  </main>
+
+  <div id="modal" class="modal-backdrop hidden">
+    <div class="modal wide">
+      <header>
+        <h3 id="modalTitle">新建维修工单</h3>
+        <button id="closeModal" class="ghost">×</button>
+      </header>
+      <div class="body">
+        <form id="repairForm" autocomplete="off">
+          <label>工单编号（留空自动生成）</label>
+          <input name="id" placeholder="如 R-000001">
+
+          <label>维修设备 *</label>
+          <select name="equipmentId" id="equipmentSelect" required>
+            <option value="">请选择设备</option>
+          </select>
+
+          <label>故障描述 *</label>
+          <textarea name="faultDescription" required placeholder="请详细描述设备故障现象..."></textarea>
+
+          <div class="form-row">
+            <label>送修日期</label>
+            <label>预计恢复日期</label>
+            <input name="sendTime" type="date">
+            <input name="expectedReturn" type="date">
+            <label>维修费用（元）</label>
+            <label>工单状态</label>
+            <input name="repairCost" type="number" min="0" step="0.01" placeholder="0.00">
+            <select name="status">
+              <option value="pending">待送修</option>
+              <option value="repairing">维修中</option>
+              <option value="completed">维修完成</option>
+              <option value="cancelled">已取消</option>
+            </select>
+          </div>
+
+          <label>备注</label>
+          <textarea name="note" placeholder="维修商、联系方式等其他信息..."></textarea>
+        </form>
+      </div>
+      <div class="actions">
+        <button id="cancelBtn" type="button" class="ghost">取消</button>
+        <button id="submitBtn" type="button" class="secondary">保存工单</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/js/repairs.js"></script>
+</body>
+</html>

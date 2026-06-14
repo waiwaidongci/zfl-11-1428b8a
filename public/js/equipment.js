@@ -1,7 +1,8 @@
-import { Equipment, showToast } from "./api.js";
+import { Equipment, Repairs, showToast, REPAIR_STATUS_LABELS } from "./api.js";
 
 const state = {
   list: [],
+  repairs: [],
   editingId: null,
   filters: {
     search: "",
@@ -20,6 +21,16 @@ const searchEl = $("search");
 const modal = $("modal");
 const eqForm = $("eqForm");
 const modalTitle = $("modalTitle");
+
+const repairModal = $("repairModal");
+const repairForm = $("repairForm");
+const repairModalTitle = $("repairModalTitle");
+
+function getActiveRepair(equipmentId) {
+  return state.repairs.find(
+    (r) => r.equipmentId === equipmentId && ["pending", "repairing"].includes(r.status)
+  );
+}
 
 function renderStats() {
   const total = state.list.length;
@@ -70,8 +81,35 @@ function renderList() {
   }
 
   grid.innerHTML = data
-    .map(
-      (e) => `
+    .map((e) => {
+      const activeRepair = getActiveRepair(e.id);
+      const repairSection = activeRepair
+        ? `
+          <div style="margin-bottom:10px">
+            <span class="badge repair">${REPAIR_STATUS_LABELS[activeRepair.status] || "维修中"}</span>
+            <br>
+            <a class="eq-repair-link" data-action="view-repair" data-repair-id="${activeRepair.id}">
+              🔧 查看工单 ${activeRepair.id}
+            </a>
+          </div>
+        `
+        : e.condition === "repair"
+        ? `
+          <div style="margin-bottom:10px">
+            <span class="badge repair">维修中</span>
+          </div>
+        `
+        : `
+          <div style="margin-bottom:10px">
+            <span class="badge available">在库可用</span>
+          </div>
+        `;
+
+      const actionBtn = activeRepair
+        ? `<button class="secondary small" data-action="view-repair" data-repair-id="${activeRepair.id}">查看工单</button>`
+        : `<button class="danger small" data-action="repair">🔧 发起维修</button>`;
+
+      return `
     <article class="eq-card" data-id="${e.id}">
       <div class="eq-head">
         <div>
@@ -82,47 +120,41 @@ function renderList() {
       </div>
       <div class="eq-spec">${escapeHtml(e.spec)}</div>
       <div class="eq-loc">${escapeHtml(e.location || "未指定")}</div>
-      <div style="margin-bottom:10px">
-        ${
-          e.condition === "repair"
-            ? '<span class="badge repair">维修中</span>'
-            : '<span class="badge available">在库可用</span>'
-        }
-      </div>
+      ${repairSection}
       <div class="eq-foot">
-        <div class="cond-switch">
-          <input type="checkbox" id="c_${e.id}" ${e.condition === "repair" ? "checked" : ""}>
-          <label for="c_${e.id}">标记维修</label>
-        </div>
+        ${
+          activeRepair
+            ? `<span class="meta" style="font-size:11px;color:var(--red)">故障：${escapeHtml(
+                (activeRepair.faultDescription || "").slice(0, 20)
+              )}${(activeRepair.faultDescription || "").length > 20 ? "..." : ""}</span>`
+            : `<span class="meta" style="font-size:11px">可正常出租</span>`
+        }
         <div class="eq-actions">
+          ${actionBtn}
           <button class="secondary small" data-action="edit">编辑</button>
           <button class="danger small" data-action="delete">删除</button>
         </div>
       </div>
     </article>
-  `
-    )
+  `;
+    })
     .join("");
 
   grid.querySelectorAll(".eq-card").forEach((card) => {
     const id = card.dataset.id;
-    const checkbox = card.querySelector('input[type="checkbox"]');
+    const repairBtn = card.querySelector('[data-action="repair"]');
+    const viewRepairBtns = card.querySelectorAll('[data-action="view-repair"]');
     const editBtn = card.querySelector('[data-action="edit"]');
     const delBtn = card.querySelector('[data-action="delete"]');
 
-    checkbox.addEventListener("change", async () => {
-      try {
-        const next = checkbox.checked ? "repair" : "available";
-        await Equipment.setCondition(id, next);
-        const target = state.list.find((x) => x.id === id);
-        if (target) target.condition = next;
-        showToast(`已标记为「${next === "repair" ? "维修中" : "在库可用"}」`);
-        renderStats();
-        renderList();
-      } catch (err) {
-        showToast(err.message, "error");
-        await load();
-      }
+    if (repairBtn) {
+      repairBtn.addEventListener("click", () => openRepairModal(id));
+    }
+    viewRepairBtns.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const rid = btn.dataset.repairId;
+        window.location.href = `/repairs?highlight=${rid}`;
+      });
     });
 
     editBtn.addEventListener("click", () => openEdit(id));
@@ -132,6 +164,7 @@ function renderList() {
       try {
         await Equipment.remove(id);
         state.list = state.list.filter((x) => x.id !== id);
+        state.repairs = state.repairs.filter((r) => r.equipmentId !== id);
         showToast("设备已删除");
         renderStats();
         renderCategoryOptions();
@@ -164,6 +197,54 @@ function closeModal() {
   modal.classList.add("hidden");
   state.editingId = null;
   eqForm.reset();
+}
+
+function openRepairModal(equipmentId) {
+  const eq = state.list.find((x) => x.id === equipmentId);
+  if (!eq) return;
+
+  repairModalTitle.textContent = `发起维修 - ${eq.name}`;
+  repairForm.reset();
+  repairForm.equipmentId.value = equipmentId;
+  $("repairEqName").textContent = eq.name;
+  $("repairEqId").textContent = `(${eq.id})`;
+  repairForm.sendTime.value = new Date().toISOString().slice(0, 10);
+  repairForm.status.value = "pending";
+
+  repairModal.classList.remove("hidden");
+  setTimeout(() => repairForm.faultDescription?.focus(), 50);
+}
+
+function closeRepairModal() {
+  repairModal.classList.add("hidden");
+}
+
+async function submitRepairForm() {
+  const data = Object.fromEntries(new FormData(repairForm).entries());
+  data.faultDescription = data.faultDescription?.trim();
+
+  if (!data.faultDescription) {
+    showToast("请填写故障描述", "error");
+    return;
+  }
+  if (data.repairCost !== "") {
+    data.repairCost = Number(data.repairCost);
+  }
+
+  try {
+    const created = await Repairs.create(data);
+    state.repairs.unshift(created);
+
+    const eq = state.list.find((x) => x.id === data.equipmentId);
+    if (eq) eq.condition = "repair";
+
+    showToast(`维修工单「${created.id}」已创建，设备已标记为维修中`);
+    closeRepairModal();
+    renderStats();
+    renderList();
+  } catch (err) {
+    showToast(err.message, "error");
+  }
 }
 
 function openEdit(id) {
@@ -200,6 +281,16 @@ async function submitForm() {
   }
   try {
     if (state.editingId) {
+      const activeRepair = getActiveRepair(state.editingId);
+      if (activeRepair && data.condition === "available") {
+        if (!confirm("该设备有进行中的维修工单，改为可用将同时取消工单，是否继续？")) {
+          return;
+        }
+        await Repairs.update(activeRepair.id, { status: "cancelled" });
+        const ridx = state.repairs.findIndex((r) => r.id === activeRepair.id);
+        if (ridx !== -1) state.repairs[ridx].status = "cancelled";
+      }
+
       await Equipment.update(state.editingId, data);
       const idx = state.list.findIndex((x) => x.id === state.editingId);
       if (idx !== -1) state.list[idx] = { ...state.list[idx], ...data, id: state.editingId };
@@ -220,7 +311,9 @@ async function submitForm() {
 
 async function load() {
   try {
-    state.list = await Equipment.list();
+    const [equipment, repairs] = await Promise.all([Equipment.list(), Repairs.list()]);
+    state.list = equipment;
+    state.repairs = repairs;
     renderStats();
     renderCategoryOptions();
     renderList();
@@ -234,6 +327,10 @@ $("closeModal").addEventListener("click", closeModal);
 $("cancelBtn").addEventListener("click", closeModal);
 $("submitBtn").addEventListener("click", submitForm);
 $("reloadBtn").addEventListener("click", load);
+
+$("closeRepairModal").addEventListener("click", closeRepairModal);
+$("cancelRepairBtn").addEventListener("click", closeRepairModal);
+$("submitRepairBtn").addEventListener("click", submitRepairForm);
 
 searchEl.addEventListener("input", (e) => {
   state.filters.search = e.target.value;
@@ -251,9 +348,18 @@ conditionFilter.addEventListener("change", (e) => {
 modal.addEventListener("click", (e) => {
   if (e.target === modal) closeModal();
 });
+repairModal.addEventListener("click", (e) => {
+  if (e.target === repairModal) closeRepairModal();
+});
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && !modal.classList.contains("hidden")) closeModal();
-  if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && !modal.classList.contains("hidden")) submitForm();
+  if (e.key === "Escape") {
+    if (!modal.classList.contains("hidden")) closeModal();
+    if (!repairModal.classList.contains("hidden")) closeRepairModal();
+  }
+  if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+    if (!modal.classList.contains("hidden")) submitForm();
+    if (!repairModal.classList.contains("hidden")) submitRepairForm();
+  }
 });
 
 load();

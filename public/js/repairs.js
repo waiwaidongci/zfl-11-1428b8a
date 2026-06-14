@@ -1,0 +1,374 @@
+import { Repairs, Equipment, showToast, REPAIR_STATUS_LABELS } from "./api.js";
+
+const state = {
+  list: [],
+  equipmentList: [],
+  editingId: null,
+  filters: {
+    search: "",
+    status: ""
+  }
+};
+
+const $ = (id) => document.getElementById(id);
+const grid = $("repairGrid");
+const statsEl = $("stats");
+const countInfo = $("countInfo");
+const statusFilter = $("statusFilter");
+const searchEl = $("search");
+const modal = $("modal");
+const form = $("repairForm");
+const modalTitle = $("modalTitle");
+const equipmentSelect = $("equipmentSelect");
+
+const STATUS_FLOW = {
+  pending: { next: "repairing", btnText: "确认送修" },
+  repairing: { next: "completed", btnText: "完成维修" },
+  completed: null,
+  cancelled: null
+};
+
+function renderStats() {
+  const total = state.list.length;
+  const pending = state.list.filter((r) => r.status === "pending").length;
+  const repairing = state.list.filter((r) => r.status === "repairing").length;
+  const completed = state.list.filter((r) => r.status === "completed").length;
+  const totalCost = state.list
+    .filter((r) => r.status === "completed")
+    .reduce((sum, r) => sum + (Number(r.repairCost) || 0), 0);
+
+  statsEl.innerHTML = `
+    <div class="stat"><span>工单总数</span><strong>${total}</strong></div>
+    <div class="stat"><span>待送修</span><strong style="color:var(--yellow)">${pending}</strong></div>
+    <div class="stat"><span>维修中</span><strong style="color:var(--red)">${repairing}</strong></div>
+    <div class="stat"><span>已完成 / 累计费用</span><strong style="color:var(--green)">${completed} / ¥${totalCost.toFixed(2)}</strong></div>
+  `;
+}
+
+function renderEquipmentOptions() {
+  const available = state.equipmentList.filter((e) => {
+    if (e.condition !== "available") {
+      const active = state.list.find(
+        (r) => r.equipmentId === e.id && ["pending", "repairing"].includes(r.status)
+      );
+      if (!active) return true;
+      return false;
+    }
+    return true;
+  });
+
+  equipmentSelect.innerHTML =
+    '<option value="">请选择设备</option>' +
+    available
+      .map(
+        (e) =>
+          `<option value="${e.id}" ${e.condition === "repair" ? "data-repair='1'" : ""}>
+            ${escapeHtml(e.name)} (${e.id})${e.condition === "repair" ? " - [当前维修中]" : ""}
+          </option>`
+      )
+      .join("");
+}
+
+function getFiltered() {
+  const q = state.filters.search.trim().toLowerCase();
+  return state.list.filter((r) => {
+    if (state.filters.status && r.status !== state.filters.status) return false;
+    if (q) {
+      const hay = `${r.id} ${r.equipmentName} ${r.equipmentId} ${r.faultDescription} ${r.note}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function renderTimeline(status) {
+  const steps = ["pending", "repairing", "completed"];
+  const labels = { pending: "待送修", repairing: "维修中", completed: "已完成" };
+  const currentIdx = status === "cancelled" ? -1 : steps.indexOf(status);
+
+  return `<div class="timeline">${steps
+    .map((s, i) => {
+      let cls = "pending-step";
+      if (status === "cancelled") cls = "pending-step";
+      else if (i < currentIdx) cls = "done";
+      else if (i === currentIdx) cls = "active";
+      return `<div class="timeline-step ${cls}">${labels[s]}</div>`;
+    })
+    .join("")}</div>`;
+}
+
+function renderList() {
+  const data = getFiltered();
+  countInfo.textContent = `显示 ${data.length} / 共 ${state.list.length} 条`;
+
+  if (!data.length) {
+    grid.innerHTML = `
+      <div class="empty-repairs">
+        <h4>暂无维修工单</h4>
+        <p>点击右上角"新建工单"或从设备管理页发起维修申请</p>
+      </div>`;
+    return;
+  }
+
+  grid.innerHTML = data
+    .map((r) => {
+      const flow = STATUS_FLOW[r.status];
+      const statusBadge = `<span class="repair-status-badge ${r.status}"><span class="repair-status-dot"></span>${REPAIR_STATUS_LABELS[r.status] || r.status}</span>`;
+
+      return `
+    <article class="repair-card status-${r.status}" data-id="${r.id}">
+      <div class="repair-head">
+        <div>
+          <h4>${escapeHtml(r.equipmentName)}</h4>
+          <span class="cat-pill cat-${escapeCss(r.equipment?.category || "其他")}" style="margin-top:6px;display:inline-block">
+            ${escapeHtml(r.equipment?.category || "其他")}
+          </span>
+        </div>
+        <span class="repair-id">${escapeHtml(r.id)}</span>
+      </div>
+
+      <div class="repair-eq">
+        <span class="repair-eq-name">${escapeHtml(r.equipment?.name || r.equipmentName)}</span>
+        <span class="repair-eq-id">${escapeHtml(r.equipment?.id || r.equipmentId)}</span>
+        ${r.equipment?.spec ? `<span class="meta">${escapeHtml(r.equipment.spec)}</span>` : ""}
+      </div>
+
+      <div class="repair-fault">
+        <div class="repair-fault-label">⚠ 故障描述</div>
+        ${escapeHtml(r.faultDescription)}
+      </div>
+
+      ${renderTimeline(r.status)}
+
+      <div class="repair-meta">
+        <div class="repair-meta-item">
+          <span class="repair-meta-label">送修日期</span>
+          <span class="repair-meta-value">${r.sendTime || "-"}</span>
+        </div>
+        <div class="repair-meta-item">
+          <span class="repair-meta-label">预计恢复</span>
+          <span class="repair-meta-value">${r.expectedReturn || "-"}</span>
+        </div>
+        <div class="repair-meta-item">
+          <span class="repair-meta-label">维修费用</span>
+          <span class="repair-meta-value cost">¥${(Number(r.repairCost) || 0).toFixed(2)}</span>
+        </div>
+        <div class="repair-meta-item">
+          <span class="repair-meta-label">${r.status === "completed" ? "完成时间" : "创建时间"}</span>
+          <span class="repair-meta-value">${formatDate(r.status === "completed" ? r.completedAt : r.createdAt)}</span>
+        </div>
+      </div>
+
+      <div class="repair-note">${escapeHtml(r.note) || ""}</div>
+
+      <div class="repair-foot">
+        ${statusBadge}
+        <div class="repair-actions">
+          ${flow ? `<button class="secondary small" data-action="advance">${flow.btnText}</button>` : ""}
+          <button class="ghost small" data-action="edit">编辑</button>
+          <button class="danger small" data-action="delete">删除</button>
+        </div>
+      </div>
+    </article>
+  `;
+    })
+    .join("");
+
+  grid.querySelectorAll(".repair-card").forEach((card) => {
+    const id = card.dataset.id;
+    const advanceBtn = card.querySelector('[data-action="advance"]');
+    const editBtn = card.querySelector('[data-action="edit"]');
+    const delBtn = card.querySelector('[data-action="delete"]');
+
+    if (advanceBtn) {
+      advanceBtn.addEventListener("click", async () => {
+        try {
+          const updated = await Repairs.advance(id);
+          const idx = state.list.findIndex((x) => x.id === id);
+          if (idx !== -1) state.list[idx] = updated;
+          showToast(`工单状态已推进为「${REPAIR_STATUS_LABELS[updated.status]}」`);
+          if (updated.status === "completed") {
+            const eq = state.equipmentList.find((e) => e.id === updated.equipmentId);
+            if (eq) eq.condition = "available";
+          }
+          renderStats();
+          renderList();
+        } catch (err) {
+          showToast(err.message, "error");
+          await load();
+        }
+      });
+    }
+
+    editBtn.addEventListener("click", () => openEdit(id));
+    delBtn.addEventListener("click", async () => {
+      const r = state.list.find((x) => x.id === id);
+      if (!confirm(`确定删除维修工单「${r.id} - ${r.equipmentName}」吗？${["pending", "repairing"].includes(r.status) ? "（该工单进行中，删除后设备将恢复可用）" : ""}`)) return;
+      try {
+        await Repairs.remove(id);
+        state.list = state.list.filter((x) => x.id !== id);
+        showToast("工单已删除");
+        renderStats();
+        renderList();
+      } catch (err) {
+        showToast(err.message, "error");
+      }
+    });
+  });
+}
+
+function formatDate(iso) {
+  if (!iso) return "-";
+  try {
+    return new Date(iso).toLocaleDateString("zh-CN");
+  } catch {
+    return "-";
+  }
+}
+
+function escapeHtml(str) {
+  return String(str || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function escapeCss(str) {
+  return String(str || "").replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, "_");
+}
+
+function openModal() {
+  modal.classList.remove("hidden");
+  setTimeout(() => form.faultDescription?.focus(), 50);
+}
+
+function closeModal() {
+  modal.classList.add("hidden");
+  state.editingId = null;
+  form.reset();
+}
+
+function openCreate(preselectedEquipmentId) {
+  state.editingId = null;
+  modalTitle.textContent = "新建维修工单";
+  form.reset();
+  renderEquipmentOptions();
+  form.status.value = "pending";
+  form.sendTime.value = new Date().toISOString().slice(0, 10);
+  if (preselectedEquipmentId) {
+    form.equipmentId.value = preselectedEquipmentId;
+  }
+  openModal();
+}
+
+function openEdit(id) {
+  const r = state.list.find((x) => x.id === id);
+  if (!r) return;
+  state.editingId = id;
+  modalTitle.textContent = "编辑维修工单";
+  renderEquipmentOptions();
+
+  if (!state.equipmentList.some((e) => e.id === r.equipmentId)) {
+    const opt = document.createElement("option");
+    opt.value = r.equipmentId;
+    opt.textContent = `${r.equipmentName} (${r.equipmentId})`;
+    equipmentSelect.insertBefore(opt, equipmentSelect.firstChild);
+  }
+
+  form.id.value = r.id;
+  form.equipmentId.value = r.equipmentId;
+  form.faultDescription.value = r.faultDescription;
+  form.sendTime.value = r.sendTime || "";
+  form.expectedReturn.value = r.expectedReturn || "";
+  form.repairCost.value = r.repairCost != null ? r.repairCost : "";
+  form.status.value = r.status;
+  form.note.value = r.note || "";
+  form.id.readOnly = true;
+  form.equipmentId.disabled = true;
+  openModal();
+}
+
+async function submitForm() {
+  const data = Object.fromEntries(new FormData(form).entries());
+  data.faultDescription = data.faultDescription?.trim();
+
+  if (!data.equipmentId) {
+    showToast("请选择维修设备", "error");
+    return;
+  }
+  if (!data.faultDescription) {
+    showToast("请填写故障描述", "error");
+    return;
+  }
+  if (data.repairCost !== "") {
+    data.repairCost = Number(data.repairCost);
+  }
+
+  try {
+    if (state.editingId) {
+      const { id, equipmentId, ...rest } = data;
+      const updated = await Repairs.update(state.editingId, rest);
+      const idx = state.list.findIndex((x) => x.id === state.editingId);
+      if (idx !== -1) state.list[idx] = updated;
+
+      const eq = state.equipmentList.find((e) => e.id === updated.equipmentId);
+      if (eq) eq.condition = ["pending", "repairing"].includes(updated.status) ? "repair" : "available";
+
+      showToast("工单已更新");
+    } else {
+      const created = await Repairs.create(data);
+      state.list.unshift(created);
+      const eq = state.equipmentList.find((e) => e.id === created.equipmentId);
+      if (eq) eq.condition = "repair";
+      showToast(`维修工单「${created.id}」已创建`);
+    }
+    renderStats();
+    renderList();
+    closeModal();
+  } catch (err) {
+    showToast(err.message, "error");
+  }
+}
+
+async function load() {
+  try {
+    const [repairs, equipment] = await Promise.all([Repairs.list(), Equipment.list()]);
+    state.list = repairs;
+    state.equipmentList = equipment;
+    renderStats();
+    renderList();
+  } catch (err) {
+    showToast(err.message, "error");
+  }
+}
+
+$("addBtn").addEventListener("click", () => openCreate());
+$("closeModal").addEventListener("click", closeModal);
+$("cancelBtn").addEventListener("click", closeModal);
+$("submitBtn").addEventListener("click", submitForm);
+$("reloadBtn").addEventListener("click", load);
+
+searchEl.addEventListener("input", (e) => {
+  state.filters.search = e.target.value;
+  renderList();
+});
+statusFilter.addEventListener("change", (e) => {
+  state.filters.status = e.target.value;
+  renderList();
+});
+
+modal.addEventListener("click", (e) => {
+  if (e.target === modal) closeModal();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !modal.classList.contains("hidden")) closeModal();
+  if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && !modal.classList.contains("hidden")) submitForm();
+});
+
+const params = new URLSearchParams(location.search);
+if (params.get("equipment")) {
+  load().then(() => openCreate(params.get("equipment")));
+} else {
+  load();
+}

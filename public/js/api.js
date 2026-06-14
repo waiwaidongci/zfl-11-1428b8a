@@ -23,7 +23,8 @@ export const Equipment = {
   create: (data) => api("/api/equipment", { method: "POST", body: JSON.stringify(data) }),
   update: (id, data) => api(`/api/equipment/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
   setCondition: (id, condition) => api(`/api/equipment/${id}/condition`, { method: "PATCH", body: JSON.stringify({ condition }) }),
-  remove: (id) => api(`/api/equipment/${id}`, { method: "DELETE" })
+  remove: (id) => api(`/api/equipment/${id}`, { method: "DELETE" }),
+  listRepairs: (id) => api(`/api/equipment/${id}/repairs`)
 };
 
 export const Orders = {
@@ -58,3 +59,22 @@ export const Quotations = {
 export function overlap(a, b, c, d) {
   return new Date(a) <= new Date(d) && new Date(c) <= new Date(b);
 }
+
+export const REPAIR_STATUS_LABELS = {
+  pending: "待送修",
+  repairing: "维修中",
+  completed: "维修完成",
+  cancelled: "已取消"
+};
+
+export const Repairs = {
+  list: (params) => {
+    const qs = params ? "?" + new URLSearchParams(params).toString() : "";
+    return api(`/api/repairs${qs}`);
+  },
+  get: (id) => api(`/api/repairs/${id}`),
+  create: (data) => api("/api/repairs", { method: "POST", body: JSON.stringify(data) }),
+  update: (id, data) => api(`/api/repairs/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  advance: (id) => api(`/api/repairs/${id}/advance`, { method: "POST" }),
+  remove: (id) => api(`/api/repairs/${id}`, { method: "DELETE" })
+};

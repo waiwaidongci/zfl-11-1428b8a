@@ -1,14 +1,6 @@
 {
   "equipment": [
     {
-      "id": "L-443651",
-      "name": "230W光束灯",
-      "category": "灯具",
-      "spec": "7R 230W",
-      "location": "主仓A",
-      "condition": "available"
-    },
-    {
       "id": "L-001",
       "name": "摇头染色灯",
       "category": "灯具",
@@ -21,7 +13,7 @@
       "name": "LED帕灯",
       "category": "灯具",
       "spec": "18x10W",
-      "location": "主仓C",
+      "location": "主仓B",
       "condition": "available"
     },
     {
@@ -38,34 +30,21 @@
       "category": "桁架",
       "spec": "300mm 2m",
       "location": "外场架",
-      "condition": "repair"
+      "condition": "available"
     }
   ],
   "orders": [
     {
-      "id": "O-1781394904983",
-      "customer": "测试客户A",
-      "startDate": "2026-07-10",
-      "endDate": "2026-07-12",
-      "status": "待出库",
-      "itemIds": [
-        "L-001",
-        "L-002",
-        "C-001"
-      ],
-      "note": "【源自报价单 Q-891569】周年庆活动测试"
-    },
-    {
-      "id": "O-1781387583734",
-      "customer": "星光传媒",
+      "id": "O-1781401804441",
+      "customer": "测试客户",
       "startDate": "2026-07-01",
       "endDate": "2026-07-03",
       "status": "待出库",
       "itemIds": [
-        "L-443651",
-        "C-001"
+        "L-001",
+        "L-002"
       ],
-      "note": "周年庆晚会"
+      "note": ""
     },
     {
       "id": "O-1001",
@@ -82,52 +61,51 @@
   ],
   "customers": [
     {
-      "id": "CU-657864",
-      "name": "星光传媒",
-      "contact": "李经理",
-      "phone": "13800138888",
+      "id": "CU-001",
+      "name": "星桥活动",
+      "contact": "张经理",
+      "phone": "13800138001",
       "activityType": "发布会",
+      "note": "长期合作客户"
+    },
+    {
+      "id": "CU-002",
+      "name": "光影传媒",
+      "contact": "李总监",
+      "phone": "13900139002",
+      "activityType": "演唱会",
       "note": ""
     }
   ],
-  "quotations": [
+  "quotations": [],
+  "repairs": [
     {
-      "id": "Q-081615",
-      "customer": "浏览器集成测试客户",
-      "startDate": "2026-08-20",
-      "endDate": "2026-08-24",
-      "rentalDays": 5,
-      "itemIds": [
-        "L-443651",
-        "L-001",
-        "L-002"
-      ],
-      "discount": 0.1,
-      "depositOverride": {},
-      "status": "已确认",
-      "note": "浏览器自动化集成测试",
-      "createdAt": "2026-06-13T23:58:01.616Z",
-      "updatedAt": "2026-06-13T23:58:01.616Z"
+      "id": "R-592838",
+      "equipmentId": "L-002",
+      "equipmentName": "LED帕灯",
+      "faultDescription": "测试：灯具无法点亮，疑似电源模块损坏",
+      "sendTime": "2026-06-14",
+      "expectedReturn": "2026-06-21",
+      "repairCost": 280,
+      "status": "completed",
+      "note": "送原厂检修",
+      "createdAt": "2026-06-14T01:46:32.839Z",
+      "updatedAt": "2026-06-14T01:49:52.031Z",
+      "completedAt": "2026-06-14T01:49:52.031Z"
     },
     {
-      "id": "Q-891569",
-      "customer": "测试客户A",
-      "startDate": "2026-07-10",
-      "endDate": "2026-07-12",
-      "rentalDays": 3,
-      "itemIds": [
-        "L-001",
-        "L-002",
-        "C-001"
-      ],
-      "discount": 0.1,
-      "depositOverride": {},
-      "status": "已转订单",
-      "note": "周年庆活动测试",
-      "createdAt": "2026-06-13T23:54:51.569Z",
-      "updatedAt": "2026-06-13T23:55:04.692Z",
-      "convertedOrderId": "O-1781394904983",
-      "convertedAt": "2026-06-13T23:55:04.983Z"
+      "id": "R-000001",
+      "equipmentId": "T-001",
+      "equipmentName": "铝合金桁架",
+      "faultDescription": "桁架接口变形，焊接处有开裂",
+      "sendTime": "2026-06-10",
+      "expectedReturn": "2026-06-20",
+      "repairCost": 350,
+      "status": "completed",
+      "note": "已送合作焊接厂维修",
+      "createdAt": "2026-06-10T09:30:00.000Z",
+      "updatedAt": "2026-06-14T01:47:52.328Z",
+      "completedAt": "2026-06-14T01:47:52.328Z"
     }
   ]
 }
