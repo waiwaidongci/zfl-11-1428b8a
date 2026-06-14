@@ -13,7 +13,7 @@ import {
   deleteEquipment
 } from "./routes/equipment.js";
 
-import { listOrders, getOrder, createOrder, updateOrder } from "./routes/orders.js";
+import { listOrders, getOrder, createOrder, updateOrder, listHandovers, createHandover, getHandover } from "./routes/orders.js";
 
 import {
   listCustomers,
@@ -105,6 +105,20 @@ const server = http.createServer(async (req, res) => {
       const id = decodeURIComponent(orderMatch[1]);
       if (req.method === "GET") return getOrder(req, res, id);
       if (req.method === "PATCH") return updateOrder(req, res, id);
+    }
+
+    const handoverMatch = p.match(/^\/api\/orders\/([^/]+)\/handovers$/);
+    if (handoverMatch) {
+      const orderId = decodeURIComponent(handoverMatch[1]);
+      if (req.method === "GET") return listHandovers(req, res, orderId);
+      if (req.method === "POST") return createHandover(req, res, orderId);
+    }
+
+    const handoverDetailMatch = p.match(/^\/api\/orders\/([^/]+)\/handovers\/([^/]+)$/);
+    if (handoverDetailMatch) {
+      const orderId = decodeURIComponent(handoverDetailMatch[1]);
+      const handoverId = decodeURIComponent(handoverDetailMatch[2]);
+      if (req.method === "GET") return getHandover(req, res, orderId, handoverId);
     }
 
     if (req.method === "GET" && p === "/api/customers") return listCustomers(req, res);

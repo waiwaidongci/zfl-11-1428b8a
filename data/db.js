@@ -21,6 +21,7 @@ const seed = {
     { id: "CU-002", name: "光影传媒", contact: "李总监", phone: "13900139002", activityType: "演唱会", note: "" }
   ],
   quotations: [],
+  handovers: [],
   repairs: [
     {
       id: "R-000001",
@@ -48,6 +49,7 @@ export async function loadDb() {
   if (!db.customers) db.customers = [];
   if (!db.quotations) db.quotations = [];
   if (!db.repairs) db.repairs = [];
+  if (!db.handovers) db.handovers = [];
   return db;
 }
 
@@ -83,6 +85,10 @@ export function genQuotationId() {
 
 export function genRepairId() {
   return `R-${Date.now().toString().slice(-6)}`;
+}
+
+export function genHandoverId() {
+  return `H-${Date.now().toString().slice(-6)}`;
 }
 
 export const REPAIR_STATUSES = ["pending", "repairing", "completed", "cancelled"];

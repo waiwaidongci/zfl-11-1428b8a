@@ -41,7 +41,7 @@ function showError(msg) {
 function renderSheet(o) {
   document.getElementById("loading").classList.add("hidden");
   document.getElementById("sheet").classList.remove("hidden");
-  document.title = `出库单 ${o.id} - ${o.customer}`;
+  document.title = `交接单 ${o.id} - ${o.customer}`;
 
   document.getElementById("orderId").textContent = o.id;
   document.getElementById("customer").textContent = o.customer;
@@ -60,6 +60,61 @@ function renderSheet(o) {
     <td>${escapeHtml(item.spec || "—")}</td>
     <td></td>
   </tr>`).join("");
+
+  if (o.handovers && o.handovers.length) {
+    const checkoutHandover = o.handovers.find((h) => h.type === "checkout");
+    const returnHandover = o.handovers.find((h) => h.type === "return");
+
+    if (checkoutHandover) {
+      const section = document.getElementById("checkoutSection");
+      section.classList.remove("hidden");
+      document.getElementById("checkoutHandler").textContent = checkoutHandover.handler || "—";
+      document.getElementById("checkoutTime").textContent = checkoutHandover.actualTime || "—";
+      document.getElementById("checkoutRemarks").textContent = checkoutHandover.remarks || "无";
+
+      const checkoutTbody = document.getElementById("checkoutEquipBody");
+      checkoutTbody.innerHTML = (checkoutHandover.itemConfirmations || []).map((c, i) => `<tr>
+        <td class="center">${i + 1}</td>
+        <td>${escapeHtml(c.itemId)}</td>
+        <td>${escapeHtml(c.itemName || "")}</td>
+        <td>${c.confirmed ? "✅ 已确认" : "❌ 未确认"}</td>
+        <td>${escapeHtml(c.remark || "—")}</td>
+      </tr>`).join("");
+    }
+
+    if (returnHandover) {
+      const section = document.getElementById("returnSection");
+      section.classList.remove("hidden");
+      document.getElementById("returnHandler").textContent = returnHandover.handler || "—";
+      document.getElementById("returnTime").textContent = returnHandover.actualTime || "—";
+      document.getElementById("returnCompensation").textContent = returnHandover.compensationNote || "无";
+      document.getElementById("returnExtraCharges").textContent = returnHandover.extraCharges ? `¥${Number(returnHandover.extraCharges).toFixed(2)}` : "无";
+      document.getElementById("returnRemarks").textContent = returnHandover.remarks || "无";
+
+      const returnTbody = document.getElementById("returnEquipBody");
+      returnTbody.innerHTML = (returnHandover.itemStatuses || []).map((s, i) => {
+        const statusLabel = { intact: "完好", damaged: "损坏", missing: "缺失" }[s.status] || s.status;
+        const statusClass = { intact: "status-intact", damaged: "status-damaged", missing: "status-missing" }[s.status] || "";
+        return `<tr>
+          <td class="center">${i + 1}</td>
+          <td>${escapeHtml(s.itemId)}</td>
+          <td>${escapeHtml(s.itemName || "")}</td>
+          <td class="${statusClass}">${statusLabel}</td>
+          <td>${escapeHtml(s.remark || "—")}</td>
+        </tr>`;
+      }).join("");
+
+      document.getElementById("returnSignArea").classList.remove("hidden");
+    }
+
+    if (checkoutHandover || returnHandover) {
+      let footerText = "本单一式两份，出库方与签收方各执一份。";
+      if (returnHandover) {
+        footerText = "本交接单含出库与归还记录，一式两份，双方各执一份。";
+      }
+      document.querySelector(".sheet-footer").textContent = footerText;
+    }
+  }
 }
 
 init();

@@ -116,6 +116,18 @@ function renderOrders() {
           return `<span class="item-tag">${escapeHtml(e ? `${e.id} ${e.name}` : id)}</span>`;
         })
         .join("");
+
+      let actionBtn = "";
+      if (o.status === "待出库") {
+        actionBtn = `<button class="handover-btn small" data-action="checkout" data-order-id="${escapeHtml(o.id)}">📦 出库交接</button>`;
+      } else if (o.status === "已出库" || o.status === "待归还") {
+        actionBtn = `<button class="handover-btn small secondary" data-action="return" data-order-id="${escapeHtml(o.id)}">📥 归还交接</button>`;
+      } else if (o.status === "已取消") {
+        actionBtn = `<span class="badge" style="background:#f0f0f0;color:var(--muted)">已取消</span>`;
+      } else if (o.status === "已归还") {
+        actionBtn = `<span class="badge available">已完成</span>`;
+      }
+
       return `<article class="order" data-order-id="${escapeHtml(o.id)}" style="cursor:pointer">
         <div style="display:flex;justify-content:space-between;align-items:start;gap:8px">
           <h3>${escapeHtml(o.customer)}</h3>
@@ -125,32 +137,20 @@ function renderOrders() {
         <div class="items-list">${tags}</div>
         <div class="status-row">
           <span class="badge">${escapeHtml(o.status)}</span>
-          <select data-id="${o.id}" class="mini">
-            <option>待出库</option><option>已出库</option><option>待归还</option><option>已归还</option><option>已取消</option>
-          </select>
+          ${actionBtn}
         </div>
         <div style="display:flex;gap:8px">
-          <button class="print-btn ghost small" data-order-id="${escapeHtml(o.id)}" style="flex:1">🖨 打印出库单</button>
+          <button class="print-btn ghost small" data-order-id="${escapeHtml(o.id)}" style="flex:1">🖨 打印交接单</button>
           <button class="view-detail-btn ghost small" data-order-id="${escapeHtml(o.id)}" style="flex:1">📋 查看详情</button>
         </div>
       </article>`;
     })
     .join("");
 
-  document.querySelectorAll(".order select").forEach((select) => {
-    const order = orders.find((o) => o.id === select.dataset.id);
-    if (order) select.value = order.status;
-    select.onclick = (e) => e.stopPropagation();
-    select.onchange = async (e) => {
+  document.querySelectorAll(".handover-btn").forEach((btn) => {
+    btn.onclick = async (e) => {
       e.stopPropagation();
-      try {
-        await Orders.update(select.dataset.id, { status: select.value });
-        showToast(`订单状态已更新为「${select.value}」`);
-        await load();
-      } catch (err) {
-        showToast(err.message, "error");
-        await load();
-      }
+      openOrderDetail(btn.dataset.orderId, btn.dataset.action);
     };
   });
 
@@ -177,7 +177,7 @@ function renderOrders() {
 
 let currentDetailOrderId = null;
 
-async function openOrderDetail(id) {
+async function openOrderDetail(id, autoFocusAction) {
   currentDetailOrderId = id;
   const modal = document.getElementById("orderDetailModal");
   const body = document.getElementById("orderDetailBody");
@@ -187,7 +187,7 @@ async function openOrderDetail(id) {
 
   try {
     const order = await Orders.get(id);
-    renderOrderDetail(order);
+    renderOrderDetail(order, autoFocusAction);
   } catch (err) {
     body.innerHTML = `<div style="text-align:center;padding:40px;color:var(--red)">加载失败：${escapeHtml(err.message)}</div>`;
   }
@@ -198,7 +198,7 @@ function closeOrderDetail() {
   currentDetailOrderId = null;
 }
 
-function renderOrderDetail(o) {
+function renderOrderDetail(o, autoFocusAction) {
   const body = document.getElementById("orderDetailBody");
 
   const itemsHtml = o.items.map((item, i) => `
@@ -210,11 +210,215 @@ function renderOrderDetail(o) {
     </tr>
   `).join("");
 
+  let handoverRecordsHtml = "";
+  if (o.handovers && o.handovers.length) {
+    handoverRecordsHtml = o.handovers.map((h) => {
+      if (h.type === "checkout") {
+        const confRows = (h.itemConfirmations || []).map((c, i) => `
+          <tr>
+            <td class="center">${i + 1}</td>
+            <td>${escapeHtml(c.itemId)}</td>
+            <td>${escapeHtml(c.itemName || "")}</td>
+            <td>${escapeHtml(c.confirmed ? "✅ 已确认" : "❌ 未确认")}</td>
+            <td>${escapeHtml(c.remark || "—")}</td>
+          </tr>
+        `).join("");
+        return `
+          <div class="handover-record checkout-record">
+            <div class="handover-record-header">
+              <span class="badge" style="background:#e3f2ea;color:var(--green)">出库交接</span>
+              <span class="meta">${escapeHtml(h.id)} · ${escapeHtml(new Date(h.createdAt).toLocaleString("zh-CN"))}</span>
+            </div>
+            <div class="handover-record-body">
+              <div class="handover-field"><span class="handover-label">经手人</span><span>${escapeHtml(h.handler)}</span></div>
+              <div class="handover-field"><span class="handover-label">实际出库时间</span><span>${escapeHtml(h.actualTime)}</span></div>
+              ${h.remarks ? `<div class="handover-field"><span class="handover-label">备注</span><span>${escapeHtml(h.remarks)}</span></div>` : ""}
+              <table class="equip-table handover-table" style="width:100%;border-collapse:collapse;font-size:13px;margin-top:8px">
+                <thead>
+                  <tr>
+                    <th style="border:1px solid var(--line);padding:6px 10px;text-align:left;background:#f6f8f6;color:var(--muted);width:40px">序号</th>
+                    <th style="border:1px solid var(--line);padding:6px 10px;text-align:left;background:#f6f8f6;color:var(--muted);width:100px">设备编号</th>
+                    <th style="border:1px solid var(--line);padding:6px 10px;text-align:left;background:#f6f8f6;color:var(--muted)">设备名称</th>
+                    <th style="border:1px solid var(--line);padding:6px 10px;text-align:left;background:#f6f8f6;color:var(--muted);width:100px">确认结果</th>
+                    <th style="border:1px solid var(--line);padding:6px 10px;text-align:left;background:#f6f8f6;color:var(--muted)">说明</th>
+                  </tr>
+                </thead>
+                <tbody>${confRows}</tbody>
+              </table>
+            </div>
+          </div>
+        `;
+      } else {
+        const statusRows = (h.itemStatuses || []).map((s, i) => {
+          const statusLabel = { intact: "完好", damaged: "损坏", missing: "缺失" }[s.status] || s.status;
+          const statusClass = { intact: "available", damaged: "repair", missing: "repair" }[s.status] || "";
+          return `
+            <tr>
+              <td class="center">${i + 1}</td>
+              <td>${escapeHtml(s.itemId)}</td>
+              <td>${escapeHtml(s.itemName || "")}</td>
+              <td><span class="badge ${statusClass}">${statusLabel}</span></td>
+              <td>${escapeHtml(s.remark || "—")}</td>
+            </tr>
+          `;
+        }).join("");
+        return `
+          <div class="handover-record return-record">
+            <div class="handover-record-header">
+              <span class="badge" style="background:#dde8f5;color:var(--blue)">归还交接</span>
+              <span class="meta">${escapeHtml(h.id)} · ${escapeHtml(new Date(h.createdAt).toLocaleString("zh-CN"))}</span>
+            </div>
+            <div class="handover-record-body">
+              ${h.handler ? `<div class="handover-field"><span class="handover-label">经手人</span><span>${escapeHtml(h.handler)}</span></div>` : ""}
+              <div class="handover-field"><span class="handover-label">实际归还时间</span><span>${escapeHtml(h.actualTime)}</span></div>
+              ${h.compensationNote ? `<div class="handover-field"><span class="handover-label">赔偿说明</span><span>${escapeHtml(h.compensationNote)}</span></div>` : ""}
+              ${h.extraCharges ? `<div class="handover-field"><span class="handover-label">额外费用</span><span style="color:var(--red);font-weight:600">¥${Number(h.extraCharges).toFixed(2)}</span></div>` : ""}
+              ${h.remarks ? `<div class="handover-field"><span class="handover-label">备注</span><span>${escapeHtml(h.remarks)}</span></div>` : ""}
+              <table class="equip-table handover-table" style="width:100%;border-collapse:collapse;font-size:13px;margin-top:8px">
+                <thead>
+                  <tr>
+                    <th style="border:1px solid var(--line);padding:6px 10px;text-align:left;background:#f6f8f6;color:var(--muted);width:40px">序号</th>
+                    <th style="border:1px solid var(--line);padding:6px 10px;text-align:left;background:#f6f8f6;color:var(--muted);width:100px">设备编号</th>
+                    <th style="border:1px solid var(--line);padding:6px 10px;text-align:left;background:#f6f8f6;color:var(--muted)">设备名称</th>
+                    <th style="border:1px solid var(--line);padding:6px 10px;text-align:left;background:#f6f8f6;color:var(--muted);width:80px">状态</th>
+                    <th style="border:1px solid var(--line);padding:6px 10px;text-align:left;background:#f6f8f6;color:var(--muted)">说明</th>
+                  </tr>
+                </thead>
+                <tbody>${statusRows}</tbody>
+              </table>
+            </div>
+          </div>
+        `;
+      }
+    }).join("");
+  } else {
+    handoverRecordsHtml = `<div style="text-align:center;padding:16px;color:var(--muted);font-size:13px">暂无交接记录</div>`;
+  }
+
+  let handoverFormHtml = "";
+  if (o.status === "待出库") {
+    const confirmRows = o.items.map((item) => `
+      <tr>
+        <td class="center"><input type="checkbox" class="checkout-confirm" data-item-id="${escapeHtml(item.id)}" data-item-name="${escapeHtml(item.name)}" checked></td>
+        <td>${escapeHtml(item.id)}</td>
+        <td>${escapeHtml(item.name)}</td>
+        <td><input type="text" class="checkout-remark small-input" data-item-id="${escapeHtml(item.id)}" placeholder="备注"></td>
+      </tr>
+    `).join("");
+    handoverFormHtml = `
+      <div class="handover-form-section" id="checkoutFormSection">
+        <h4 class="handover-form-title">📦 出库交接</h4>
+        <div class="handover-form-grid">
+          <div>
+            <label>经手人 *</label>
+            <input type="text" id="checkoutHandler" placeholder="出库经手人姓名">
+          </div>
+          <div>
+            <label>实际出库时间 *</label>
+            <input type="datetime-local" id="checkoutTime">
+          </div>
+        </div>
+        <label>设备逐项确认</label>
+        <table class="equip-table handover-table" style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead>
+            <tr>
+              <th style="border:1px solid var(--line);padding:6px 10px;text-align:left;background:#f6f8f6;color:var(--muted);width:40px">确认</th>
+              <th style="border:1px solid var(--line);padding:6px 10px;text-align:left;background:#f6f8f6;color:var(--muted);width:100px">设备编号</th>
+              <th style="border:1px solid var(--line);padding:6px 10px;text-align:left;background:#f6f8f6;color:var(--muted)">设备名称</th>
+              <th style="border:1px solid var(--line);padding:6px 10px;text-align:left;background:#f6f8f6;color:var(--muted)">说明</th>
+            </tr>
+          </thead>
+          <tbody>${confirmRows}</tbody>
+        </table>
+        <label>备注</label>
+        <textarea id="checkoutRemarks" placeholder="出库备注信息" rows="2"></textarea>
+        <button class="secondary" id="submitCheckout" style="margin-top:10px;width:100%">确认出库交接</button>
+      </div>
+    `;
+  } else if (o.status === "已出库" || o.status === "待归还") {
+    const statusRows = o.items.map((item) => `
+      <tr>
+        <td class="center">${escapeHtml(item.id)}</td>
+        <td>${escapeHtml(item.name)}</td>
+        <td>
+          <select class="return-status small-select" data-item-id="${escapeHtml(item.id)}" data-item-name="${escapeHtml(item.name)}">
+            <option value="intact">完好</option>
+            <option value="damaged">损坏</option>
+            <option value="missing">缺失</option>
+          </select>
+        </td>
+        <td><input type="text" class="return-remark small-input" data-item-id="${escapeHtml(item.id)}" placeholder="说明"></td>
+      </tr>
+    `).join("");
+    handoverFormHtml = `
+      <div class="handover-form-section" id="returnFormSection">
+        <h4 class="handover-form-title">📥 归还交接</h4>
+        <div class="handover-form-grid">
+          <div>
+            <label>经手人</label>
+            <input type="text" id="returnHandler" placeholder="归还经手人姓名">
+          </div>
+          <div>
+            <label>实际归还时间 *</label>
+            <input type="datetime-local" id="returnTime">
+          </div>
+        </div>
+        <label>设备归还状态</label>
+        <table class="equip-table handover-table" style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead>
+            <tr>
+              <th style="border:1px solid var(--line);padding:6px 10px;text-align:left;background:#f6f8f6;color:var(--muted);width:100px">设备编号</th>
+              <th style="border:1px solid var(--line);padding:6px 10px;text-align:left;background:#f6f8f6;color:var(--muted)">设备名称</th>
+              <th style="border:1px solid var(--line);padding:6px 10px;text-align:left;background:#f6f8f6;color:var(--muted);width:100px">状态</th>
+              <th style="border:1px solid var(--line);padding:6px 10px;text-align:left;background:#f6f8f6;color:var(--muted)">说明</th>
+            </tr>
+          </thead>
+          <tbody>${statusRows}</tbody>
+        </table>
+        <div class="handover-form-grid">
+          <div>
+            <label>赔偿说明</label>
+            <textarea id="returnCompensation" placeholder="如有损坏/缺失，填写赔偿说明" rows="2"></textarea>
+          </div>
+          <div>
+            <label>额外费用（元）</label>
+            <input type="number" id="returnExtraCharges" placeholder="0" min="0" step="0.01">
+          </div>
+        </div>
+        <label>备注</label>
+        <textarea id="returnRemarks" placeholder="归还备注信息" rows="2"></textarea>
+        <button class="secondary" id="submitReturn" style="margin-top:10px;width:100%">确认归还交接</button>
+      </div>
+    `;
+  }
+
+  const statusSteps = [
+    { key: "待出库", label: "待出库" },
+    { key: "已出库", label: "已出库" },
+    { key: "待归还", label: "待归还" },
+    { key: "已归还", label: "已归还" }
+  ];
+  const currentStepIndex = statusSteps.findIndex((s) => s.key === o.status);
+  const timelineHtml = statusSteps.map((step, i) => {
+    const isActive = i <= currentStepIndex && currentStepIndex >= 0;
+    return `
+      <div class="status-step ${isActive ? "active" : ""}">
+        <div class="step-dot">${isActive ? "✓" : i + 1}</div>
+        <div class="step-label">${step.label}</div>
+      </div>
+    `;
+  }).join("");
+
+  let pendingReturnBtnHtml = "";
+  if (o.status === "已出库") {
+    pendingReturnBtnHtml = `<button class="pending-return-btn small" id="markPendingReturnBtn" style="width:100%;margin-top:10px">⏰ 标记为待归还</button>`;
+  }
+
   body.innerHTML = `
     <div class="detail-section">
       <div class="detail-id" style="text-align:right;color:var(--muted);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;margin-bottom:12px">${escapeHtml(o.id)}</div>
-      <h3 style="margin:0 0 16px 0;font-size:18px">${escapeHtml(o.customer)}</h3>
-      <span class="badge" style="margin-bottom:16px;display:inline-block">${escapeHtml(o.status)}</span>
+      <h3 style="margin:0 0 12px 0;font-size:18px">${escapeHtml(o.customer)}</h3>
+      <div class="status-timeline">${timelineHtml}</div>
     </div>
 
     <table class="info-table" style="width:100%;border-collapse:collapse;margin-bottom:16px;font-size:13px">
@@ -248,7 +452,187 @@ function renderOrderDetail(o) {
       </thead>
       <tbody>${itemsHtml}</tbody>
     </table>
+
+    <h4 style="margin:20px 0 8px 0;font-size:14px">交接记录</h4>
+    <div class="handover-records">${handoverRecordsHtml}</div>
+
+    ${pendingReturnBtnHtml}
+
+    ${handoverFormHtml}
   `;
+
+  function getNowLocal() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  }
+
+  if (o.status === "待出库") {
+    const timeInput = document.getElementById("checkoutTime");
+    if (timeInput && !timeInput.value) {
+      timeInput.value = getNowLocal();
+    }
+
+    const submitCheckoutBtn = document.getElementById("submitCheckout");
+    if (submitCheckoutBtn) {
+      submitCheckoutBtn.onclick = async () => {
+        const handler = document.getElementById("checkoutHandler").value.trim();
+        const actualTime = document.getElementById("checkoutTime").value;
+        if (!handler) return showToast("请填写经手人", "error");
+        if (!actualTime) return showToast("请填写实际出库时间", "error");
+
+        const itemConfirmations = [];
+        let allConfirmed = true;
+        document.querySelectorAll(".checkout-confirm").forEach((cb) => {
+          const itemId = cb.dataset.itemId;
+          const itemName = cb.dataset.itemName;
+          const confirmed = cb.checked;
+          if (!confirmed) allConfirmed = false;
+          const remarkEl = document.querySelector(`.checkout-remark[data-item-id="${itemId}"]`);
+          itemConfirmations.push({
+            itemId,
+            itemName,
+            confirmed,
+            remark: remarkEl ? remarkEl.value.trim() : ""
+          });
+        });
+
+        if (!allConfirmed) {
+          showToast("所有设备必须确认后才能出库", "error");
+          return;
+        }
+
+        const remarks = document.getElementById("checkoutRemarks").value.trim();
+
+        try {
+          submitCheckoutBtn.disabled = true;
+          submitCheckoutBtn.textContent = "提交中…";
+          await Orders.createHandover(o.id, {
+            type: "checkout",
+            handler,
+            actualTime,
+            itemConfirmations,
+            remarks
+          });
+          showToast("出库交接完成，订单状态已更新为「已出库」");
+          closeOrderDetail();
+          await load();
+        } catch (err) {
+          showToast(err.message, "error");
+          submitCheckoutBtn.disabled = false;
+          submitCheckoutBtn.textContent = "确认出库交接";
+        }
+      };
+    }
+  }
+
+  if (o.status === "已出库" || o.status === "待归还") {
+    const timeInput = document.getElementById("returnTime");
+    if (timeInput && !timeInput.value) {
+      timeInput.value = getNowLocal();
+    }
+
+    const submitReturnBtn = document.getElementById("submitReturn");
+    if (submitReturnBtn) {
+      submitReturnBtn.onclick = async () => {
+        const handler = document.getElementById("returnHandler").value.trim();
+        const actualTime = document.getElementById("returnTime").value;
+        if (!actualTime) return showToast("请填写实际归还时间", "error");
+
+        const itemStatuses = [];
+        let hasDamaged = false;
+        let hasMissing = false;
+        document.querySelectorAll(".return-status").forEach((sel) => {
+          const itemId = sel.dataset.itemId;
+          const itemName = sel.dataset.itemName;
+          const status = sel.value;
+          if (status === "damaged") hasDamaged = true;
+          if (status === "missing") hasMissing = true;
+          const remarkEl = document.querySelector(`.return-remark[data-item-id="${itemId}"]`);
+          itemStatuses.push({
+            itemId,
+            itemName,
+            status,
+            remark: remarkEl ? remarkEl.value.trim() : ""
+          });
+        });
+
+        const compensationNote = document.getElementById("returnCompensation").value.trim();
+        const extraCharges = parseFloat(document.getElementById("returnExtraCharges").value) || 0;
+        const remarks = document.getElementById("returnRemarks").value.trim();
+
+        if ((hasDamaged || hasMissing) && !compensationNote) {
+          if (!confirm("有设备损坏或缺失，但未填写赔偿说明，确定提交吗？")) return;
+        }
+
+        try {
+          submitReturnBtn.disabled = true;
+          submitReturnBtn.textContent = "提交中…";
+          await Orders.createHandover(o.id, {
+            type: "return",
+            handler,
+            actualTime,
+            itemStatuses,
+            compensationNote,
+            extraCharges,
+            remarks
+          });
+          let msg = "归还交接完成，订单状态已更新为「已归还」";
+          if (hasDamaged) msg += "，损坏设备已自动创建维修工单";
+          showToast(msg);
+          closeOrderDetail();
+          await load();
+        } catch (err) {
+          showToast(err.message, "error");
+          submitReturnBtn.disabled = false;
+          submitReturnBtn.textContent = "确认归还交接";
+        }
+      };
+    }
+  }
+
+  if (autoFocusAction === "checkout") {
+    const section = document.getElementById("checkoutFormSection");
+    if (section) {
+      setTimeout(() => {
+        section.scrollIntoView({ behavior: "smooth", block: "start" });
+        const handlerInput = document.getElementById("checkoutHandler");
+        if (handlerInput) handlerInput.focus();
+      }, 100);
+    }
+  } else if (autoFocusAction === "return") {
+    const section = document.getElementById("returnFormSection");
+    if (section) {
+      setTimeout(() => {
+        section.scrollIntoView({ behavior: "smooth", block: "start" });
+        const handlerInput = document.getElementById("returnHandler");
+        if (handlerInput) handlerInput.focus();
+      }, 100);
+    }
+  }
+
+  const markPendingReturnBtn = document.getElementById("markPendingReturnBtn");
+  if (markPendingReturnBtn) {
+    markPendingReturnBtn.onclick = async () => {
+      if (!confirm("确定要将此订单标记为「待归还」吗？")) return;
+      try {
+        markPendingReturnBtn.disabled = true;
+        markPendingReturnBtn.textContent = "处理中…";
+        await Orders.update(o.id, { status: "待归还" });
+        showToast("订单已标记为「待归还」");
+        closeOrderDetail();
+        await load();
+      } catch (err) {
+        showToast(err.message, "error");
+        markPendingReturnBtn.disabled = false;
+        markPendingReturnBtn.textContent = "⏰ 标记为待归还";
+      }
+    };
+  }
 
   const printBtn = document.getElementById("detailPrintBtn");
   printBtn.onclick = () => {

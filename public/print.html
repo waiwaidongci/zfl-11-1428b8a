@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>出库单 - 舞台灯光租赁</title>
+  <title>交接单 - 舞台灯光租赁</title>
   <link rel="stylesheet" href="/css/common.css">
   <link rel="stylesheet" href="/css/print.css">
 </head>
@@ -20,7 +20,7 @@
 
     <div id="sheet" class="sheet hidden">
       <div class="sheet-header">
-        <h1>设备出库单</h1>
+        <h1>设备交接单</h1>
         <div class="sheet-id" id="orderId"></div>
       </div>
 
@@ -57,19 +57,94 @@
         <tbody id="equipBody"></tbody>
       </table>
 
+      <div id="checkoutSection" class="handover-print-section hidden">
+        <h3 class="handover-print-title">出库交接</h3>
+        <table class="info-table">
+          <tr>
+            <th>经手人</th>
+            <td id="checkoutHandler"></td>
+            <th>实际出库时间</th>
+            <td id="checkoutTime"></td>
+          </tr>
+          <tr>
+            <th>备注</th>
+            <td colspan="3" id="checkoutRemarks"></td>
+          </tr>
+        </table>
+        <table class="equip-table handover-print-table">
+          <thead>
+            <tr>
+              <th class="col-seq">序号</th>
+              <th class="col-id">设备编号</th>
+              <th class="col-name">设备名称</th>
+              <th class="col-confirm">确认结果</th>
+              <th class="col-remark">说明</th>
+            </tr>
+          </thead>
+          <tbody id="checkoutEquipBody"></tbody>
+        </table>
+      </div>
+
+      <div id="returnSection" class="handover-print-section hidden">
+        <h3 class="handover-print-title">归还交接</h3>
+        <table class="info-table">
+          <tr>
+            <th>经手人</th>
+            <td id="returnHandler"></td>
+            <th>实际归还时间</th>
+            <td id="returnTime"></td>
+          </tr>
+          <tr>
+            <th>赔偿说明</th>
+            <td id="returnCompensation"></td>
+            <th>额外费用</th>
+            <td id="returnExtraCharges"></td>
+          </tr>
+          <tr>
+            <th>备注</th>
+            <td colspan="3" id="returnRemarks"></td>
+          </tr>
+        </table>
+        <table class="equip-table handover-print-table">
+          <thead>
+            <tr>
+              <th class="col-seq">序号</th>
+              <th class="col-id">设备编号</th>
+              <th class="col-name">设备名称</th>
+              <th class="col-status">归还状态</th>
+              <th class="col-remark">说明</th>
+            </tr>
+          </thead>
+          <tbody id="returnEquipBody"></tbody>
+        </table>
+      </div>
+
       <div class="note-section">
         <div class="note-label">备注</div>
         <div id="note">—</div>
       </div>
 
-      <div class="sign-area">
+      <div id="checkoutSignArea" class="sign-area">
         <div class="sign-block">
           <div class="sign-label">出库人签字：</div>
           <div class="sign-line"></div>
           <div class="sign-date">日期：____年____月____日</div>
         </div>
         <div class="sign-block">
-          <div class="sign-label">签收人签字：</div>
+          <div class="sign-label">客户签收人签字：</div>
+          <div class="sign-line"></div>
+          <div class="sign-date">日期：____年____月____日</div>
+        </div>
+      </div>
+
+      <div id="returnSignArea" class="sign-area hidden">
+        <div class="sign-block">
+          <div class="sign-label">归还人签字：</div>
+          <div class="sign-line"></div>
+          <div class="sign-date">日期：____年____月____日</div>
+        </div>
+        <div class="sign-block">
+          <div class="sign-label">库管验收人签字：</div>
           <div class="sign-line"></div>
           <div class="sign-date">日期：____年____月____日</div>
         </div>

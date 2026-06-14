@@ -134,9 +134,46 @@ body {
 .col-id { width: 100px; }
 .col-name { width: 140px; }
 .col-spec { width: 140px; }
+.col-confirm { width: 100px; }
+.col-status { width: 80px; }
 .col-remark { }
 
 .center { text-align: center; }
+
+.status-intact {
+  color: #2f6b4f;
+  font-weight: 600;
+}
+
+.status-damaged {
+  color: #a64236;
+  font-weight: 600;
+}
+
+.status-missing {
+  color: #9a6a12;
+  font-weight: 600;
+}
+
+.handover-print-section {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 2px solid var(--line);
+}
+
+.handover-print-title {
+  margin: 0 0 14px 0;
+  font-size: 16px;
+  letter-spacing: 2px;
+}
+
+.handover-print-section .info-table {
+  margin-bottom: 14px;
+}
+
+.handover-print-table {
+  margin-bottom: 16px;
+}
 
 .note-section {
   background: #fafbf9;
@@ -260,6 +297,23 @@ body {
 
   .sheet-footer {
     border-top-color: #999;
+  }
+
+  .handover-print-section {
+    border-top-color: #000;
+  }
+
+  .handover-print-section .info-table th {
+    background: #eee !important;
+  }
+
+  .handover-print-table thead th {
+    background: #eee !important;
+  }
+
+  .handover-print-table th,
+  .handover-print-table td {
+    border-color: #999;
   }
 
   @page {

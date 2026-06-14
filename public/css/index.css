@@ -107,3 +107,273 @@ select.mini {
   font-weight: 600;
   min-width: 64px;
 }
+
+.handover-btn {
+  flex-shrink: 0;
+}
+
+.handover-records {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.handover-record {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.handover-record-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: #fafbfa;
+  border-bottom: 1px solid var(--line);
+}
+
+.handover-record-body {
+  padding: 12px 14px;
+}
+
+.handover-field {
+  display: flex;
+  gap: 8px;
+  font-size: 13px;
+  padding: 3px 0;
+}
+
+.handover-field .handover-label {
+  color: var(--muted);
+  font-weight: 600;
+  min-width: 80px;
+  flex-shrink: 0;
+}
+
+.handover-form-section {
+  background: #f9faf9;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 16px;
+}
+
+.handover-form-title {
+  margin: 0 0 12px 0;
+  font-size: 15px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.handover-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.handover-form-grid label {
+  margin-top: 4px;
+}
+
+.small-input {
+  width: 100%;
+  padding: 4px 8px;
+  font-size: 12px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+.small-select {
+  width: 100%;
+  padding: 4px 8px;
+  font-size: 12px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #fff;
+}
+
+.handover-table th,
+.handover-table td {
+  font-size: 12px;
+  padding: 5px 8px;
+}
+
+.handover-table input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+}
+
+.checkout-record .handover-record-header {
+  background: #f0f9f4;
+  border-bottom-color: #c9e2d2;
+}
+
+.return-record .handover-record-header {
+  background: #eef3fb;
+  border-bottom-color: #b9cbe3;
+}
+
+.handover-record .badge {
+  font-size: 12px;
+}
+
+.handover-record-header .meta {
+  font-size: 12px;
+}
+
+.detail-section {
+  margin-bottom: 16px;
+}
+
+.detail-id {
+  text-align: right;
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.status-timeline {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: #fafbfa;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+}
+
+.status-step {
+  flex: 1;
+  text-align: center;
+  padding: 8px 4px;
+  position: relative;
+}
+
+.status-step .step-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #e0e4e0;
+  margin: 0 auto 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.status-step.active .step-dot {
+  background: var(--green);
+  color: #fff;
+}
+
+.status-step .step-label {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.status-step.active .step-label {
+  color: var(--green);
+}
+
+.status-step:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 20px;
+  right: -4px;
+  width: 8px;
+  height: 2px;
+  background: var(--line);
+}
+
+.status-step.active:not(:last-child)::after {
+  background: var(--green);
+}
+
+.handover-form-section {
+  background: #f9faf9;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 16px;
+}
+
+.handover-form-title {
+  margin: 0 0 12px 0;
+  font-size: 15px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.modal .info-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 16px;
+  font-size: 13px;
+}
+
+.modal .info-table th,
+.modal .info-table td {
+  border: 1px solid var(--line);
+  padding: 6px 10px;
+  text-align: left;
+}
+
+.modal .info-table th {
+  background: #f6f8f6;
+  color: var(--muted);
+  font-weight: 600;
+  width: 80px;
+}
+
+.modal .equip-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.modal .equip-table th,
+.modal .equip-table td {
+  border: 1px solid var(--line);
+  padding: 6px 10px;
+  text-align: left;
+}
+
+.modal .equip-table thead th {
+  background: #f6f8f6;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.modal .equip-table tbody tr:nth-child(even) {
+  background: #fafcf9;
+}
+
+.modal .center {
+  text-align: center;
+}
+
+.pending-return-btn {
+  background: var(--yellow);
+}
+
+.pending-return-btn:hover {
+  background: #80560f;
+}
+
+.handover-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.handover-actions button {
+  flex: 1;
+}

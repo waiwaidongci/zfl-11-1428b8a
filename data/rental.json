@@ -14,7 +14,7 @@
       "category": "灯具",
       "spec": "19颗蜂眼",
       "location": "主仓A",
-      "condition": "available"
+      "condition": "repair"
     },
     {
       "id": "L-002",
@@ -47,7 +47,7 @@
       "customer": "测试客户",
       "startDate": "2026-07-01",
       "endDate": "2026-07-03",
-      "status": "待出库",
+      "status": "已归还",
       "itemIds": [
         "L-001"
       ],
@@ -83,12 +83,14 @@
       "customer": "星桥活动",
       "startDate": "2026-06-18",
       "endDate": "2026-06-20",
-      "status": "待出库",
+      "status": "已归还",
       "itemIds": [
         "L-001",
         "C-001"
       ],
-      "note": "发布会"
+      "note": "发布会",
+      "checkoutTime": "2026-06-18T09:00",
+      "returnTime": "2026-06-20T18:00"
     }
   ],
   "customers": [
@@ -143,6 +145,20 @@
   ],
   "repairs": [
     {
+      "id": "R-089447",
+      "equipmentId": "L-001",
+      "equipmentName": "摇头染色灯",
+      "faultDescription": "灯壳有划痕，底座松动",
+      "sendTime": "2026-06-14",
+      "expectedReturn": "",
+      "repairCost": 0,
+      "status": "pending",
+      "note": "订单 O-1001 归还时发现损坏",
+      "createdAt": "2026-06-14T09:41:29.447Z",
+      "updatedAt": "2026-06-14T09:41:29.447Z",
+      "completedAt": null
+    },
+    {
       "id": "R-000001",
       "equipmentId": "T-001",
       "equipmentName": "铝合金桁架",
@@ -155,6 +171,92 @@
       "createdAt": "2026-06-10T09:30:00.000Z",
       "updatedAt": "2026-06-10T09:30:00.000Z",
       "completedAt": null
+    }
+  ],
+  "handovers": [
+    {
+      "id": "H-089447",
+      "orderId": "O-1001",
+      "type": "return",
+      "handler": "李归还",
+      "actualTime": "2026-06-20T18:00",
+      "itemStatuses": [
+        {
+          "itemId": "L-001",
+          "itemName": "摇头染色灯",
+          "status": "damaged",
+          "remark": "灯壳有划痕，底座松动"
+        },
+        {
+          "itemId": "C-001",
+          "itemName": "MA控台",
+          "status": "intact",
+          "remark": ""
+        }
+      ],
+      "compensationNote": "损坏设备按成本价赔偿500元",
+      "extraCharges": 500,
+      "remarks": "客户按时归还",
+      "createdAt": "2026-06-14T09:41:29.447Z"
+    },
+    {
+      "id": "H-020985",
+      "orderId": "O-1001",
+      "type": "checkout",
+      "handler": "张出库",
+      "actualTime": "2026-06-18T09:00",
+      "itemConfirmations": [
+        {
+          "itemId": "L-001",
+          "itemName": "摇头染色灯",
+          "confirmed": true,
+          "remark": "外观完好"
+        },
+        {
+          "itemId": "C-001",
+          "itemName": "MA控台",
+          "confirmed": true,
+          "remark": ""
+        }
+      ],
+      "remarks": "客户准时提货",
+      "createdAt": "2026-06-14T09:40:20.985Z"
+    },
+    {
+      "id": "H-850961",
+      "orderId": "O-1781421615815",
+      "type": "return",
+      "handler": "李四",
+      "actualTime": "2026-07-03T18:00",
+      "itemStatuses": [
+        {
+          "itemId": "L-001",
+          "itemName": "摇头染色灯",
+          "status": "intact",
+          "remark": ""
+        }
+      ],
+      "compensationNote": "",
+      "extraCharges": 0,
+      "remarks": "",
+      "createdAt": "2026-06-14T09:20:50.961Z"
+    },
+    {
+      "id": "H-832923",
+      "orderId": "O-1781421615815",
+      "type": "checkout",
+      "handler": "张三",
+      "actualTime": "2026-07-01T09:00",
+      "itemConfirmations": [
+        {
+          "itemId": "L-001",
+          "itemName": "摇头染色灯",
+          "confirmed": true,
+          "remark": ""
+        }
+      ],
+      "remarks": "",
+      "createdAt": "2026-06-14T09:20:32.923Z"
     }
   ]
 }
