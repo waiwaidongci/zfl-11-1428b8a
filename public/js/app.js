@@ -352,6 +352,11 @@ function renderOrderDetail(o, autoFocusAction) {
     handoverFormHtml = `
       <div class="handover-form-section" id="checkoutFormSection">
         <h4 class="handover-form-title">📦 出库交接</h4>
+        <div class="draft-banner hidden" id="checkoutDraftBanner">
+          <span class="draft-icon">📝</span>
+          <span class="draft-text">检测到未完成的草稿，已自动回填。<span class="draft-time" id="checkoutDraftTime"></span></span>
+          <button class="draft-clear-btn" id="clearCheckoutDraft">清除草稿</button>
+        </div>
         <div class="handover-form-grid">
           <div>
             <label>经手人 *</label>
@@ -376,7 +381,10 @@ function renderOrderDetail(o, autoFocusAction) {
         </table>
         <label>备注</label>
         <textarea id="checkoutRemarks" placeholder="出库备注信息" rows="2"></textarea>
-        <button class="secondary" id="submitCheckout" style="margin-top:10px;width:100%">确认出库交接</button>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="ghost" id="saveCheckoutDraft" style="flex:1">💾 保存草稿</button>
+          <button class="secondary" id="submitCheckout" style="flex:2">确认出库交接</button>
+        </div>
       </div>
     `;
   } else if (o.status === "已出库" || o.status === "待归还") {
@@ -397,6 +405,11 @@ function renderOrderDetail(o, autoFocusAction) {
     handoverFormHtml = `
       <div class="handover-form-section" id="returnFormSection">
         <h4 class="handover-form-title">📥 归还交接</h4>
+        <div class="draft-banner hidden" id="returnDraftBanner">
+          <span class="draft-icon">📝</span>
+          <span class="draft-text">检测到未完成的草稿，已自动回填。<span class="draft-time" id="returnDraftTime"></span></span>
+          <button class="draft-clear-btn" id="clearReturnDraft">清除草稿</button>
+        </div>
         <div class="handover-form-grid">
           <div>
             <label>经手人</label>
@@ -431,7 +444,10 @@ function renderOrderDetail(o, autoFocusAction) {
         </div>
         <label>备注</label>
         <textarea id="returnRemarks" placeholder="归还备注信息" rows="2"></textarea>
-        <button class="secondary" id="submitReturn" style="margin-top:10px;width:100%">确认归还交接</button>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="ghost" id="saveReturnDraft" style="flex:1">💾 保存草稿</button>
+          <button class="secondary" id="submitReturn" style="flex:2">确认归还交接</button>
+        </div>
       </div>
     `;
   }
@@ -505,6 +521,147 @@ function renderOrderDetail(o, autoFocusAction) {
     ${handoverFormHtml}
   `;
 
+  function collectCheckoutDraftData() {
+    const handler = document.getElementById("checkoutHandler")?.value.trim() || "";
+    const actualTime = document.getElementById("checkoutTime")?.value || "";
+    const remarks = document.getElementById("checkoutRemarks")?.value.trim() || "";
+    const itemConfirmations = [];
+    document.querySelectorAll(".checkout-confirm").forEach((cb) => {
+      const itemId = cb.dataset.itemId;
+      const itemName = cb.dataset.itemName;
+      const confirmed = cb.checked;
+      const remarkEl = document.querySelector(`.checkout-remark[data-item-id="${itemId}"]`);
+      itemConfirmations.push({
+        itemId,
+        itemName,
+        confirmed,
+        remark: remarkEl ? remarkEl.value.trim() : ""
+      });
+    });
+    return { handler, actualTime, itemConfirmations, remarks };
+  }
+
+  function collectReturnDraftData() {
+    const handler = document.getElementById("returnHandler")?.value.trim() || "";
+    const actualTime = document.getElementById("returnTime")?.value || "";
+    const compensationNote = document.getElementById("returnCompensation")?.value.trim() || "";
+    const extraCharges = parseFloat(document.getElementById("returnExtraCharges")?.value) || 0;
+    const remarks = document.getElementById("returnRemarks")?.value.trim() || "";
+    const itemStatuses = [];
+    document.querySelectorAll(".return-status").forEach((sel) => {
+      const itemId = sel.dataset.itemId;
+      const itemName = sel.dataset.itemName;
+      const status = sel.value;
+      const remarkEl = document.querySelector(`.return-remark[data-item-id="${itemId}"]`);
+      itemStatuses.push({
+        itemId,
+        itemName,
+        status,
+        remark: remarkEl ? remarkEl.value.trim() : ""
+      });
+    });
+    return { handler, actualTime, itemStatuses, compensationNote, extraCharges, remarks };
+  }
+
+  function fillCheckoutFormFromDraft(draft) {
+    if (!draft) return;
+    if (draft.handler && document.getElementById("checkoutHandler")) {
+      document.getElementById("checkoutHandler").value = draft.handler;
+    }
+    if (draft.actualTime && document.getElementById("checkoutTime")) {
+      document.getElementById("checkoutTime").value = draft.actualTime;
+    }
+    if (draft.remarks && document.getElementById("checkoutRemarks")) {
+      document.getElementById("checkoutRemarks").value = draft.remarks;
+    }
+    if (draft.itemConfirmations && draft.itemConfirmations.length) {
+      const confirmMap = new Map(draft.itemConfirmations.map((c) => [c.itemId, c]));
+      document.querySelectorAll(".checkout-confirm").forEach((cb) => {
+        const itemId = cb.dataset.itemId;
+        const saved = confirmMap.get(itemId);
+        if (saved) {
+          cb.checked = saved.confirmed;
+          const remarkEl = document.querySelector(`.checkout-remark[data-item-id="${itemId}"]`);
+          if (remarkEl && saved.remark) {
+            remarkEl.value = saved.remark;
+          }
+        }
+      });
+    }
+    const banner = document.getElementById("checkoutDraftBanner");
+    const timeEl = document.getElementById("checkoutDraftTime");
+    if (banner && draft.updatedAt) {
+      banner.classList.remove("hidden");
+      if (timeEl) {
+        timeEl.textContent = `（保存于 ${new Date(draft.updatedAt).toLocaleString("zh-CN")}）`;
+      }
+    }
+  }
+
+  function fillReturnFormFromDraft(draft) {
+    if (!draft) return;
+    if (draft.handler && document.getElementById("returnHandler")) {
+      document.getElementById("returnHandler").value = draft.handler;
+    }
+    if (draft.actualTime && document.getElementById("returnTime")) {
+      document.getElementById("returnTime").value = draft.actualTime;
+    }
+    if (draft.compensationNote && document.getElementById("returnCompensation")) {
+      document.getElementById("returnCompensation").value = draft.compensationNote;
+    }
+    if (draft.extraCharges !== undefined && draft.extraCharges !== null && document.getElementById("returnExtraCharges")) {
+      document.getElementById("returnExtraCharges").value = draft.extraCharges;
+    }
+    if (draft.remarks && document.getElementById("returnRemarks")) {
+      document.getElementById("returnRemarks").value = draft.remarks;
+    }
+    if (draft.itemStatuses && draft.itemStatuses.length) {
+      const statusMap = new Map(draft.itemStatuses.map((s) => [s.itemId, s]));
+      document.querySelectorAll(".return-status").forEach((sel) => {
+        const itemId = sel.dataset.itemId;
+        const saved = statusMap.get(itemId);
+        if (saved) {
+          sel.value = saved.status;
+          const remarkEl = document.querySelector(`.return-remark[data-item-id="${itemId}"]`);
+          if (remarkEl && saved.remark) {
+            remarkEl.value = saved.remark;
+          }
+        }
+      });
+    }
+    const banner = document.getElementById("returnDraftBanner");
+    const timeEl = document.getElementById("returnDraftTime");
+    if (banner && draft.updatedAt) {
+      banner.classList.remove("hidden");
+      if (timeEl) {
+        timeEl.textContent = `（保存于 ${new Date(draft.updatedAt).toLocaleString("zh-CN")}）`;
+      }
+    }
+  }
+
+  async function loadAndFillDraft(orderId, type) {
+    try {
+      const draft = await Orders.getHandoverDraft(orderId, type);
+      if (type === "checkout") {
+        fillCheckoutFormFromDraft(draft);
+      } else if (type === "return") {
+        fillReturnFormFromDraft(draft);
+      }
+      return draft;
+    } catch (err) {
+      if (err.message !== "draft_not_found") {
+        console.error("加载草稿失败:", err);
+      }
+      return null;
+    }
+  }
+
+  if (o.status === "待出库") {
+    loadAndFillDraft(o.id, "checkout");
+  } else if (o.status === "已出库" || o.status === "待归还") {
+    loadAndFillDraft(o.id, "return");
+  }
+
   function getNowLocal() {
     const now = new Date();
     const year = now.getFullYear();
@@ -562,6 +719,10 @@ function renderOrderDetail(o, autoFocusAction) {
             itemConfirmations,
             remarks
           });
+          try {
+            await Orders.deleteHandoverDraft(o.id, "checkout");
+          } catch (e) {
+          }
           showToast("出库交接完成，订单状态已更新为「已出库」");
           closeOrderDetail();
           await load();
@@ -569,6 +730,60 @@ function renderOrderDetail(o, autoFocusAction) {
           showToast(err.message, "error");
           submitCheckoutBtn.disabled = false;
           submitCheckoutBtn.textContent = "确认出库交接";
+        }
+      };
+    }
+
+    const saveCheckoutDraftBtn = document.getElementById("saveCheckoutDraft");
+    if (saveCheckoutDraftBtn) {
+      saveCheckoutDraftBtn.onclick = async () => {
+        const data = collectCheckoutDraftData();
+        try {
+          saveCheckoutDraftBtn.disabled = true;
+          const originalText = saveCheckoutDraftBtn.textContent;
+          saveCheckoutDraftBtn.textContent = "保存中…";
+          await Orders.saveHandoverDraft(o.id, "checkout", data);
+          const banner = document.getElementById("checkoutDraftBanner");
+          const timeEl = document.getElementById("checkoutDraftTime");
+          if (banner) {
+            banner.classList.remove("hidden");
+            if (timeEl) {
+              timeEl.textContent = `（保存于 ${new Date().toLocaleString("zh-CN")}）`;
+            }
+          }
+          showToast("草稿已保存", "success");
+          saveCheckoutDraftBtn.disabled = false;
+          saveCheckoutDraftBtn.textContent = originalText;
+        } catch (err) {
+          showToast(err.message || "保存草稿失败", "error");
+          saveCheckoutDraftBtn.disabled = false;
+          saveCheckoutDraftBtn.textContent = "💾 保存草稿";
+        }
+      };
+    }
+
+    const clearCheckoutDraftBtn = document.getElementById("clearCheckoutDraft");
+    if (clearCheckoutDraftBtn) {
+      clearCheckoutDraftBtn.onclick = async () => {
+        if (!confirm("确定要清除当前草稿吗？")) return;
+        try {
+          await Orders.deleteHandoverDraft(o.id, "checkout");
+          const banner = document.getElementById("checkoutDraftBanner");
+          if (banner) banner.classList.add("hidden");
+          document.getElementById("checkoutHandler").value = "";
+          document.getElementById("checkoutTime").value = getNowLocal();
+          document.getElementById("checkoutRemarks").value = "";
+          document.querySelectorAll(".checkout-confirm").forEach((cb) => {
+            cb.checked = true;
+            const itemId = cb.dataset.itemId;
+            const remarkEl = document.querySelector(`.checkout-remark[data-item-id="${itemId}"]`);
+            if (remarkEl) remarkEl.value = "";
+          });
+          showToast("草稿已清除", "success");
+        } catch (err) {
+          if (err.message !== "draft_not_found") {
+            showToast(err.message || "清除草稿失败", "error");
+          }
         }
       };
     }
@@ -625,6 +840,10 @@ function renderOrderDetail(o, autoFocusAction) {
             extraCharges,
             remarks
           });
+          try {
+            await Orders.deleteHandoverDraft(o.id, "return");
+          } catch (e) {
+          }
           let msg = "归还交接完成，订单状态已更新为「已归还」";
           if (hasDamaged) msg += "，损坏设备已自动创建维修工单";
           showToast(msg);
@@ -634,6 +853,62 @@ function renderOrderDetail(o, autoFocusAction) {
           showToast(err.message, "error");
           submitReturnBtn.disabled = false;
           submitReturnBtn.textContent = "确认归还交接";
+        }
+      };
+    }
+
+    const saveReturnDraftBtn = document.getElementById("saveReturnDraft");
+    if (saveReturnDraftBtn) {
+      saveReturnDraftBtn.onclick = async () => {
+        const data = collectReturnDraftData();
+        try {
+          saveReturnDraftBtn.disabled = true;
+          const originalText = saveReturnDraftBtn.textContent;
+          saveReturnDraftBtn.textContent = "保存中…";
+          await Orders.saveHandoverDraft(o.id, "return", data);
+          const banner = document.getElementById("returnDraftBanner");
+          const timeEl = document.getElementById("returnDraftTime");
+          if (banner) {
+            banner.classList.remove("hidden");
+            if (timeEl) {
+              timeEl.textContent = `（保存于 ${new Date().toLocaleString("zh-CN")}）`;
+            }
+          }
+          showToast("草稿已保存", "success");
+          saveReturnDraftBtn.disabled = false;
+          saveReturnDraftBtn.textContent = originalText;
+        } catch (err) {
+          showToast(err.message || "保存草稿失败", "error");
+          saveReturnDraftBtn.disabled = false;
+          saveReturnDraftBtn.textContent = "💾 保存草稿";
+        }
+      };
+    }
+
+    const clearReturnDraftBtn = document.getElementById("clearReturnDraft");
+    if (clearReturnDraftBtn) {
+      clearReturnDraftBtn.onclick = async () => {
+        if (!confirm("确定要清除当前草稿吗？")) return;
+        try {
+          await Orders.deleteHandoverDraft(o.id, "return");
+          const banner = document.getElementById("returnDraftBanner");
+          if (banner) banner.classList.add("hidden");
+          document.getElementById("returnHandler").value = "";
+          document.getElementById("returnTime").value = getNowLocal();
+          document.getElementById("returnCompensation").value = "";
+          document.getElementById("returnExtraCharges").value = "";
+          document.getElementById("returnRemarks").value = "";
+          document.querySelectorAll(".return-status").forEach((sel) => {
+            sel.value = "intact";
+            const itemId = sel.dataset.itemId;
+            const remarkEl = document.querySelector(`.return-remark[data-item-id="${itemId}"]`);
+            if (remarkEl) remarkEl.value = "";
+          });
+          showToast("草稿已清除", "success");
+        } catch (err) {
+          if (err.message !== "draft_not_found") {
+            showToast(err.message || "清除草稿失败", "error");
+          }
         }
       };
     }

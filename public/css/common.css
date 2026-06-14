@@ -368,3 +368,90 @@ button.small {
   from { transform: translateX(40px); opacity: 0; }
   to { transform: translateX(0); opacity: 1; }
 }
+
+.draft-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: #fff8e1;
+  border: 1px solid #ffe082;
+  border-radius: 6px;
+  margin-bottom: 14px;
+  font-size: 13px;
+}
+
+.draft-banner .draft-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.draft-banner .draft-text {
+  flex: 1;
+  color: #795548;
+  font-weight: 500;
+}
+
+.draft-banner .draft-time {
+  color: #9e9e9e;
+  font-weight: normal;
+  margin-left: 4px;
+}
+
+.draft-banner .draft-clear-btn {
+  background: transparent;
+  border: 1px solid #d7ccc8;
+  color: #8d6e63;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.draft-banner .draft-clear-btn:hover {
+  background: #efebe9;
+  border-color: #a1887f;
+  color: #6d4c41;
+}
+
+.handover-form-section .small-input {
+  padding: 5px 8px;
+  font-size: 12px;
+  min-height: 28px;
+}
+
+.handover-form-section .small-select {
+  padding: 5px 8px;
+  font-size: 12px;
+  min-height: 28px;
+}
+
+.handover-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+@media (max-width: 500px) {
+  .handover-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.handover-form-section {
+  background: #fafbf9;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 16px;
+}
+
+.handover-form-title {
+  margin: 0 0 12px 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+}

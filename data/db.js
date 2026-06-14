@@ -22,6 +22,7 @@ const seed = {
   ],
   quotations: [],
   handovers: [],
+  handoverDrafts: [],
   repairs: [
     {
       id: "R-000001",
@@ -53,6 +54,7 @@ export async function loadDb() {
   if (!db.settlements) db.settlements = [];
   if (!db.payments) db.payments = [];
   if (!db.stocktakes) db.stocktakes = [];
+  if (!db.handoverDrafts) db.handoverDrafts = [];
 
   db.quotations = db.quotations.map((q) => {
     if (!q.versions || !Array.isArray(q.versions)) {
@@ -141,6 +143,10 @@ export function genPaymentId() {
 
 export function genStocktakeId() {
   return `ST-${Date.now().toString().slice(-6)}`;
+}
+
+export function genHandoverDraftId() {
+  return `HD-${Date.now().toString().slice(-6)}`;
 }
 
 let settlementFeeIdSeq = 0;

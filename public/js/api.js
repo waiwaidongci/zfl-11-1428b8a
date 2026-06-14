@@ -50,7 +50,10 @@ export const Orders = {
   create: (data) => api("/api/orders", { method: "POST", body: JSON.stringify(data) }),
   update: (id, data) => api(`/api/orders/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
   listHandovers: (orderId) => api(`/api/orders/${orderId}/handovers`),
-  createHandover: (orderId, data) => api(`/api/orders/${orderId}/handovers`, { method: "POST", body: JSON.stringify(data) })
+  createHandover: (orderId, data) => api(`/api/orders/${orderId}/handovers`, { method: "POST", body: JSON.stringify(data) }),
+  getHandoverDraft: (orderId, type) => api(`/api/orders/${orderId}/handovers/draft/${type}`),
+  saveHandoverDraft: (orderId, type, data) => api(`/api/orders/${orderId}/handovers/draft/${type}`, { method: "POST", body: JSON.stringify(data) }),
+  deleteHandoverDraft: (orderId, type) => api(`/api/orders/${orderId}/handovers/draft/${type}`, { method: "DELETE" })
 };
 
 export const Customers = {

@@ -1,4 +1,4 @@
-import { loadDb, saveDb, occupiedItems, genHandoverId, genRepairId } from "../data/db.js";
+import { loadDb, saveDb, occupiedItems, genHandoverId, genRepairId, genHandoverDraftId } from "../data/db.js";
 import { sendJson, parseBody } from "../lib/http.js";
 
 export async function listOrders(req, res) {
@@ -367,4 +367,83 @@ export async function createHandover(req, res, orderId) {
     await saveDb(db);
     return sendJson(res, 201, handover);
   }
+}
+
+export async function getHandoverDraft(req, res, orderId, type) {
+  const db = await loadDb();
+  const order = db.orders.find((o) => o.id === orderId);
+  if (!order) return sendJson(res, 404, { error: "order_not_found" });
+
+  if (!type || !["checkout", "return"].includes(type)) {
+    return sendJson(res, 400, { error: "交接类型必须为 checkout 或 return" });
+  }
+
+  const draft = (db.handoverDrafts || []).find((d) => d.orderId === orderId && d.type === type);
+  if (!draft) return sendJson(res, 404, { error: "draft_not_found" });
+
+  return sendJson(res, 200, draft);
+}
+
+export async function saveHandoverDraft(req, res, orderId, type) {
+  const db = await loadDb();
+  const order = db.orders.find((o) => o.id === orderId);
+  if (!order) return sendJson(res, 404, { error: "order_not_found" });
+
+  if (!type || !["checkout", "return"].includes(type)) {
+    return sendJson(res, 400, { error: "交接类型必须为 checkout 或 return" });
+  }
+
+  const input = await parseBody(req);
+
+  let draft = (db.handoverDrafts || []).find((d) => d.orderId === orderId && d.type === type);
+
+  const now = new Date().toISOString();
+
+  if (!draft) {
+    draft = {
+      id: genHandoverDraftId(),
+      orderId,
+      type,
+      createdAt: now,
+      updatedAt: now
+    };
+    if (!db.handoverDrafts) db.handoverDrafts = [];
+    db.handoverDrafts.push(draft);
+  }
+
+  draft.updatedAt = now;
+
+  if (type === "checkout") {
+    draft.handler = input.handler || "";
+    draft.actualTime = input.actualTime || "";
+    draft.itemConfirmations = input.itemConfirmations || [];
+    draft.remarks = input.remarks || "";
+  } else if (type === "return") {
+    draft.handler = input.handler || "";
+    draft.actualTime = input.actualTime || "";
+    draft.itemStatuses = input.itemStatuses || [];
+    draft.compensationNote = input.compensationNote || "";
+    draft.extraCharges = Number(input.extraCharges) || 0;
+    draft.remarks = input.remarks || "";
+  }
+
+  await saveDb(db);
+  return sendJson(res, 200, draft);
+}
+
+export async function deleteHandoverDraft(req, res, orderId, type) {
+  const db = await loadDb();
+  const order = db.orders.find((o) => o.id === orderId);
+  if (!order) return sendJson(res, 404, { error: "order_not_found" });
+
+  if (!type || !["checkout", "return"].includes(type)) {
+    return sendJson(res, 400, { error: "交接类型必须为 checkout 或 return" });
+  }
+
+  const draftIndex = (db.handoverDrafts || []).findIndex((d) => d.orderId === orderId && d.type === type);
+  if (draftIndex === -1) return sendJson(res, 404, { error: "draft_not_found" });
+
+  db.handoverDrafts.splice(draftIndex, 1);
+  await saveDb(db);
+  return sendJson(res, 200, { success: true });
 }

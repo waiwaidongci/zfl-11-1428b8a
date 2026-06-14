@@ -16,7 +16,7 @@ import {
   exportEquipment
 } from "./routes/equipment.js";
 
-import { listOrders, getOrder, createOrder, updateOrder, listHandovers, createHandover, getHandover } from "./routes/orders.js";
+import { listOrders, getOrder, createOrder, updateOrder, listHandovers, createHandover, getHandover, getHandoverDraft, saveHandoverDraft, deleteHandoverDraft } from "./routes/orders.js";
 
 import {
   listCustomers,
@@ -152,6 +152,15 @@ const server = http.createServer(async (req, res) => {
       const orderId = decodeURIComponent(handoverMatch[1]);
       if (req.method === "GET") return listHandovers(req, res, orderId);
       if (req.method === "POST") return createHandover(req, res, orderId);
+    }
+
+    const handoverDraftMatch = p.match(/^\/api\/orders\/([^/]+)\/handovers\/draft\/(checkout|return)$/);
+    if (handoverDraftMatch) {
+      const orderId = decodeURIComponent(handoverDraftMatch[1]);
+      const type = handoverDraftMatch[2];
+      if (req.method === "GET") return getHandoverDraft(req, res, orderId, type);
+      if (req.method === "POST") return saveHandoverDraft(req, res, orderId, type);
+      if (req.method === "DELETE") return deleteHandoverDraft(req, res, orderId, type);
     }
 
     const handoverDetailMatch = p.match(/^\/api\/orders\/([^/]+)\/handovers\/([^/]+)$/);

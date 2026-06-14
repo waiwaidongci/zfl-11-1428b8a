@@ -957,5 +957,6 @@
     }
   ],
   "payments": [],
-  "stocktakes": []
+  "stocktakes": [],
+  "handoverDrafts": []
 }
