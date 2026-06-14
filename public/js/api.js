@@ -41,6 +41,20 @@ export const Customers = {
   remove: (id) => api(`/api/customers/${id}`, { method: "DELETE" })
 };
 
+export const Quotations = {
+  list: (params) => {
+    const qs = params ? "?" + new URLSearchParams(params).toString() : "";
+    return api(`/api/quotations${qs}`);
+  },
+  get: (id) => api(`/api/quotations/${id}`),
+  create: (data) => api("/api/quotations", { method: "POST", body: JSON.stringify(data) }),
+  update: (id, data) => api(`/api/quotations/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  remove: (id) => api(`/api/quotations/${id}`, { method: "DELETE" }),
+  preview: (data) => api("/api/quotations/preview", { method: "POST", body: JSON.stringify(data) }),
+  convert: (id) => api(`/api/quotations/${id}/convert`, { method: "POST" }),
+  checkConvert: (id) => api(`/api/quotations/${id}/check`)
+};
+
 export function overlap(a, b, c, d) {
   return new Date(a) <= new Date(d) && new Date(c) <= new Date(b);
 }

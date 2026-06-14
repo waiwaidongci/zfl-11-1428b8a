@@ -43,6 +43,19 @@
   ],
   "orders": [
     {
+      "id": "O-1781394904983",
+      "customer": "测试客户A",
+      "startDate": "2026-07-10",
+      "endDate": "2026-07-12",
+      "status": "待出库",
+      "itemIds": [
+        "L-001",
+        "L-002",
+        "C-001"
+      ],
+      "note": "【源自报价单 Q-891569】周年庆活动测试"
+    },
+    {
       "id": "O-1781387583734",
       "customer": "星光传媒",
       "startDate": "2026-07-01",
@@ -75,6 +88,46 @@
       "phone": "13800138888",
       "activityType": "发布会",
       "note": ""
+    }
+  ],
+  "quotations": [
+    {
+      "id": "Q-081615",
+      "customer": "浏览器集成测试客户",
+      "startDate": "2026-08-20",
+      "endDate": "2026-08-24",
+      "rentalDays": 5,
+      "itemIds": [
+        "L-443651",
+        "L-001",
+        "L-002"
+      ],
+      "discount": 0.1,
+      "depositOverride": {},
+      "status": "已确认",
+      "note": "浏览器自动化集成测试",
+      "createdAt": "2026-06-13T23:58:01.616Z",
+      "updatedAt": "2026-06-13T23:58:01.616Z"
+    },
+    {
+      "id": "Q-891569",
+      "customer": "测试客户A",
+      "startDate": "2026-07-10",
+      "endDate": "2026-07-12",
+      "rentalDays": 3,
+      "itemIds": [
+        "L-001",
+        "L-002",
+        "C-001"
+      ],
+      "discount": 0.1,
+      "depositOverride": {},
+      "status": "已转订单",
+      "note": "周年庆活动测试",
+      "createdAt": "2026-06-13T23:54:51.569Z",
+      "updatedAt": "2026-06-13T23:55:04.692Z",
+      "convertedOrderId": "O-1781394904983",
+      "convertedAt": "2026-06-13T23:55:04.983Z"
     }
   ]
 }

@@ -23,6 +23,17 @@ import {
   deleteCustomer
 } from "./routes/customers.js";
 
+import {
+  listQuotations,
+  getQuotation,
+  createQuotation,
+  updateQuotation,
+  deleteQuotation,
+  previewQuote,
+  convertToOrder,
+  checkConvertibility
+} from "./routes/quotations.js";
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const publicDir = join(__dirname, "public");
 const port = Number(process.env.PORT || 3011);
@@ -54,7 +65,7 @@ const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, `http://${req.headers.host}`);
     const p = url.pathname;
 
-    if (req.method === "GET" && (p === "/" || p === "/equipment" || p === "/customers" || p === "/print" || p.startsWith("/css/") || p.startsWith("/js/"))) {
+    if (req.method === "GET" && (p === "/" || p === "/equipment" || p === "/customers" || p === "/quotations" || p === "/print" || p.startsWith("/css/") || p.startsWith("/js/"))) {
       const served = await serveStatic(req, res, p);
       if (served) return;
     }
@@ -95,6 +106,28 @@ const server = http.createServer(async (req, res) => {
       if (req.method === "DELETE") return deleteCustomer(req, res, id);
     }
 
+    if (req.method === "GET" && p === "/api/quotations") return listQuotations(req, res);
+    if (req.method === "POST" && p === "/api/quotations") return createQuotation(req, res);
+    if (req.method === "POST" && p === "/api/quotations/preview") return previewQuote(req, res);
+
+    const quoteMatch = p.match(/^\/api\/quotations\/([^/]+)$/);
+    if (quoteMatch) {
+      const id = decodeURIComponent(quoteMatch[1]);
+      if (req.method === "GET") return getQuotation(req, res, id);
+      if (req.method === "PATCH") return updateQuotation(req, res, id);
+      if (req.method === "DELETE") return deleteQuotation(req, res, id);
+    }
+
+    const quoteConvertMatch = p.match(/^\/api\/quotations\/([^/]+)\/convert$/);
+    if (quoteConvertMatch && req.method === "POST") {
+      return convertToOrder(req, res, decodeURIComponent(quoteConvertMatch[1]));
+    }
+
+    const quoteCheckMatch = p.match(/^\/api\/quotations\/([^/]+)\/check$/);
+    if (quoteCheckMatch && req.method === "GET") {
+      return checkConvertibility(req, res, decodeURIComponent(quoteCheckMatch[1]));
+    }
+
     notFound(res);
   } catch (error) {
     console.error("[server error]", error);
@@ -105,6 +138,7 @@ const server = http.createServer(async (req, res) => {
 server.listen(port, () => {
   console.log(`Stage light rental app listening on http://localhost:${port}`);
   console.log(`  订单中心:   http://localhost:${port}/`);
+  console.log(`  报价管理:   http://localhost:${port}/quotations`);
   console.log(`  设备管理:   http://localhost:${port}/equipment`);
   console.log(`  客户管理:   http://localhost:${port}/customers`);
 });

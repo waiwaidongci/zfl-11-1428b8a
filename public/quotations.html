@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>报价单管理 - 舞台灯光租赁</title>
+  <link rel="stylesheet" href="/css/common.css">
+  <link rel="stylesheet" href="/css/quotations.css">
+</head>
+<body>
+  <header>
+    <div>
+      <h1>舞台灯光租赁管理</h1>
+      <div class="subtitle">报价单管理 · 生成报价、确认、一键转租赁订单</div>
+    </div>
+    <nav>
+      <a href="/">订单中心</a>
+      <a href="/quotations" class="active">报价管理</a>
+      <a href="/equipment">设备管理</a>
+      <a href="/customers">客户管理</a>
+      <button id="addBtn" class="secondary">+ 新建报价单</button>
+    </nav>
+  </header>
+
+  <main>
+    <div class="stats" id="stats"></div>
+
+    <div class="panel">
+      <div class="toolbar">
+        <input id="search" type="search" placeholder="搜索客户/编号/备注...">
+        <select id="statusFilter">
+          <option value="">全部状态</option>
+          <option>草稿</option>
+          <option>已确认</option>
+          <option>已转订单</option>
+          <option>已取消</option>
+        </select>
+        <span class="toolbar-spacer"></span>
+        <span class="meta" id="countInfo"></span>
+        <button id="reloadBtn" class="ghost small">↻ 刷新</button>
+      </div>
+
+      <div id="quoteGrid" class="quote-grid"></div>
+    </div>
+  </main>
+
+  <div id="editModal" class="modal-backdrop hidden">
+    <div class="modal wide">
+      <header>
+        <h3 id="modalTitle">新建报价单</h3>
+        <button id="closeEditModal" class="ghost">×</button>
+      </header>
+      <div class="body">
+        <form id="quoteForm" autocomplete="off">
+          <div class="edit-layout">
+            <div class="edit-left">
+              <label>报价单编号（留空自动生成）</label>
+              <input name="id" placeholder="如 Q-001">
+
+              <label>选择客户</label>
+              <div class="customer-select-row">
+                <select id="customerSelect">
+                  <option value="">— 选择已有客户 —</option>
+                </select>
+                <button type="button" id="newCustomerBtn" class="ghost small">+ 新客户</button>
+              </div>
+
+              <label>客户名称 *</label>
+              <input name="customer" required placeholder="客户公司或负责人" id="customerNameInput">
+
+              <div class="customer-info hidden" id="customerInfo">
+                <div class="info-item"><span class="info-label">联系人：</span><span id="infoContact">—</span></div>
+                <div class="info-item"><span class="info-label">电话：</span><span id="infoPhone">—</span></div>
+                <div class="info-item"><span class="info-label">常用活动：</span><span id="infoActivity">—</span></div>
+              </div>
+
+              <div class="row">
+                <div>
+                  <label>租期开始 *</label>
+                  <input name="startDate" type="date" required id="startDateInput">
+                </div>
+                <div>
+                  <label>租期结束 *</label>
+                  <input name="endDate" type="date" required id="endDateInput">
+                </div>
+              </div>
+
+              <div class="row">
+                <div>
+                  <label>折扣设置</label>
+                  <select id="discountPreset" class="mini">
+                    <option value="0">无折扣</option>
+                    <option value="0.05">95折</option>
+                    <option value="0.1">9折</option>
+                    <option value="0.15">85折</option>
+                    <option value="0.2">8折</option>
+                    <option value="0.3">7折</option>
+                    <option value="custom">自定义…</option>
+                  </select>
+                </div>
+                <div>
+                  <label>折扣值（小数为比例，如0.1=9折；整数为金额减免，如500=减500）</label>
+                  <input name="discount" type="number" step="0.01" value="0" id="discountInput">
+                </div>
+              </div>
+
+              <label>备注</label>
+              <textarea name="note" placeholder="活动名称、特殊要求等" id="noteInput"></textarea>
+
+              <div class="sel-head">
+                <label style="margin:0">选择设备 *</label>
+                <select id="itemCategoryFilter" class="mini">
+                  <option value="">全部类别</option>
+                </select>
+              </div>
+              <div class="items" id="items"></div>
+              <p class="meta" id="selection"></p>
+            </div>
+
+            <div class="edit-right">
+              <div class="summary-card">
+                <h4 style="margin:0 0 12px 0">📊 实时报价预览</h4>
+                <div id="previewEmpty" class="meta" style="padding:20px 0;text-align:center">
+                  选择租期和设备后自动计算报价
+                </div>
+                <div id="previewContent" class="hidden">
+                  <div class="summary-row"><span>租期天数</span><strong id="sumDays">0</strong><span> 天</span></div>
+                  <div class="summary-row"><span>设备数量</span><strong id="sumItems">0</strong><span> 台</span></div>
+                  <div class="summary-row"><span>租金小计</span>¥<strong id="sumSubtotal">0</strong></div>
+                  <div class="summary-row discount-row"><span>优惠折扣</span>-¥<strong id="sumDiscount">0</strong></div>
+                  <div class="summary-row"><span>折后租金</span>¥<strong id="sumDiscounted">0</strong></div>
+                  <div class="summary-row"><span>押金合计</span>¥<strong id="sumDeposit">0</strong></div>
+                  <div class="summary-total">
+                    <span>应收合计</span>
+                    <strong>¥<span id="sumTotal">0</span></strong>
+                  </div>
+                </div>
+              </div>
+
+              <div id="breakdownCard" class="summary-card hidden">
+                <h4 style="margin:0 0 12px 0">📋 明细</h4>
+                <div id="breakdownBody"></div>
+              </div>
+
+              <label style="margin-top:14px">报价单状态</label>
+              <select name="status" id="statusSelect">
+                <option value="草稿">草稿</option>
+                <option value="已确认">已确认</option>
+              </select>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="actions">
+        <button id="cancelBtn" type="button" class="ghost">取消</button>
+        <button id="previewBtn" type="button" class="ghost">🔍 重新计算</button>
+        <button id="submitBtn" type="button" class="secondary">💾 保存报价单</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="detailModal" class="modal-backdrop hidden">
+    <div class="modal wide">
+      <header>
+        <h3 id="detailTitle">报价单详情</h3>
+        <button id="closeDetailModal" class="ghost">×</button>
+      </header>
+      <div class="body" id="detailBody">
+        <div style="text-align:center;padding:40px;color:var(--muted)">加载中…</div>
+      </div>
+      <div class="actions" id="detailActions">
+        <button id="detailCloseBtn" type="button" class="ghost">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="confirmModal" class="modal-backdrop hidden">
+    <div class="modal">
+      <header>
+        <h3 id="confirmTitle">确认操作</h3>
+        <button id="closeConfirmModal" class="ghost">×</button>
+      </header>
+      <div class="body" id="confirmBody"></div>
+      <div class="actions">
+        <button id="confirmCancelBtn" type="button" class="ghost">取消</button>
+        <button id="confirmOkBtn" type="button" class="secondary">确认</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/js/quotations.js"></script>
+</body>
+</html>

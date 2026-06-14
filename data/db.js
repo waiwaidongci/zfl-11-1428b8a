@@ -19,7 +19,8 @@ const seed = {
   customers: [
     { id: "CU-001", name: "星桥活动", contact: "张经理", phone: "13800138001", activityType: "发布会", note: "长期合作客户" },
     { id: "CU-002", name: "光影传媒", contact: "李总监", phone: "13900139002", activityType: "演唱会", note: "" }
-  ]
+  ],
+  quotations: []
 };
 
 export async function loadDb() {
@@ -29,6 +30,7 @@ export async function loadDb() {
   }
   const db = JSON.parse(await readFile(dbPath, "utf8"));
   if (!db.customers) db.customers = [];
+  if (!db.quotations) db.quotations = [];
   return db;
 }
 
@@ -56,4 +58,8 @@ export function genEquipmentId(category) {
 
 export function genCustomerId() {
   return `CU-${Date.now().toString().slice(-6)}`;
+}
+
+export function genQuotationId() {
+  return `Q-${Date.now().toString().slice(-6)}`;
 }
