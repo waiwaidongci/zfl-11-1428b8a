@@ -92,6 +92,13 @@ function getRawFieldKeys(raw) {
   return keys;
 }
 
+function getRawFieldValue(raw, field) {
+  for (const [key, value] of Object.entries(raw)) {
+    if ((FIELD_ALIASES[key] || key) === field) return value;
+  }
+  return undefined;
+}
+
 function validateRecords(records, existingIds) {
   const seenIds = new Set();
   const valid = [];
@@ -125,13 +132,17 @@ function validateRecords(records, existingIds) {
     }
 
     const missingOptional = [];
-    if (!rawKeys.has("spec") || raw.spec === undefined || raw.spec === null || (typeof raw.spec === "string" && raw.spec.trim() === "")) {
+    const rawSpec = getRawFieldValue(raw, "spec");
+    const rawLocation = getRawFieldValue(raw, "location");
+    const rawCondition = getRawFieldValue(raw, "condition");
+
+    if (!rawKeys.has("spec") || rawSpec === undefined || rawSpec === null || (typeof rawSpec === "string" && rawSpec.trim() === "")) {
       missingOptional.push({ field: "spec", label: "规格参数", defaultValue: "(空)" });
     }
-    if (!rawKeys.has("location") || raw.location === undefined || raw.location === null || (typeof raw.location === "string" && raw.location.trim() === "")) {
+    if (!rawKeys.has("location") || rawLocation === undefined || rawLocation === null || (typeof rawLocation === "string" && rawLocation.trim() === "")) {
       missingOptional.push({ field: "location", label: "存放位置", defaultValue: "未指定" });
     }
-    if (!rawKeys.has("condition") || raw.condition === undefined || raw.condition === null || (typeof raw.condition === "string" && raw.condition.trim() === "")) {
+    if (!rawKeys.has("condition") || rawCondition === undefined || rawCondition === null || (typeof rawCondition === "string" && rawCondition.trim() === "")) {
       missingOptional.push({ field: "condition", label: "设备状态", defaultValue: "在库可用" });
     }
 
