@@ -53,6 +53,7 @@ export async function loadDb() {
   if (!db.handovers) db.handovers = [];
   if (!db.settlements) db.settlements = [];
   if (!db.payments) db.payments = [];
+  if (!db.paymentPlans) db.paymentPlans = [];
   if (!db.stocktakes) db.stocktakes = [];
   if (!db.handoverDrafts) db.handoverDrafts = [];
 
@@ -172,6 +173,10 @@ export function genSettlementFeeId() {
   return `SF-${Date.now().toString().slice(-6)}-${String(settlementFeeIdSeq).padStart(3, "0")}`;
 }
 
+export function genPaymentPlanId() {
+  return `PP-${Date.now().toString().slice(-6)}`;
+}
+
 export const VERSION_APPROVAL_STATUSES = ["pending", "approved", "rejected", "superseded"];
 export const VERSION_APPROVAL_LABELS = {
   pending: "待审批",
@@ -283,6 +288,22 @@ export const PAYMENT_TYPE_LABELS = {
   payment: "收款",
   deposit_deduction: "押金抵扣",
   deposit_return: "押金退还"
+};
+
+export const PAYMENT_PLAN_NODE_TYPES = ["deposit", "balance", "deposit_return", "custom"];
+export const PAYMENT_PLAN_NODE_TYPE_LABELS = {
+  deposit: "定金",
+  balance: "尾款",
+  deposit_return: "押金退还",
+  custom: "自定义"
+};
+
+export const PAYMENT_PLAN_NODE_STATUSES = ["pending", "partial", "completed", "overdue"];
+export const PAYMENT_PLAN_NODE_STATUS_LABELS = {
+  pending: "待收款",
+  partial: "部分完成",
+  completed: "已完成",
+  overdue: "已逾期"
 };
 
 export function isQuoteLockActive(quote, atTime = new Date()) {

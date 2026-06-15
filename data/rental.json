@@ -1172,7 +1172,7 @@
       "id": "S-678081",
       "orderId": "O-1781394904983",
       "quotationId": "Q-891569",
-      "status": "draft",
+      "status": "partial",
       "fees": [
         {
           "id": "SF-678084-001",
@@ -1207,7 +1207,7 @@
       ],
       "note": "",
       "createdAt": "2026-06-14T12:21:18.081Z",
-      "updatedAt": "2026-06-14T12:21:18.084Z"
+      "updatedAt": "2026-06-15T02:41:03.442Z"
     },
     {
       "id": "S-408511",
@@ -1231,7 +1231,46 @@
       "updatedAt": "2026-06-14T12:16:48.512Z"
     }
   ],
-  "payments": [],
+  "payments": [
+    {
+      "id": "P-263442",
+      "settlementId": "S-678081",
+      "orderId": "O-1781394904983",
+      "amount": 300,
+      "type": "payment",
+      "method": "wechat",
+      "planId": "PP-240504",
+      "paymentDate": "2026-06-15",
+      "remark": "微信支付部分定金",
+      "createdAt": "2026-06-15T02:41:03.442Z"
+    }
+  ],
   "stocktakes": [],
-  "handoverDrafts": []
+  "handoverDrafts": [],
+  "paymentPlans": [
+    {
+      "id": "PP-251278",
+      "settlementId": "S-678081",
+      "orderId": "O-1781394904983",
+      "type": "balance",
+      "name": "尾款",
+      "amount": 958,
+      "dueDate": "2026-07-08",
+      "remark": "活动结束前付清",
+      "createdAt": "2026-06-15T02:40:51.278Z",
+      "updatedAt": "2026-06-15T02:40:51.278Z"
+    },
+    {
+      "id": "PP-240504",
+      "settlementId": "S-678081",
+      "orderId": "O-1781394904983",
+      "type": "deposit",
+      "name": "定金",
+      "amount": 500,
+      "dueDate": "2026-06-10",
+      "remark": "签约时支付",
+      "createdAt": "2026-06-15T02:40:40.504Z",
+      "updatedAt": "2026-06-15T02:40:40.504Z"
+    }
+  ]
 }

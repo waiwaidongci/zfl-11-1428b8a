@@ -161,6 +161,21 @@ export const Settlements = {
   deletePayment: (orderId, paymentId) =>
     api(`/api/orders/${orderId}/settlement/payments/${paymentId}`, {
       method: "DELETE"
+    }),
+  listPlans: (orderId) => api(`/api/orders/${orderId}/settlement/plans`),
+  addPlan: (orderId, data) =>
+    api(`/api/orders/${orderId}/settlement/plans`, {
+      method: "POST",
+      body: JSON.stringify(data)
+    }),
+  updatePlan: (orderId, planId, data) =>
+    api(`/api/orders/${orderId}/settlement/plans/${planId}`, {
+      method: "PATCH",
+      body: JSON.stringify(data)
+    }),
+  deletePlan: (orderId, planId) =>
+    api(`/api/orders/${orderId}/settlement/plans/${planId}`, {
+      method: "DELETE"
     })
 };
 
@@ -193,6 +208,27 @@ export const PAYMENT_TYPE_LABELS = {
   payment: "收款",
   deposit_deduction: "押金抵扣",
   deposit_return: "押金退还"
+};
+
+export const PAYMENT_PLAN_NODE_TYPE_LABELS = {
+  deposit: "定金",
+  balance: "尾款",
+  deposit_return: "押金退还",
+  custom: "自定义"
+};
+
+export const PAYMENT_PLAN_NODE_STATUS_LABELS = {
+  pending: "待收款",
+  partial: "部分完成",
+  completed: "已完成",
+  overdue: "已逾期"
+};
+
+export const PAYMENT_PLAN_OVERALL_STATUS_LABELS = {
+  pending: "计划待执行",
+  partial: "部分计划完成",
+  completed: "计划全部完成",
+  overdue: "有计划逾期"
 };
 
 export const STOCKTAKE_STATUS_LABELS = {

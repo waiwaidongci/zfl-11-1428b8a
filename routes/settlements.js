@@ -4,11 +4,16 @@ import {
   genSettlementId,
   genSettlementFeeId,
   genPaymentId,
+  genPaymentPlanId,
   SETTLEMENT_STATUS_LABELS,
   FEE_TYPE_LABELS,
   FEE_SOURCE_TYPES,
   PAYMENT_METHOD_LABELS,
-  PAYMENT_TYPE_LABELS
+  PAYMENT_TYPE_LABELS,
+  PAYMENT_PLAN_NODE_TYPES,
+  PAYMENT_PLAN_NODE_TYPE_LABELS,
+  PAYMENT_PLAN_NODE_STATUSES,
+  PAYMENT_PLAN_NODE_STATUS_LABELS
 } from "../data/db.js";
 import { sendJson, parseBody } from "../lib/http.js";
 import { buildQuoteSummary } from "../lib/quoteCalculator.js";
@@ -147,16 +152,30 @@ function buildSettlementPayload(db, settlement, order) {
     .filter((p) => p.settlementId === settlement.id)
     .sort((a, b) => new Date(b.paymentDate || b.createdAt) - new Date(a.paymentDate || a.createdAt));
 
+  const plans = (db.paymentPlans || [])
+    .filter((p) => p.settlementId === settlement.id)
+    .sort((a, b) => new Date(a.dueDate || a.createdAt) - new Date(b.dueDate || b.createdAt));
+
+  const plansWithStatus = plans.map((p) => buildPlanPayload(db, p, payments));
+  const planStatus = calcPlanOverallStatus(db, settlement, plans);
+
+  const planMap = new Map(plans.map((p) => [p.id, p]));
+
   const feesWithLabels = (settlement.fees || []).map((f) => ({
     ...f,
     typeLabel: FEE_TYPE_LABELS[f.type] || f.type
   }));
 
-  const paymentsWithLabels = payments.map((p) => ({
-    ...p,
-    methodLabel: PAYMENT_METHOD_LABELS[p.method] || p.method,
-    typeLabel: PAYMENT_TYPE_LABELS[p.type] || p.type
-  }));
+  const paymentsWithLabels = payments.map((p) => {
+    const linkedPlan = p.planId ? planMap.get(p.planId) : null;
+    return {
+      ...p,
+      methodLabel: PAYMENT_METHOD_LABELS[p.method] || p.method,
+      typeLabel: PAYMENT_TYPE_LABELS[p.type] || p.type,
+      planName: linkedPlan ? linkedPlan.name : null,
+      planId: p.planId || null
+    };
+  });
 
   const customer = (db.customers || []).find((c) => c.name === order.customer);
 
@@ -171,6 +190,9 @@ function buildSettlementPayload(db, settlement, order) {
     updatedAt: settlement.updatedAt,
     fees: feesWithLabels,
     payments: paymentsWithLabels,
+    paymentPlans: plansWithStatus,
+    planStatus,
+    availablePlans: plansWithStatus.map((p) => ({ id: p.id, name: p.name, type: p.type, remainingAmount: p.remainingAmount })),
     summary,
     order: {
       id: order.id,
@@ -613,6 +635,20 @@ export async function addPayment(req, res, orderId) {
     }
   }
 
+  let planId = input.planId || null;
+  if (planId) {
+    const plan = (db.paymentPlans || []).find((p) => p.id === planId && p.orderId === orderId);
+    if (!plan) {
+      return sendJson(res, 400, { error: "关联的收款计划不存在" });
+    }
+    if (plan.type === "deposit_return" && type !== "deposit_return") {
+      return sendJson(res, 400, { error: "押金退还计划节点只能关联押金退还类型的收款" });
+    }
+    if (plan.type !== "deposit_return" && type === "deposit_return") {
+      return sendJson(res, 400, { error: "非押金退还计划节点不能关联押金退还类型的收款" });
+    }
+  }
+
   const payment = {
     id: genPaymentId(),
     settlementId: settlement.id,
@@ -620,6 +656,7 @@ export async function addPayment(req, res, orderId) {
     amount,
     type,
     method,
+    planId,
     paymentDate: input.paymentDate || new Date().toISOString().split("T")[0],
     remark: String(input.remark || "").trim(),
     createdAt: new Date().toISOString()
@@ -684,6 +721,24 @@ export async function updatePayment(req, res, orderId, paymentId) {
     payment.remark = String(input.remark || "").trim();
   }
 
+  if (input.planId !== undefined) {
+    let planId = input.planId || null;
+    if (planId) {
+      const plan = (db.paymentPlans || []).find((p) => p.id === planId && p.orderId === orderId);
+      if (!plan) {
+        return sendJson(res, 400, { error: "关联的收款计划不存在" });
+      }
+      const checkType = input.type !== undefined ? input.type : payment.type;
+      if (plan.type === "deposit_return" && checkType !== "deposit_return") {
+        return sendJson(res, 400, { error: "押金退还计划节点只能关联押金退还类型的收款" });
+      }
+      if (plan.type !== "deposit_return" && checkType === "deposit_return") {
+        return sendJson(res, 400, { error: "非押金退还计划节点不能关联押金退还类型的收款" });
+      }
+    }
+    payment.planId = planId;
+  }
+
   settlement.updatedAt = new Date().toISOString();
   const newSummary = calcSettlementSummary(db, settlement, order);
   settlement.status = newSummary.status;
@@ -742,6 +797,8 @@ export async function listSettlements(req, res) {
     const order = db.orders.find((o) => o.id === s.orderId);
     const summary = calcSettlementSummary(db, s, order);
     const payments = (db.payments || []).filter((p) => p.settlementId === s.id);
+    const plans = (db.paymentPlans || []).filter((p) => p.settlementId === s.id);
+    const planStatus = calcPlanOverallStatus(db, s, plans);
     return {
       id: s.id,
       orderId: s.orderId,
@@ -755,9 +812,246 @@ export async function listSettlements(req, res) {
       totalPaid: summary.totalPaid,
       balanceDue: summary.balanceDue,
       paymentCount: payments.length,
+      planCount: plans.length,
+      planStatus: planStatus.status,
+      planStatusLabel: planStatus.statusLabel,
+      hasOverduePlan: planStatus.hasOverdue,
       updatedAt: s.updatedAt
     };
   });
 
   return sendJson(res, 200, result);
+}
+
+function calcPlanNodeStatus(db, plan, allPayments) {
+  const nodePayments = allPayments.filter((p) => p.planId === plan.id);
+  const paidAmount = nodePayments
+    .filter((p) => p.type === "payment" || p.type === "deposit_deduction")
+    .reduce((sum, p) => sum + Number(p.amount) || 0, 0);
+
+  const returnedAmount = nodePayments
+    .filter((p) => p.type === "deposit_return")
+    .reduce((sum, p) => sum + Number(p.amount) || 0, 0);
+
+  const effectivePaid = plan.type === "deposit_return" ? returnedAmount : paidAmount;
+  const amount = Number(plan.amount) || 0;
+
+  let status;
+  if (effectivePaid >= amount - 0.01 && amount > 0) {
+    status = "completed";
+  } else if (effectivePaid > 0.01) {
+    status = "partial";
+  } else {
+    const today = new Date().toISOString().split("T")[0];
+    if (plan.dueDate && plan.dueDate < today) {
+      status = "overdue";
+    } else {
+      status = "pending";
+    }
+  }
+
+  return {
+    status,
+    statusLabel: PAYMENT_PLAN_NODE_STATUS_LABELS[status] || status,
+    paidAmount: effectivePaid,
+    remainingAmount: Math.max(0, amount - effectivePaid),
+    progress: amount > 0 ? Math.min(100, (effectivePaid / amount) * 100) : 0
+  };
+}
+
+function calcPlanOverallStatus(db, settlement, plans) {
+  if (!plans || plans.length === 0) {
+    return { status: null, statusLabel: "无计划", hasOverdue: false, allCompleted: false };
+  }
+
+  const allPayments = (db.payments || []).filter((p) => p.settlementId === settlement.id);
+  let hasOverdue = false;
+  let hasPartial = false;
+  let hasPending = false;
+  let allCompleted = true;
+
+  for (const plan of plans) {
+    const s = calcPlanNodeStatus(db, plan, allPayments);
+    if (s.status === "overdue") {
+      hasOverdue = true;
+      allCompleted = false;
+    } else if (s.status === "partial") {
+      hasPartial = true;
+      allCompleted = false;
+    } else if (s.status === "pending") {
+      hasPending = true;
+      allCompleted = false;
+    }
+  }
+
+  let status, statusLabel;
+  if (allCompleted) {
+    status = "completed";
+    statusLabel = "计划全部完成";
+  } else if (hasOverdue) {
+    status = "overdue";
+    statusLabel = "有计划逾期";
+  } else if (hasPartial) {
+    status = "partial";
+    statusLabel = "部分计划完成";
+  } else {
+    status = "pending";
+    statusLabel = "计划待执行";
+  }
+
+  return { status, statusLabel, hasOverdue, allCompleted };
+}
+
+function buildPlanPayload(db, plan, allPayments) {
+  const statusInfo = calcPlanNodeStatus(db, plan, allPayments);
+  return {
+    ...plan,
+    typeLabel: PAYMENT_PLAN_NODE_TYPE_LABELS[plan.type] || plan.type,
+    ...statusInfo
+  };
+}
+
+export async function listPaymentPlans(req, res, orderId) {
+  const db = await loadDb();
+  const order = db.orders.find((o) => o.id === orderId);
+  if (!order) return sendJson(res, 404, { error: "order_not_found" });
+
+  const { settlement } = ensureSettlement(db, orderId);
+  const plans = (db.paymentPlans || [])
+    .filter((p) => p.settlementId === settlement.id)
+    .sort((a, b) => new Date(a.dueDate || a.createdAt) - new Date(b.dueDate || b.createdAt));
+  const allPayments = (db.payments || []).filter((p) => p.settlementId === settlement.id);
+
+  const result = plans.map((p) => buildPlanPayload(db, p, allPayments));
+  return sendJson(res, 200, result);
+}
+
+export async function addPaymentPlan(req, res, orderId) {
+  const db = await loadDb();
+  const order = db.orders.find((o) => o.id === orderId);
+  if (!order) return sendJson(res, 404, { error: "order_not_found" });
+
+  if (order.status === "已取消") {
+    return sendJson(res, 400, { error: "已取消订单无法添加收款计划" });
+  }
+
+  const { settlement } = ensureSettlement(db, orderId);
+  const input = await parseBody(req);
+
+  const type = input.type || "custom";
+  if (!PAYMENT_PLAN_NODE_TYPES.includes(type)) {
+    return sendJson(res, 400, { error: "无效的计划类型" });
+  }
+
+  const amount = Number(input.amount);
+  if (Number.isNaN(amount) || amount <= 0) {
+    return sendJson(res, 400, { error: "请输入有效的计划金额" });
+  }
+
+  if (!input.dueDate) {
+    return sendJson(res, 400, { error: "请选择应收日期" });
+  }
+
+  const plan = {
+    id: genPaymentPlanId(),
+    settlementId: settlement.id,
+    orderId,
+    type,
+    name: input.name || PAYMENT_PLAN_NODE_TYPE_LABELS[type] || "自定义节点",
+    amount,
+    dueDate: input.dueDate,
+    remark: String(input.remark || "").trim(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  if (!db.paymentPlans) db.paymentPlans = [];
+  db.paymentPlans.unshift(plan);
+  settlement.updatedAt = new Date().toISOString();
+
+  await saveDb(db);
+  const allPayments = (db.payments || []).filter((p) => p.settlementId === settlement.id);
+  return sendJson(res, 201, buildPlanPayload(db, plan, allPayments));
+}
+
+export async function updatePaymentPlan(req, res, orderId, planId) {
+  const db = await loadDb();
+  const order = db.orders.find((o) => o.id === orderId);
+  if (!order) return sendJson(res, 404, { error: "order_not_found" });
+
+  if (order.status === "已取消") {
+    return sendJson(res, 400, { error: "已取消订单无法修改收款计划" });
+  }
+
+  const plan = (db.paymentPlans || []).find((p) => p.id === planId && p.orderId === orderId);
+  if (!plan) return sendJson(res, 404, { error: "plan_not_found" });
+
+  const input = await parseBody(req);
+
+  if (input.type !== undefined) {
+    if (!PAYMENT_PLAN_NODE_TYPES.includes(input.type)) {
+      return sendJson(res, 400, { error: "无效的计划类型" });
+    }
+    plan.type = input.type;
+  }
+
+  if (input.name !== undefined) {
+    plan.name = String(input.name || "").trim() || plan.name;
+  }
+
+  if (input.amount !== undefined) {
+    const amount = Number(input.amount);
+    if (Number.isNaN(amount) || amount <= 0) {
+      return sendJson(res, 400, { error: "请输入有效的计划金额" });
+    }
+    plan.amount = amount;
+  }
+
+  if (input.dueDate !== undefined) {
+    if (!input.dueDate) {
+      return sendJson(res, 400, { error: "应收日期不能为空" });
+    }
+    plan.dueDate = input.dueDate;
+  }
+
+  if (input.remark !== undefined) {
+    plan.remark = String(input.remark || "").trim();
+  }
+
+  plan.updatedAt = new Date().toISOString();
+
+  const settlement = (db.settlements || []).find((s) => s.orderId === orderId);
+  if (settlement) settlement.updatedAt = new Date().toISOString();
+
+  await saveDb(db);
+  const allPayments = (db.payments || []).filter((p) => p.settlementId === plan.settlementId);
+  return sendJson(res, 200, buildPlanPayload(db, plan, allPayments));
+}
+
+export async function deletePaymentPlan(req, res, orderId, planId) {
+  const db = await loadDb();
+  const order = db.orders.find((o) => o.id === orderId);
+  if (!order) return sendJson(res, 404, { error: "order_not_found" });
+
+  if (order.status === "已取消") {
+    return sendJson(res, 400, { error: "已取消订单无法删除收款计划" });
+  }
+
+  const idx = (db.paymentPlans || []).findIndex((p) => p.id === planId && p.orderId === orderId);
+  if (idx === -1) return sendJson(res, 404, { error: "plan_not_found" });
+
+  const plan = db.paymentPlans[idx];
+
+  const linkedPayments = (db.payments || []).filter((p) => p.planId === planId);
+  for (const payment of linkedPayments) {
+    payment.planId = null;
+  }
+
+  db.paymentPlans.splice(idx, 1);
+
+  const settlement = (db.settlements || []).find((s) => s.orderId === orderId);
+  if (settlement) settlement.updatedAt = new Date().toISOString();
+
+  await saveDb(db);
+  return sendJson(res, 200, { success: true, removedPlanId: planId });
 }

@@ -1,4 +1,4 @@
-import { Orders, Settlements, showToast, SETTLEMENT_STATUS_LABELS, FEE_TYPE_LABELS, PAYMENT_METHOD_LABELS, PAYMENT_TYPE_LABELS } from "./api.js";
+import { Orders, Settlements, showToast, SETTLEMENT_STATUS_LABELS, FEE_TYPE_LABELS, PAYMENT_METHOD_LABELS, PAYMENT_TYPE_LABELS, PAYMENT_PLAN_NODE_TYPE_LABELS, PAYMENT_PLAN_NODE_STATUS_LABELS, PAYMENT_PLAN_OVERALL_STATUS_LABELS } from "./api.js";
 
 let orders = [];
 let settlements = [];
@@ -6,6 +6,7 @@ let currentOrderId = null;
 let currentSettlement = null;
 let editingFeeId = null;
 let editingPaymentId = null;
+let editingPlanId = null;
 let customerFilterFromUrl = "";
 
 const orderListEl = document.getElementById("orderList");
@@ -73,11 +74,23 @@ function renderOrderList() {
       const settlementStatus = s ? s.status : "draft";
       const settlementStatusLabel = s ? s.statusLabel : "待结算";
       const balanceDue = s ? s.balanceDue : 0;
+      const planStatus = s ? s.planStatus : null;
+      const planStatusLabel = s ? s.planStatusLabel : null;
+      const hasOverduePlan = s ? s.hasOverduePlan : false;
 
       let statusClass = "status-draft";
       if (settlementStatus === "partial") statusClass = "status-partial";
       else if (settlementStatus === "settled") statusClass = "status-settled";
       else if (settlementStatus === "cancelled") statusClass = "status-cancelled";
+
+      let planBadge = "";
+      if (planStatus) {
+        let planClass = "plan-status-pending";
+        if (planStatus === "overdue") planClass = "plan-status-overdue";
+        else if (planStatus === "partial") planClass = "plan-status-partial";
+        else if (planStatus === "completed") planClass = "plan-status-completed";
+        planBadge = `<span class="badge plan-status-badge ${planClass}">${escapeHtml(planStatusLabel)}</span>`;
+      }
 
       const isActive = currentOrderId === o.id;
 
@@ -90,11 +103,15 @@ function renderOrderList() {
           <div class="order-item-meta">
             <span>${escapeHtml(o.startDate)} ~ ${escapeHtml(o.endDate)}</span>
           </div>
-          <div class="order-item-footer">
+          <div class="order-item-badges">
             <span class="badge ${statusClass}">${escapeHtml(settlementStatusLabel)}</span>
+            ${planBadge}
+          </div>
+          <div class="order-item-footer">
             <span class="order-item-amount">
               ${balanceDue > 0 ? `待收 ¥${balanceDue.toFixed(2)}` : "已结清"}
             </span>
+            ${hasOverduePlan ? `<span class="overdue-indicator">⚠️ 逾期</span>` : ""}
           </div>
         </div>
       `;
@@ -152,6 +169,7 @@ function renderSettlementDetail() {
   document.getElementById("orderEndDate").textContent = o.endDate || "—";
   document.getElementById("orderNote").textContent = o.note || "—";
 
+  renderPlanList();
   renderFeeList();
   renderPaymentList();
 
@@ -163,6 +181,97 @@ function renderSettlementDetail() {
     syncQuoteBtn.disabled = true;
     syncQuoteBtn.textContent = "📋 同步报价单";
   }
+}
+
+function renderPlanList() {
+  const plans = currentSettlement.paymentPlans || [];
+  const planStatus = currentSettlement.planStatus || null;
+
+  document.getElementById("planCount").textContent = `共 ${plans.length} 项`;
+
+  const planStatusBadge = document.getElementById("planStatusBadge");
+  if (planStatus && plans.length > 0) {
+    planStatusBadge.style.display = "";
+    planStatusBadge.textContent = planStatus.statusLabel || "";
+    planStatusBadge.className = `badge plan-status-badge plan-status-${planStatus.status}`;
+  } else {
+    planStatusBadge.style.display = "none";
+  }
+
+  if (!plans.length) {
+    document.getElementById("planList").innerHTML = `<div style="text-align:center;padding:30px;color:var(--muted)">暂无收款计划，点击「➕ 添加节点」创建定金、尾款等收款计划</div>`;
+    return;
+  }
+
+  const typeIcons = {
+    deposit: "💰",
+    balance: "💵",
+    deposit_return: "↩️",
+    custom: "📌"
+  };
+
+  document.getElementById("planList").innerHTML = plans
+    .map((p) => {
+      let statusClass = "plan-node-pending";
+      if (p.status === "overdue") statusClass = "plan-node-overdue";
+      else if (p.status === "partial") statusClass = "plan-node-partial";
+      else if (p.status === "completed") statusClass = "plan-node-completed";
+
+      return `
+        <div class="plan-item" data-plan-id="${escapeHtml(p.id)}">
+          <div class="plan-icon">${typeIcons[p.type] || "📌"}</div>
+          <div class="plan-info">
+            <div class="plan-name">
+              ${escapeHtml(p.name)}
+              <span class="badge source-badge">${escapeHtml(p.typeLabel)}</span>
+              <span class="badge plan-node-status ${statusClass}">${escapeHtml(p.statusLabel)}</span>
+            </div>
+            <div class="plan-desc">
+              应收日期：${escapeHtml(p.dueDate)}
+              ${p.remark ? ` · ${escapeHtml(p.remark)}` : ""}
+            </div>
+            <div class="plan-progress-bar">
+              <div class="plan-progress-fill" style="width:${p.progress}%"></div>
+            </div>
+            <div class="plan-progress-meta">
+              已收 ¥${Number(p.paidAmount).toFixed(2)} / ¥${Number(p.amount).toFixed(2)}
+              ${p.remainingAmount > 0 ? `（待收 ¥${Number(p.remainingAmount).toFixed(2)}）` : ""}
+            </div>
+          </div>
+          <div class="plan-amount ${p.status === "completed" ? "completed" : p.status === "overdue" ? "overdue" : ""}">
+            ¥${Number(p.amount).toFixed(2)}
+          </div>
+          <div class="plan-actions">
+            <button class="ghost small" data-action="edit-plan" data-plan-id="${escapeHtml(p.id)}">编辑</button>
+            <button class="ghost small danger" data-action="delete-plan" data-plan-id="${escapeHtml(p.id)}">删除</button>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+
+  document.querySelectorAll(".plan-item button[data-action='edit-plan']").forEach((btn) => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      openPlanModal(btn.dataset.planId);
+    };
+  });
+
+  document.querySelectorAll(".plan-item button[data-action='delete-plan']").forEach((btn) => {
+    btn.onclick = async (e) => {
+      e.stopPropagation();
+      if (!confirm("确定要删除此收款计划节点吗？关联的收款记录将解除关联。")) return;
+      try {
+        await Settlements.deletePlan(currentOrderId, btn.dataset.planId);
+        currentSettlement = await Settlements.get(currentOrderId);
+        renderSettlementDetail();
+        await loadSettlementsList();
+        showToast("收款计划节点已删除");
+      } catch (err) {
+        showToast(err.message, "error");
+      }
+    };
+  });
 }
 
 function renderFeeList() {
@@ -270,6 +379,7 @@ function renderPaymentList() {
             <div class="payment-name">
               ${escapeHtml(p.typeLabel)}
               <span class="badge source-badge">${escapeHtml(p.methodLabel)}</span>
+              ${p.planName ? `<span class="badge plan-link-badge">📅 ${escapeHtml(p.planName)}</span>` : ""}
             </div>
             <div class="payment-desc">
               ${escapeHtml(p.paymentDate || "")}
@@ -387,6 +497,14 @@ function openPaymentModal(paymentId = null) {
   const title = document.getElementById("paymentModalTitle");
 
   const today = new Date().toISOString().split("T")[0];
+  const availablePlans = currentSettlement.availablePlans || [];
+  const planSelect = document.getElementById("paymentPlanId");
+
+  planSelect.innerHTML = `<option value="">不关联</option>` +
+    availablePlans.map((p) => {
+      const disabled = p.remainingAmount <= 0.01 ? " disabled" : "";
+      return `<option value="${escapeHtml(p.id)}"${disabled}>${escapeHtml(p.name)} (待收 ¥${Number(p.remainingAmount).toFixed(2)})</option>`;
+    }).join("");
 
   if (paymentId) {
     const payment = (currentSettlement.payments || []).find((p) => p.id === paymentId);
@@ -397,6 +515,16 @@ function openPaymentModal(paymentId = null) {
     document.getElementById("paymentMethod").value = payment.method;
     document.getElementById("paymentDate").value = payment.paymentDate || today;
     document.getElementById("paymentRemark").value = payment.remark || "";
+    if (payment.planId) {
+      if (!planSelect.querySelector(`option[value="${payment.planId}"]`)) {
+        const linkedPlan = (currentSettlement.paymentPlans || []).find((p) => p.id === payment.planId);
+        if (linkedPlan) {
+          planSelect.innerHTML += `<option value="${escapeHtml(payment.planId)}" selected>${escapeHtml(linkedPlan.name)}</option>`;
+        }
+      } else {
+        planSelect.value = payment.planId;
+      }
+    }
   } else {
     title.textContent = "登记收款";
     document.getElementById("paymentType").value = "payment";
@@ -404,6 +532,7 @@ function openPaymentModal(paymentId = null) {
     document.getElementById("paymentMethod").value = "cash";
     document.getElementById("paymentDate").value = today;
     document.getElementById("paymentRemark").value = "";
+    planSelect.value = "";
   }
 
   modal.classList.remove("hidden");
@@ -415,12 +544,87 @@ function closePaymentModal() {
   editingPaymentId = null;
 }
 
+function openPlanModal(planId = null) {
+  editingPlanId = planId;
+  const modal = document.getElementById("planModal");
+  const title = document.getElementById("planModalTitle");
+
+  const today = new Date().toISOString().split("T")[0];
+
+  if (planId) {
+    const plan = (currentSettlement.paymentPlans || []).find((p) => p.id === planId);
+    if (!plan) return;
+    title.textContent = "编辑收款计划节点";
+    document.getElementById("planType").value = plan.type;
+    document.getElementById("planName").value = plan.name || "";
+    document.getElementById("planAmount").value = plan.amount;
+    document.getElementById("planDueDate").value = plan.dueDate;
+    document.getElementById("planRemark").value = plan.remark || "";
+  } else {
+    title.textContent = "添加收款计划节点";
+    document.getElementById("planType").value = "deposit";
+    document.getElementById("planName").value = "";
+    document.getElementById("planAmount").value = "";
+    document.getElementById("planDueDate").value = today;
+    document.getElementById("planRemark").value = "";
+  }
+
+  modal.classList.remove("hidden");
+  setTimeout(() => document.getElementById("planAmount").focus(), 100);
+}
+
+function closePlanModal() {
+  document.getElementById("planModal").classList.add("hidden");
+  editingPlanId = null;
+}
+
+async function submitPlan() {
+  const type = document.getElementById("planType").value;
+  const name = document.getElementById("planName").value.trim();
+  const amount = parseFloat(document.getElementById("planAmount").value);
+  const dueDate = document.getElementById("planDueDate").value;
+  const remark = document.getElementById("planRemark").value.trim();
+
+  if (!type) return showToast("请选择节点类型", "error");
+  if (Number.isNaN(amount) || amount <= 0) return showToast("请输入有效的应收金额", "error");
+  if (!dueDate) return showToast("请选择应收日期", "error");
+
+  try {
+    if (editingPlanId) {
+      await Settlements.updatePlan(currentOrderId, editingPlanId, {
+        type,
+        name,
+        amount,
+        dueDate,
+        remark
+      });
+      showToast("收款计划节点已更新");
+    } else {
+      await Settlements.addPlan(currentOrderId, {
+        type,
+        name,
+        amount,
+        dueDate,
+        remark
+      });
+      showToast("收款计划节点已添加");
+    }
+    closePlanModal();
+    currentSettlement = await Settlements.get(currentOrderId);
+    renderSettlementDetail();
+    await loadSettlementsList();
+  } catch (err) {
+    showToast(err.message, "error");
+  }
+}
+
 async function submitPayment() {
   const type = document.getElementById("paymentType").value;
   const amount = parseFloat(document.getElementById("paymentAmount").value);
   const method = document.getElementById("paymentMethod").value;
   const paymentDate = document.getElementById("paymentDate").value;
   const remark = document.getElementById("paymentRemark").value.trim();
+  const planId = document.getElementById("paymentPlanId").value || null;
 
   if (!type) return showToast("请选择收款类型", "error");
   if (Number.isNaN(amount) || amount <= 0) return showToast("请输入有效的金额", "error");
@@ -433,7 +637,8 @@ async function submitPayment() {
         amount,
         method,
         paymentDate,
-        remark
+        remark,
+        planId
       });
       showToast("收款记录已更新");
     } else {
@@ -442,7 +647,8 @@ async function submitPayment() {
         amount,
         method,
         paymentDate,
-        remark
+        remark,
+        planId
       });
       showToast("收款记录已添加");
     }
@@ -497,14 +703,18 @@ function escapeHtml(str) {
 
 window.closeFeeModal = closeFeeModal;
 window.closePaymentModal = closePaymentModal;
+window.closePlanModal = closePlanModal;
 
 document.getElementById("syncQuoteBtn").onclick = syncQuoteFees;
 document.getElementById("syncHandoverBtn").onclick = syncHandoverFees;
 document.getElementById("addFeeBtn").onclick = () => openFeeModal();
+document.getElementById("addPlanBtn").onclick = () => openPlanModal();
+document.getElementById("addPlanBtnInline").onclick = () => openPlanModal();
 document.getElementById("addPaymentBtn").onclick = () => openPaymentModal();
 document.getElementById("printBtn").onclick = printSettlement;
 document.getElementById("submitFeeBtn").onclick = submitFee;
 document.getElementById("submitPaymentBtn").onclick = submitPayment;
+document.getElementById("submitPlanBtn").onclick = submitPlan;
 document.getElementById("reload").onclick = () => {
   loadOrders();
   if (currentOrderId) loadSettlement();

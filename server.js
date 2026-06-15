@@ -67,7 +67,11 @@ import {
   syncHandoverFees,
   addPayment,
   updatePayment,
-  deletePayment
+  deletePayment,
+  listPaymentPlans,
+  addPaymentPlan,
+  updatePaymentPlan,
+  deletePaymentPlan
 } from "./routes/settlements.js";
 
 import {
@@ -305,6 +309,21 @@ const server = http.createServer(async (req, res) => {
       const paymentId = decodeURIComponent(settlementPaymentMatch[2]);
       if (req.method === "PATCH") return updatePayment(req, res, orderId, paymentId);
       if (req.method === "DELETE") return deletePayment(req, res, orderId, paymentId);
+    }
+
+    const settlementPlansMatch = p.match(/^\/api\/orders\/([^/]+)\/settlement\/plans$/);
+    if (settlementPlansMatch) {
+      const orderId = decodeURIComponent(settlementPlansMatch[1]);
+      if (req.method === "GET") return listPaymentPlans(req, res, orderId);
+      if (req.method === "POST") return addPaymentPlan(req, res, orderId);
+    }
+
+    const settlementPlanMatch = p.match(/^\/api\/orders\/([^/]+)\/settlement\/plans\/([^/]+)$/);
+    if (settlementPlanMatch) {
+      const orderId = decodeURIComponent(settlementPlanMatch[1]);
+      const planId = decodeURIComponent(settlementPlanMatch[2]);
+      if (req.method === "PATCH") return updatePaymentPlan(req, res, orderId, planId);
+      if (req.method === "DELETE") return deletePaymentPlan(req, res, orderId, planId);
     }
 
     if (req.method === "GET" && p === "/api/stocktakes") return listStocktakes(req, res);

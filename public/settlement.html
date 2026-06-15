@@ -97,8 +97,23 @@
           <button class="secondary" id="syncQuoteBtn">📋 同步报价单</button>
           <button class="secondary" id="syncHandoverBtn">📦 同步交接赔偿</button>
           <button class="secondary" id="addFeeBtn">➕ 添加费用</button>
+          <button class="secondary" id="addPlanBtn">📅 收款计划</button>
           <button class="primary" id="addPaymentBtn">💳 登记收款</button>
           <button class="ghost" id="printBtn" style="margin-left:auto">🖨 打印结算单</button>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h3>收款计划</h3>
+            <div style="display:flex;align-items:center;gap:10px">
+              <span class="meta" id="planCount">共 0 项</span>
+              <span id="planStatusBadge" class="badge" style="display:none"></span>
+              <button class="ghost small" id="addPlanBtnInline">➕ 添加节点</button>
+            </div>
+          </div>
+          <div id="planList" class="plan-list">
+            <div style="text-align:center;padding:30px;color:var(--muted)">暂无收款计划，点击「➕ 添加节点」创建定金、尾款等收款计划</div>
+          </div>
         </div>
 
         <div class="panel">
@@ -205,6 +220,12 @@
           </select>
         </div>
         <div class="form-group">
+          <label>关联计划节点</label>
+          <select id="paymentPlanId">
+            <option value="">不关联</option>
+          </select>
+        </div>
+        <div class="form-group">
           <label>金额（元）*</label>
           <input type="number" id="paymentAmount" placeholder="0.00" min="0" step="0.01">
         </div>
@@ -230,6 +251,46 @@
       <div class="actions">
         <button class="ghost" onclick="closePaymentModal()">取消</button>
         <button class="primary" id="submitPaymentBtn">确认登记</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="planModal" class="modal-backdrop hidden">
+    <div class="modal" style="max-width:480px">
+      <header>
+        <h3 id="planModalTitle">添加收款计划节点</h3>
+        <button onclick="closePlanModal()">✕</button>
+      </header>
+      <div class="body">
+        <div class="form-group">
+          <label>节点类型 *</label>
+          <select id="planType">
+            <option value="deposit">定金</option>
+            <option value="balance">尾款</option>
+            <option value="deposit_return">押金退还</option>
+            <option value="custom">自定义</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>节点名称</label>
+          <input type="text" id="planName" placeholder="留空则使用类型默认名称">
+        </div>
+        <div class="form-group">
+          <label>应收金额（元）*</label>
+          <input type="number" id="planAmount" placeholder="0.00" min="0" step="0.01">
+        </div>
+        <div class="form-group">
+          <label>应收日期 *</label>
+          <input type="date" id="planDueDate">
+        </div>
+        <div class="form-group">
+          <label>备注</label>
+          <input type="text" id="planRemark" placeholder="可选备注信息">
+        </div>
+      </div>
+      <div class="actions">
+        <button class="ghost" onclick="closePlanModal()">取消</button>
+        <button class="primary" id="submitPlanBtn">确认添加</button>
       </div>
     </div>
   </div>
