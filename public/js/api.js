@@ -102,6 +102,17 @@ export const REPAIR_STATUS_LABELS = {
   cancelled: "已取消"
 };
 
+export const REPAIR_SOURCE_LABELS = {
+  manual: "手动创建",
+  handover: "归还交接",
+  stocktake: "库存盘点"
+};
+
+export const REPAIR_LIABILITY_LABELS = {
+  company: "公司承担",
+  customer: "客户承担"
+};
+
 export const Repairs = {
   list: (params) => {
     const qs = params ? "?" + new URLSearchParams(params).toString() : "";
@@ -152,6 +163,10 @@ export const Settlements = {
     }),
   syncHandover: (orderId) =>
     api(`/api/orders/${orderId}/settlement/sync-handover`, {
+      method: "POST"
+    }),
+  syncRepair: (orderId) =>
+    api(`/api/orders/${orderId}/settlement/sync-repair`, {
       method: "POST"
     }),
   addPayment: (orderId, data) =>

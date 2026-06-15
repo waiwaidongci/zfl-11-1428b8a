@@ -1,4 +1,10 @@
-import { Equipment, Repairs, showToast, REPAIR_STATUS_LABELS } from "./api.js";
+import {
+  Equipment,
+  Repairs,
+  showToast,
+  REPAIR_STATUS_LABELS,
+  REPAIR_SOURCE_LABELS
+} from "./api.js";
 
 const state = {
   list: [],
@@ -94,14 +100,19 @@ function renderList() {
   grid.innerHTML = data
     .map((e) => {
       const activeRepair = getActiveRepair(e.id);
+      const sourceLabel = activeRepair?.source
+        ? REPAIR_SOURCE_LABELS[activeRepair.source] || activeRepair.source
+        : "";
       const repairSection = activeRepair
         ? `
           <div style="margin-bottom:10px">
             <span class="badge repair">${REPAIR_STATUS_LABELS[activeRepair.status] || "维修中"}</span>
+            ${sourceLabel ? `<span class="badge source-badge" style="margin-left:6px">来源：${sourceLabel}</span>` : ""}
             <br>
             <a class="eq-repair-link" data-action="view-repair" data-repair-id="${activeRepair.id}">
               🔧 查看工单 ${activeRepair.id}
             </a>
+            ${activeRepair.orderId ? `<div class="meta" style="font-size:11px;margin-top:4px">关联订单：${escapeHtml(activeRepair.orderId)}</div>` : ""}
           </div>
         `
         : e.condition === "repair"

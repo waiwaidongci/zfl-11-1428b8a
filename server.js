@@ -65,6 +65,7 @@ import {
   deleteFee,
   syncQuoteFees,
   syncHandoverFees,
+  syncRepairFees,
   addPayment,
   updatePayment,
   deletePayment,
@@ -297,6 +298,11 @@ const server = http.createServer(async (req, res) => {
     const syncHandoverFeesMatch = p.match(/^\/api\/orders\/([^/]+)\/settlement\/sync-handover$/);
     if (syncHandoverFeesMatch && req.method === "POST") {
       return syncHandoverFees(req, res, decodeURIComponent(syncHandoverFeesMatch[1]));
+    }
+
+    const syncRepairFeesMatch = p.match(/^\/api\/orders\/([^/]+)\/settlement\/sync-repair$/);
+    if (syncRepairFeesMatch && req.method === "POST") {
+      return syncRepairFees(req, res, decodeURIComponent(syncRepairFeesMatch[1]));
     }
 
     const settlementPaymentsMatch = p.match(/^\/api\/orders\/([^/]+)\/settlement\/payments$/);

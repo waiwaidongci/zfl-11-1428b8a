@@ -181,6 +181,10 @@ function renderSettlementDetail() {
     syncQuoteBtn.disabled = true;
     syncQuoteBtn.textContent = "📋 同步报价单";
   }
+
+  const syncRepairBtn = document.getElementById("syncRepairBtn");
+  const repairCount = (s.repairCompensation?.items || []).length;
+  syncRepairBtn.textContent = `🔧 同步维修赔偿${repairCount > 0 ? ` (${repairCount}项)` : ""}`;
 }
 
 function renderPlanList() {
@@ -303,8 +307,14 @@ function renderFeeList() {
         system: "系统",
         manual: "手动",
         handover: "交接",
-        quotation: "报价单"
+        quotation: "报价单",
+        repair: "维修工单"
       }[f.source] || f.source;
+
+      let sourceLink = "";
+      if (f.source === "repair" && f.sourceId) {
+        sourceLink = `<a href="/repairs.html?id=${encodeURIComponent(f.sourceId)}" target="_blank" class="fee-source-link">查看工单 →</a>`;
+      }
 
       return `
         <div class="fee-item" data-fee-id="${escapeHtml(f.id)}">
@@ -314,7 +324,10 @@ function renderFeeList() {
               ${escapeHtml(f.typeLabel)}
               ${isSystem ? `<span class="badge source-badge">${sourceLabel}</span>` : ""}
             </div>
-            <div class="fee-desc">${escapeHtml(f.description || "无描述")}</div>
+            <div class="fee-desc">
+              ${escapeHtml(f.description || "无描述")}
+              ${sourceLink}
+            </div>
           </div>
           <div class="fee-amount ${isDiscount ? "discount" : ""}">
             ${isDiscount ? "-" : ""}¥${Number(f.amount).toFixed(2)}
@@ -688,6 +701,18 @@ async function syncHandoverFees() {
   }
 }
 
+async function syncRepairFees() {
+  if (!confirm("确定要同步维修赔偿费用吗？这将从关联的维修工单中同步客户承担的费用。")) return;
+  try {
+    currentSettlement = await Settlements.syncRepair(currentOrderId);
+    renderSettlementDetail();
+    await loadSettlementsList();
+    showToast("已同步维修赔偿费用");
+  } catch (err) {
+    showToast(err.message, "error");
+  }
+}
+
 function printSettlement() {
   if (!currentOrderId) return;
   window.open(`/print?type=settlement&id=${encodeURIComponent(currentOrderId)}`, "_blank");
@@ -707,6 +732,7 @@ window.closePlanModal = closePlanModal;
 
 document.getElementById("syncQuoteBtn").onclick = syncQuoteFees;
 document.getElementById("syncHandoverBtn").onclick = syncHandoverFees;
+document.getElementById("syncRepairBtn").onclick = syncRepairFees;
 document.getElementById("addFeeBtn").onclick = () => openFeeModal();
 document.getElementById("addPlanBtn").onclick = () => openPlanModal();
 document.getElementById("addPlanBtnInline").onclick = () => openPlanModal();

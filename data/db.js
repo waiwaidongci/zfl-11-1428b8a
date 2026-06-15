@@ -223,6 +223,19 @@ export const REPAIR_STATUS_LABELS = {
   cancelled: "已取消"
 };
 
+export const REPAIR_SOURCE_TYPES = ["manual", "handover", "stocktake"];
+export const REPAIR_SOURCE_LABELS = {
+  manual: "手动创建",
+  handover: "归还交接",
+  stocktake: "库存盘点"
+};
+
+export const REPAIR_LIABILITY_TYPES = ["company", "customer"];
+export const REPAIR_LIABILITY_LABELS = {
+  company: "公司承担",
+  customer: "客户承担"
+};
+
 export const STOCKTAKE_STATUSES = ["draft", "processing", "completed", "cancelled"];
 export const STOCKTAKE_STATUS_LABELS = {
   draft: "草稿",
@@ -272,7 +285,7 @@ export const FEE_TYPE_LABELS = {
   discount: "优惠减免"
 };
 
-export const FEE_SOURCE_TYPES = ["system", "manual", "handover", "quotation"];
+export const FEE_SOURCE_TYPES = ["system", "manual", "handover", "quotation", "repair"];
 
 export const PAYMENT_METHODS = ["cash", "bank", "wechat", "alipay", "other"];
 export const PAYMENT_METHOD_LABELS = {

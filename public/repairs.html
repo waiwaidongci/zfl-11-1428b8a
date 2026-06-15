@@ -70,15 +70,36 @@
             <label>预计恢复日期</label>
             <input name="sendTime" type="date">
             <input name="expectedReturn" type="date">
-            <label>维修费用（元）</label>
-            <label>工单状态</label>
+            <label>预估费用（元）</label>
+            <label>实际维修费（元）</label>
             <input name="repairCost" type="number" min="0" step="0.01" placeholder="0.00">
+            <input name="actualRepairCost" type="number" min="0" step="0.01" placeholder="0.00">
+          </div>
+
+          <div class="form-row">
+            <label>工单状态</label>
+            <label>责任归属</label>
             <select name="status">
               <option value="pending">待送修</option>
               <option value="repairing">维修中</option>
               <option value="completed">维修完成</option>
               <option value="cancelled">已取消</option>
             </select>
+            <select name="liability">
+              <option value="company">公司承担</option>
+              <option value="customer">客户承担</option>
+            </select>
+            <label>客户承担金额（元）</label>
+            <label>关联订单编号</label>
+            <input name="customerAmount" type="number" min="0" step="0.01" placeholder="留空按实际维修费算">
+            <input name="orderId" placeholder="如 O-20250101-001">
+          </div>
+
+          <div class="form-row" id="sourceInfoRow" style="display:none;">
+            <label>工单来源</label>
+            <label>来源编号</label>
+            <input name="sourceLabel" disabled>
+            <input name="sourceId" disabled>
           </div>
 
           <label>备注</label>

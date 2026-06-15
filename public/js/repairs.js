@@ -1,4 +1,11 @@
-import { Repairs, Equipment, showToast, REPAIR_STATUS_LABELS } from "./api.js";
+import {
+  Repairs,
+  Equipment,
+  showToast,
+  REPAIR_STATUS_LABELS,
+  REPAIR_SOURCE_LABELS,
+  REPAIR_LIABILITY_LABELS
+} from "./api.js";
 
 const state = {
   list: [],
@@ -150,13 +157,42 @@ function renderList() {
           <span class="repair-meta-value">${r.expectedReturn || "-"}</span>
         </div>
         <div class="repair-meta-item">
-          <span class="repair-meta-label">维修费用</span>
+          <span class="repair-meta-label">预估费用</span>
           <span class="repair-meta-value cost">¥${(Number(r.repairCost) || 0).toFixed(2)}</span>
         </div>
         <div class="repair-meta-item">
-          <span class="repair-meta-label">${r.status === "completed" ? "完成时间" : "创建时间"}</span>
-          <span class="repair-meta-value">${formatDate(r.status === "completed" ? r.completedAt : r.createdAt)}</span>
+          <span class="repair-meta-label">实际费用</span>
+          <span class="repair-meta-value cost">¥${(Number(r.actualRepairCost) || 0).toFixed(2)}</span>
         </div>
+      </div>
+
+      <div class="repair-meta">
+        <div class="repair-meta-item">
+          <span class="repair-meta-label">责任归属</span>
+          <span class="repair-meta-value">${REPAIR_LIABILITY_LABELS[r.liability] || "-"}</span>
+        </div>
+        ${
+          r.liability === "customer"
+            ? `<div class="repair-meta-item">
+            <span class="repair-meta-label">客户承担</span>
+            <span class="repair-meta-value cost">¥${(
+              Number(r.customerAmount) || Number(r.actualRepairCost) || Number(r.repairCost) || 0
+            ).toFixed(2)}</span>
+          </div>`
+            : ""
+        }
+        <div class="repair-meta-item">
+          <span class="repair-meta-label">工单来源</span>
+          <span class="repair-meta-value">${REPAIR_SOURCE_LABELS[r.source] || "手动创建"}</span>
+        </div>
+        ${
+          r.orderId
+            ? `<div class="repair-meta-item">
+            <span class="repair-meta-label">关联订单</span>
+            <span class="repair-meta-value"><a href="/orders.html?id=${encodeURIComponent(r.orderId)}" target="_blank">${escapeHtml(r.orderId)}</a></span>
+          </div>`
+            : ""
+        }
       </div>
 
       <div class="repair-note">${escapeHtml(r.note) || ""}</div>
@@ -255,7 +291,9 @@ function openCreate(preselectedEquipmentId) {
   form.reset();
   renderEquipmentOptions();
   form.status.value = "pending";
+  form.liability.value = "company";
   form.sendTime.value = new Date().toISOString().slice(0, 10);
+  $("sourceInfoRow").style.display = "none";
   if (preselectedEquipmentId) {
     form.equipmentId.value = preselectedEquipmentId;
   }
@@ -282,16 +320,31 @@ function openEdit(id) {
   form.sendTime.value = r.sendTime || "";
   form.expectedReturn.value = r.expectedReturn || "";
   form.repairCost.value = r.repairCost != null ? r.repairCost : "";
+  form.actualRepairCost.value = r.actualRepairCost != null ? r.actualRepairCost : "";
   form.status.value = r.status;
+  form.liability.value = r.liability || "company";
+  form.customerAmount.value = r.customerAmount != null ? r.customerAmount : "";
+  form.orderId.value = r.orderId || "";
   form.note.value = r.note || "";
   form.id.readOnly = true;
   form.equipmentId.disabled = true;
+
+  const sourceInfoRow = $("sourceInfoRow");
+  if (r.source && r.source !== "manual") {
+    sourceInfoRow.style.display = "";
+    form.sourceLabel.value = REPAIR_SOURCE_LABELS[r.source] || r.source;
+    form.sourceId.value = r.sourceId || "";
+  } else {
+    sourceInfoRow.style.display = "none";
+  }
+
   openModal();
 }
 
 async function submitForm() {
   const data = Object.fromEntries(new FormData(form).entries());
   data.faultDescription = data.faultDescription?.trim();
+  data.orderId = data.orderId?.trim();
 
   if (!data.equipmentId) {
     showToast("请选择维修设备", "error");
@@ -304,10 +357,16 @@ async function submitForm() {
   if (data.repairCost !== "") {
     data.repairCost = Number(data.repairCost);
   }
+  if (data.actualRepairCost !== "") {
+    data.actualRepairCost = Number(data.actualRepairCost);
+  }
+  if (data.customerAmount !== "") {
+    data.customerAmount = Number(data.customerAmount);
+  }
 
   try {
     if (state.editingId) {
-      const { id, equipmentId, ...rest } = data;
+      const { id, equipmentId, sourceLabel, ...rest } = data;
       const updated = await Repairs.update(state.editingId, rest);
       const idx = state.list.findIndex((x) => x.id === state.editingId);
       if (idx !== -1) state.list[idx] = updated;

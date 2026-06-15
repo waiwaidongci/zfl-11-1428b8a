@@ -1043,6 +1043,26 @@
   ],
   "repairs": [
     {
+      "id": "R-883089",
+      "equipmentId": "L-002",
+      "equipmentName": "LED帕灯",
+      "faultDescription": "同步接口测试",
+      "sendTime": "2026-06-15",
+      "expectedReturn": "",
+      "repairCost": 0,
+      "actualRepairCost": 200,
+      "status": "completed",
+      "note": "",
+      "source": "manual",
+      "sourceId": null,
+      "orderId": "O-1001",
+      "liability": "customer",
+      "customerAmount": 0,
+      "createdAt": "2026-06-15T10:54:43.089Z",
+      "updatedAt": "2026-06-15T10:54:43.089Z",
+      "completedAt": "2026-06-15T10:54:43.089Z"
+    },
+    {
       "id": "R-089447",
       "equipmentId": "L-001",
       "equipmentName": "摇头染色灯",
@@ -1224,11 +1244,21 @@
           "sourceId": "H-089447",
           "createdAt": "2026-06-14T12:16:48.512Z",
           "updatedAt": "2026-06-14T12:16:48.512Z"
+        },
+        {
+          "id": "SF-883089-004",
+          "type": "compensation",
+          "amount": 200,
+          "description": "维修赔偿 - LED帕灯（工单 R-883089）",
+          "source": "repair",
+          "sourceId": "R-883089",
+          "createdAt": "2026-06-15T10:54:43.089Z",
+          "updatedAt": "2026-06-15T10:55:07.067Z"
         }
       ],
       "note": "",
       "createdAt": "2026-06-14T12:16:48.511Z",
-      "updatedAt": "2026-06-14T12:16:48.512Z"
+      "updatedAt": "2026-06-15T10:55:07.067Z"
     }
   ],
   "payments": [

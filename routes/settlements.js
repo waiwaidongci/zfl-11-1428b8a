@@ -338,6 +338,71 @@ function syncHandoverFeesToSettlement(db, settlement, orderId) {
   return handoverComp;
 }
 
+function getOrderRepairCompensation(db, orderId) {
+  const repairs = (db.repairs || []).filter(
+    (r) => r.orderId === orderId && r.status === "completed" && r.liability === "customer"
+  );
+  let total = 0;
+  const items = [];
+  for (const r of repairs) {
+    const amount = Number(r.customerAmount || r.actualRepairCost || r.repairCost || 0);
+    if (amount > 0) {
+      total += amount;
+      items.push({
+        repairId: r.id,
+        equipmentName: r.equipmentName,
+        equipmentId: r.equipmentId,
+        description: `维修赔偿 - ${r.equipmentName}（工单 ${r.id}）`,
+        amount
+      });
+    }
+  }
+  return { total, items, repairIds: repairs.map((r) => r.id) };
+}
+
+function syncRepairFeesToSettlement(db, settlement, orderId) {
+  const repairComp = getOrderRepairCompensation(db, orderId);
+  const existingRepairIds = new Set(
+    (settlement.fees || [])
+      .filter((f) => f.type === "compensation" && f.source === "repair")
+      .map((f) => f.sourceId)
+  );
+
+  const currentRepairIds = new Set(repairComp.items.map((i) => i.repairId));
+
+  for (const item of repairComp.items) {
+    const existing = (settlement.fees || []).find(
+      (f) => f.type === "compensation" && f.source === "repair" && f.sourceId === item.repairId
+    );
+    if (existing) {
+      existing.amount = item.amount;
+      existing.description = item.description;
+      existing.updatedAt = new Date().toISOString();
+    } else {
+      settlement.fees.push({
+        id: genSettlementFeeId(),
+        type: "compensation",
+        amount: item.amount,
+        description: item.description,
+        source: "repair",
+        sourceId: item.repairId,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+    }
+  }
+
+  for (const existingId of existingRepairIds) {
+    if (!currentRepairIds.has(existingId)) {
+      settlement.fees = (settlement.fees || []).filter(
+        (f) => !(f.type === "compensation" && f.source === "repair" && f.sourceId === existingId)
+      );
+    }
+  }
+
+  return repairComp;
+}
+
 export async function getSettlement(req, res, orderId) {
   const db = await loadDb();
   const order = db.orders.find((o) => o.id === orderId);
@@ -356,6 +421,12 @@ export async function getSettlement(req, res, orderId) {
   const handoverComp = getHandoverCompensation(db, orderId);
   if (handoverComp.items.length > 0 && isNew) {
     syncHandoverFeesToSettlement(db, settlement, orderId);
+    hasChanges = true;
+  }
+
+  const repairComp = getOrderRepairCompensation(db, orderId);
+  if (repairComp.items.length > 0 && isNew) {
+    syncRepairFeesToSettlement(db, settlement, orderId);
     hasChanges = true;
   }
 
@@ -385,6 +456,7 @@ export async function getSettlement(req, res, orderId) {
   }
 
   payload.handoverCompensation = handoverComp;
+  payload.repairCompensation = repairComp;
   return sendJson(res, 200, payload);
 }
 
@@ -585,6 +657,26 @@ export async function syncHandoverFees(req, res, orderId) {
   const { settlement } = ensureSettlement(db, orderId);
 
   syncHandoverFeesToSettlement(db, settlement, orderId);
+
+  settlement.updatedAt = new Date().toISOString();
+  await saveDb(db);
+
+  const payload = buildSettlementPayload(db, settlement, order);
+  return sendJson(res, 200, payload);
+}
+
+export async function syncRepairFees(req, res, orderId) {
+  const db = await loadDb();
+  const order = db.orders.find((o) => o.id === orderId);
+  if (!order) return sendJson(res, 404, { error: "order_not_found" });
+
+  if (order.status === "已取消") {
+    return sendJson(res, 400, { error: "已取消订单无法同步维修赔偿费用" });
+  }
+
+  const { settlement } = ensureSettlement(db, orderId);
+
+  syncRepairFeesToSettlement(db, settlement, orderId);
 
   settlement.updatedAt = new Date().toISOString();
   await saveDb(db);

@@ -1,4 +1,13 @@
-import { loadDb, saveDb, genRepairId, REPAIR_STATUSES, getActiveRepairByEquipmentId } from "../data/db.js";
+import {
+  loadDb,
+  saveDb,
+  genRepairId,
+  REPAIR_STATUSES,
+  REPAIR_SOURCE_TYPES,
+  REPAIR_LIABILITY_TYPES,
+  getActiveRepairByEquipmentId,
+  genSettlementFeeId
+} from "../data/db.js";
 import { sendJson, parseBody } from "../lib/http.js";
 
 function buildRepairPayload(db, repair) {
@@ -18,15 +27,97 @@ function buildRepairPayload(db, repair) {
   };
 }
 
+function ensureSettlement(db, orderId) {
+  let settlement = (db.settlements || []).find((s) => s.orderId === orderId);
+  const isNew = !settlement;
+
+  if (isNew) {
+    settlement = {
+      id: null,
+      orderId,
+      quotationId: null,
+      status: "draft",
+      fees: [],
+      note: "",
+      createdAt: null,
+      updatedAt: null
+    };
+  }
+
+  if (!settlement.fees) settlement.fees = [];
+
+  return { settlement, isNew };
+}
+
+function syncRepairFeeToSettlement(db, repair) {
+  if (!repair.orderId) return null;
+  if (repair.liability !== "customer") return null;
+
+  const amount = Number(repair.customerAmount || repair.actualRepairCost || repair.repairCost || 0);
+  if (amount <= 0) return null;
+
+  const { settlement, isNew } = ensureSettlement(db, repair.orderId);
+  if (isNew) {
+    settlement.id = `S-${Date.now().toString().slice(-6)}`;
+    settlement.createdAt = new Date().toISOString();
+    if (!db.settlements) db.settlements = [];
+    db.settlements.unshift(settlement);
+  }
+
+  const existing = (settlement.fees || []).find(
+    (f) => f.type === "compensation" && f.source === "repair" && f.sourceId === repair.id
+  );
+
+  const description = `维修赔偿 - ${repair.equipmentName}（工单 ${repair.id}）`;
+
+  if (existing) {
+    existing.amount = amount;
+    existing.description = description;
+    existing.updatedAt = new Date().toISOString();
+  } else {
+    settlement.fees.push({
+      id: genSettlementFeeId(),
+      type: "compensation",
+      amount,
+      description,
+      source: "repair",
+      sourceId: repair.id,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+  }
+
+  settlement.updatedAt = new Date().toISOString();
+  return settlement;
+}
+
+function removeRepairFeeFromSettlement(db, repair) {
+  if (!repair.orderId) return;
+
+  const settlement = (db.settlements || []).find((s) => s.orderId === repair.orderId);
+  if (!settlement) return;
+
+  const beforeLen = settlement.fees?.length || 0;
+  settlement.fees = (settlement.fees || []).filter(
+    (f) => !(f.type === "compensation" && f.source === "repair" && f.sourceId === repair.id)
+  );
+
+  if (settlement.fees.length !== beforeLen) {
+    settlement.updatedAt = new Date().toISOString();
+  }
+}
+
 export async function listRepairs(req, res) {
   const db = await loadDb();
   const url = new URL(req.url, `http://${req.headers.host}`);
   const status = url.searchParams.get("status");
   const equipmentId = url.searchParams.get("equipmentId");
+  const orderId = url.searchParams.get("orderId");
 
   let list = [...db.repairs];
   if (status) list = list.filter((r) => r.status === status);
   if (equipmentId) list = list.filter((r) => r.equipmentId === equipmentId);
+  if (orderId) list = list.filter((r) => r.orderId === orderId);
 
   list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   const result = list.map((r) => buildRepairPayload(db, r));
@@ -62,6 +153,8 @@ export async function createRepair(req, res) {
   }
 
   const status = REPAIR_STATUSES.includes(input.status) ? input.status : "pending";
+  const source = REPAIR_SOURCE_TYPES.includes(input.source) ? input.source : "manual";
+  const liability = REPAIR_LIABILITY_TYPES.includes(input.liability) ? input.liability : "company";
 
   const repair = {
     id: input.id?.trim() || genRepairId(),
@@ -71,8 +164,14 @@ export async function createRepair(req, res) {
     sendTime: input.sendTime || new Date().toISOString().slice(0, 10),
     expectedReturn: input.expectedReturn || "",
     repairCost: input.repairCost != null ? Number(input.repairCost) || 0 : 0,
+    actualRepairCost: input.actualRepairCost != null ? Number(input.actualRepairCost) || 0 : 0,
     status,
     note: input.note?.trim() || "",
+    source,
+    sourceId: input.sourceId?.trim() || null,
+    orderId: input.orderId?.trim() || null,
+    liability,
+    customerAmount: input.customerAmount != null ? Number(input.customerAmount) || 0 : 0,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     completedAt: null
@@ -89,6 +188,11 @@ export async function createRepair(req, res) {
   }
 
   db.repairs.unshift(repair);
+
+  if (status === "completed" && repair.orderId && repair.liability === "customer") {
+    syncRepairFeeToSettlement(db, repair);
+  }
+
   await saveDb(db);
   return sendJson(res, 201, buildRepairPayload(db, repair));
 }
@@ -112,14 +216,40 @@ export async function updateRepair(req, res, id) {
   if (input.repairCost !== undefined) {
     merged.repairCost = Number(input.repairCost) || 0;
   }
+  if (input.actualRepairCost !== undefined) {
+    merged.actualRepairCost = Number(input.actualRepairCost) || 0;
+  }
   if (input.note !== undefined) merged.note = String(input.note || "").trim();
+  if (input.source !== undefined) {
+    if (REPAIR_SOURCE_TYPES.includes(input.source)) {
+      merged.source = input.source;
+    }
+  }
+  if (input.sourceId !== undefined) {
+    merged.sourceId = input.sourceId?.trim() || null;
+  }
+  if (input.orderId !== undefined) {
+    merged.orderId = input.orderId?.trim() || null;
+  }
+  if (input.liability !== undefined) {
+    if (REPAIR_LIABILITY_TYPES.includes(input.liability)) {
+      merged.liability = input.liability;
+    }
+  }
+  if (input.customerAmount !== undefined) {
+    merged.customerAmount = Number(input.customerAmount) || 0;
+  }
 
+  let statusChanged = false;
   if (input.status !== undefined) {
     if (!REPAIR_STATUSES.includes(input.status)) {
       return sendJson(res, 400, { error: "无效的维修状态" });
     }
     if (current.status === "completed" && input.status !== "completed") {
       return sendJson(res, 400, { error: "已完成的工单不能恢复为未完成状态" });
+    }
+    if (current.status !== input.status) {
+      statusChanged = true;
     }
     merged.status = input.status;
 
@@ -136,6 +266,40 @@ export async function updateRepair(req, res, id) {
     }
     if (input.status !== "completed") {
       merged.completedAt = null;
+    }
+  }
+
+  const liabilityChanged =
+    input.liability !== undefined && input.liability !== current.liability;
+  const customerAmountChanged =
+    input.customerAmount !== undefined &&
+    Number(input.customerAmount || 0) !== Number(current.customerAmount || 0);
+  const actualCostChanged =
+    input.actualRepairCost !== undefined &&
+    Number(input.actualRepairCost || 0) !== Number(current.actualRepairCost || 0);
+  const orderIdChanged =
+    input.orderId !== undefined &&
+    (input.orderId || null) !== (current.orderId || null);
+
+  const needSyncSettlement =
+    statusChanged || liabilityChanged || customerAmountChanged || actualCostChanged || orderIdChanged;
+
+  if (needSyncSettlement) {
+    const oldOrderId = current.orderId;
+    const newOrderId = merged.orderId;
+
+    if (oldOrderId && oldOrderId !== newOrderId) {
+      removeRepairFeeFromSettlement(db, current);
+    }
+
+    if (merged.status === "completed" && merged.liability === "customer" && merged.orderId) {
+      syncRepairFeeToSettlement(db, merged);
+    } else if (
+      merged.status !== "completed" ||
+      merged.liability !== "customer" ||
+      !merged.orderId
+    ) {
+      removeRepairFeeFromSettlement(db, merged);
     }
   }
 
@@ -167,6 +331,10 @@ export async function advanceRepairStatus(req, res, id) {
   if (nextStatus === "completed") {
     current.completedAt = new Date().toISOString();
     if (equipment) equipment.condition = "available";
+
+    if (current.orderId && current.liability === "customer") {
+      syncRepairFeeToSettlement(db, current);
+    }
   } else if (equipment) {
     equipment.condition = "repair";
   }
@@ -186,6 +354,8 @@ export async function deleteRepair(req, res, id) {
     const equipment = db.equipment.find((e) => e.id === repair.equipmentId);
     if (equipment) equipment.condition = "available";
   }
+
+  removeRepairFeeFromSettlement(db, repair);
 
   db.repairs.splice(idx, 1);
   await saveDb(db);
