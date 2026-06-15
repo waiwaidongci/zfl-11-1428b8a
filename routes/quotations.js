@@ -487,9 +487,11 @@ function hasLockFieldChanged(oldData, newData) {
 }
 
 function hasBusinessFieldChanged(oldData, newData) {
+  const oldItemIds = Array.isArray(oldData.itemIds) ? [...oldData.itemIds].sort() : [];
+  const newItemIds = Array.isArray(newData.itemIds) ? [...newData.itemIds].sort() : [];
   return oldData.startDate !== newData.startDate
     || oldData.endDate !== newData.endDate
-    || JSON.stringify(oldData.itemIds?.sort() || []) !== JSON.stringify(newData.itemIds?.sort() || []);
+    || JSON.stringify(oldItemIds) !== JSON.stringify(newItemIds);
 }
 
 function validateQuoteConflictsForSave(db, quote, exceptQuoteId = null) {
