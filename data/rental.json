@@ -137,6 +137,227 @@
   ],
   "quotations": [
     {
+      "id": "Q-278895",
+      "customer": "测试修改租期",
+      "startDate": "2026-08-01",
+      "endDate": "2026-08-05",
+      "rentalDays": 5,
+      "itemIds": [
+        "L-002"
+      ],
+      "discount": 0,
+      "depositOverride": {},
+      "status": "草稿",
+      "note": "",
+      "lockStartAt": null,
+      "lockEndAt": null,
+      "lockedBy": null,
+      "lockHistory": [],
+      "createdAt": "2026-06-15T02:07:58.895Z",
+      "updatedAt": "2026-06-15T02:07:58.895Z",
+      "versions": [
+        {
+          "versionId": "V-278896",
+          "versionNumber": 1,
+          "createdAt": "2026-06-15T02:07:58.895Z",
+          "createdBy": "user",
+          "snapshot": {
+            "customer": "测试修改租期",
+            "startDate": "2026-08-01",
+            "endDate": "2026-08-05",
+            "rentalDays": 5,
+            "itemIds": [
+              "L-002"
+            ],
+            "items": [
+              {
+                "id": "L-002",
+                "name": "LED帕灯",
+                "spec": "18x10W",
+                "category": "灯具"
+              }
+            ],
+            "discount": 0,
+            "depositOverride": {},
+            "note": "",
+            "summary": {
+              "rentalDays": 5,
+              "subtotal": 600,
+              "discountAmount": 0,
+              "discounted": 600,
+              "totalDeposit": 500,
+              "grandTotal": 1100,
+              "itemBreakdown": [
+                {
+                  "id": "L-002",
+                  "name": "LED帕灯",
+                  "category": "灯具",
+                  "spec": "18x10W",
+                  "daily": 120,
+                  "subtotal": 600,
+                  "deposit": 500
+                }
+              ]
+            },
+            "lockStartAt": null,
+            "lockEndAt": null,
+            "lockedBy": null
+          },
+          "approvalStatus": "pending",
+          "approvedAt": null,
+          "approvedBy": null,
+          "approvalNote": "",
+          "rejectedAt": null,
+          "rejectedBy": null,
+          "rejectionReason": ""
+        }
+      ],
+      "currentVersionId": "V-278896",
+      "approvedVersionId": null
+    },
+    {
+      "id": "Q-175726",
+      "customer": "测试锁定客户",
+      "startDate": "2026-07-01",
+      "endDate": "2026-07-05",
+      "rentalDays": 5,
+      "itemIds": [
+        "L-002"
+      ],
+      "discount": 0,
+      "depositOverride": {},
+      "status": "草稿",
+      "note": "",
+      "lockStartAt": "2026-06-10T00:00:00",
+      "lockEndAt": "2026-07-10T18:00:00",
+      "lockedBy": null,
+      "lockHistory": [
+        {
+          "action": "set",
+          "at": "2026-06-15T02:06:15.727Z",
+          "lockStartAt": "2026-06-20T00:00:00",
+          "lockEndAt": "2026-07-10T18:00:00",
+          "lockedBy": null
+        }
+      ],
+      "createdAt": "2026-06-15T02:06:15.726Z",
+      "updatedAt": "2026-06-15T02:06:33.407Z",
+      "versions": [
+        {
+          "versionId": "V-175727",
+          "versionNumber": 1,
+          "createdAt": "2026-06-15T02:06:15.726Z",
+          "createdBy": "user",
+          "snapshot": {
+            "customer": "测试锁定客户",
+            "startDate": "2026-07-01",
+            "endDate": "2026-07-05",
+            "rentalDays": 5,
+            "itemIds": [
+              "L-002"
+            ],
+            "items": [
+              {
+                "id": "L-002",
+                "name": "LED帕灯",
+                "spec": "18x10W",
+                "category": "灯具"
+              }
+            ],
+            "discount": 0,
+            "depositOverride": {},
+            "note": "",
+            "summary": {
+              "rentalDays": 5,
+              "subtotal": 600,
+              "discountAmount": 0,
+              "discounted": 600,
+              "totalDeposit": 500,
+              "grandTotal": 1100,
+              "itemBreakdown": [
+                {
+                  "id": "L-002",
+                  "name": "LED帕灯",
+                  "category": "灯具",
+                  "spec": "18x10W",
+                  "daily": 120,
+                  "subtotal": 600,
+                  "deposit": 500
+                }
+              ]
+            },
+            "lockStartAt": "2026-06-20T00:00:00",
+            "lockEndAt": "2026-07-10T18:00:00",
+            "lockedBy": null
+          },
+          "approvalStatus": "pending",
+          "approvedAt": null,
+          "approvedBy": null,
+          "approvalNote": "",
+          "rejectedAt": null,
+          "rejectedBy": null,
+          "rejectionReason": ""
+        },
+        {
+          "versionId": "V-193407",
+          "versionNumber": 2,
+          "createdAt": "2026-06-15T02:06:33.407Z",
+          "createdBy": "user",
+          "snapshot": {
+            "customer": "测试锁定客户",
+            "startDate": "2026-07-01",
+            "endDate": "2026-07-05",
+            "rentalDays": 5,
+            "itemIds": [
+              "L-002"
+            ],
+            "items": [
+              {
+                "id": "L-002",
+                "name": "LED帕灯",
+                "spec": "18x10W",
+                "category": "灯具"
+              }
+            ],
+            "discount": 0,
+            "depositOverride": {},
+            "note": "",
+            "summary": {
+              "rentalDays": 5,
+              "subtotal": 600,
+              "discountAmount": 0,
+              "discounted": 600,
+              "totalDeposit": 500,
+              "grandTotal": 1100,
+              "itemBreakdown": [
+                {
+                  "id": "L-002",
+                  "name": "LED帕灯",
+                  "category": "灯具",
+                  "spec": "18x10W",
+                  "daily": 120,
+                  "subtotal": 600,
+                  "deposit": 500
+                }
+              ]
+            },
+            "lockStartAt": "2026-06-10T00:00:00",
+            "lockEndAt": "2026-07-10T18:00:00",
+            "lockedBy": null
+          },
+          "approvalStatus": "pending",
+          "approvedAt": null,
+          "approvedBy": null,
+          "approvalNote": "",
+          "rejectedAt": null,
+          "rejectedBy": null,
+          "rejectionReason": ""
+        }
+      ],
+      "currentVersionId": "V-193407",
+      "approvedVersionId": null
+    },
+    {
       "id": "Q-771752",
       "customer": "审批流转测试客户-修改后",
       "startDate": "2026-07-01",
@@ -194,7 +415,10 @@
                   "deposit": 500
                 }
               ]
-            }
+            },
+            "lockStartAt": null,
+            "lockEndAt": null,
+            "lockedBy": null
           },
           "approvalStatus": "superseded",
           "approvedAt": "2026-06-14T11:16:11.760Z",
@@ -246,7 +470,10 @@
                   "deposit": 500
                 }
               ]
-            }
+            },
+            "lockStartAt": null,
+            "lockEndAt": null,
+            "lockedBy": null
           },
           "approvalStatus": "approved",
           "approvedAt": "2026-06-14T11:16:11.803Z",
@@ -258,7 +485,11 @@
         }
       ],
       "currentVersionId": "V-771795",
-      "approvedVersionId": "V-771795"
+      "approvedVersionId": "V-771795",
+      "lockStartAt": null,
+      "lockEndAt": null,
+      "lockedBy": null,
+      "lockHistory": []
     },
     {
       "id": "Q-678004",
@@ -318,7 +549,10 @@
                   "deposit": 500
                 }
               ]
-            }
+            },
+            "lockStartAt": null,
+            "lockEndAt": null,
+            "lockedBy": null
           },
           "approvalStatus": "superseded",
           "approvedAt": "2026-06-14T11:14:38.185Z",
@@ -370,7 +604,10 @@
                   "deposit": 500
                 }
               ]
-            }
+            },
+            "lockStartAt": null,
+            "lockEndAt": null,
+            "lockedBy": null
           },
           "approvalStatus": "approved",
           "approvedAt": "2026-06-14T11:14:38.688Z",
@@ -382,7 +619,11 @@
         }
       ],
       "currentVersionId": "V-678588",
-      "approvedVersionId": "V-678588"
+      "approvedVersionId": "V-678588",
+      "lockStartAt": null,
+      "lockEndAt": null,
+      "lockedBy": null,
+      "lockHistory": []
     },
     {
       "id": "Q-618731",
@@ -442,7 +683,10 @@
                   "deposit": 500
                 }
               ]
-            }
+            },
+            "lockStartAt": null,
+            "lockEndAt": null,
+            "lockedBy": null
           },
           "approvalStatus": "approved",
           "approvedAt": "2026-06-14T11:13:39.342Z",
@@ -454,7 +698,11 @@
         }
       ],
       "currentVersionId": "V-618764",
-      "approvedVersionId": "V-618764"
+      "approvedVersionId": "V-618764",
+      "lockStartAt": null,
+      "lockEndAt": null,
+      "lockedBy": null,
+      "lockHistory": []
     },
     {
       "id": "Q-707092",
@@ -531,7 +779,10 @@
                   "deposit": 2000
                 }
               ]
-            }
+            },
+            "lockStartAt": null,
+            "lockEndAt": null,
+            "lockedBy": null
           },
           "approvalStatus": "pending",
           "approvedAt": null,
@@ -599,7 +850,10 @@
                   "deposit": 2000
                 }
               ]
-            }
+            },
+            "lockStartAt": null,
+            "lockEndAt": null,
+            "lockedBy": null
           },
           "approvalStatus": "approved",
           "approvedAt": "2026-06-14T10:42:37.031Z",
@@ -651,7 +905,10 @@
                   "deposit": 500
                 }
               ]
-            }
+            },
+            "lockStartAt": null,
+            "lockEndAt": null,
+            "lockedBy": null
           },
           "approvalStatus": "rejected",
           "approvedAt": null,
@@ -663,7 +920,11 @@
         }
       ],
       "currentVersionId": "V-707092",
-      "approvedVersionId": "V-721204"
+      "approvedVersionId": "V-721204",
+      "lockStartAt": null,
+      "lockEndAt": null,
+      "lockedBy": null,
+      "lockHistory": []
     },
     {
       "id": "Q-081615",
@@ -700,7 +961,10 @@
             ],
             "discount": 0.1,
             "depositOverride": {},
-            "note": "浏览器自动化集成测试"
+            "note": "浏览器自动化集成测试",
+            "lockStartAt": null,
+            "lockEndAt": null,
+            "lockedBy": null
           },
           "approvalStatus": "approved",
           "approvedAt": "2026-06-13T23:58:01.616Z",
@@ -712,7 +976,11 @@
         }
       ],
       "currentVersionId": "V-081616",
-      "approvedVersionId": "V-081616"
+      "approvedVersionId": "V-081616",
+      "lockStartAt": null,
+      "lockEndAt": null,
+      "lockedBy": null,
+      "lockHistory": []
     },
     {
       "id": "Q-891569",
@@ -751,7 +1019,10 @@
             ],
             "discount": 0.1,
             "depositOverride": {},
-            "note": "周年庆活动测试"
+            "note": "周年庆活动测试",
+            "lockStartAt": null,
+            "lockEndAt": null,
+            "lockedBy": null
           },
           "approvalStatus": "approved",
           "approvedAt": "2026-06-13T23:55:04.692Z",
@@ -763,7 +1034,11 @@
         }
       ],
       "currentVersionId": "V-891569",
-      "approvedVersionId": "V-891569"
+      "approvedVersionId": "V-891569",
+      "lockStartAt": null,
+      "lockEndAt": null,
+      "lockedBy": null,
+      "lockHistory": []
     }
   ],
   "repairs": [

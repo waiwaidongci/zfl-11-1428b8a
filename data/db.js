@@ -290,6 +290,8 @@ export function isQuoteLockActive(quote, atTime = new Date()) {
   if (["已转订单", "已取消"].includes(quote.status)) return false;
   const now = new Date(atTime);
   const lockEnd = new Date(quote.lockEndAt);
+  const lockStart = quote.lockStartAt ? new Date(quote.lockStartAt) : null;
+  if (lockStart && now < lockStart) return false;
   return now <= lockEnd;
 }
 
@@ -303,22 +305,35 @@ export function getQuoteLockStatus(quote, atTime = new Date()) {
   const now = new Date(atTime);
   const lockEnd = new Date(quote.lockEndAt);
   const lockStart = quote.lockStartAt ? new Date(quote.lockStartAt) : null;
-  if (now <= lockEnd) {
+  const notStartedYet = lockStart && now < lockStart;
+  if (notStartedYet) {
+    return {
+      locked: false,
+      expired: false,
+      neverLocked: false,
+      notStartedYet: true,
+      lockStartAt: quote.lockStartAt,
+      lockEndAt: quote.lockEndAt,
+      lockedBy: quote.lockedBy || null,
+      remainingMs: lockStart.getTime() - now.getTime()
+    };
+  } else if (now <= lockEnd) {
     return {
       locked: true,
       expired: false,
       neverLocked: false,
+      notStartedYet: false,
       lockStartAt: quote.lockStartAt,
       lockEndAt: quote.lockEndAt,
       lockedBy: quote.lockedBy || null,
-      remainingMs: lockEnd.getTime() - now.getTime(),
-      notStartedYet: lockStart ? now < lockStart : false
+      remainingMs: lockEnd.getTime() - now.getTime()
     };
   } else {
     return {
       locked: false,
       expired: true,
       neverLocked: false,
+      notStartedYet: false,
       lockStartAt: quote.lockStartAt,
       lockEndAt: quote.lockEndAt,
       lockedBy: quote.lockedBy || null,

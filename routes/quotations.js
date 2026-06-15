@@ -241,17 +241,45 @@ export async function approveVersion(req, res, quoteId, versionId) {
   quote.currentVersionId = version.versionId;
 
   const snapshot = version.snapshot;
-  quote.customer = snapshot.customer;
-  quote.startDate = snapshot.startDate;
-  quote.endDate = snapshot.endDate;
-  quote.rentalDays = snapshot.rentalDays;
-  quote.itemIds = [...(snapshot.itemIds || [])];
-  quote.discount = snapshot.discount;
-  quote.depositOverride = snapshot.depositOverride ? { ...snapshot.depositOverride } : {};
-  quote.note = snapshot.note;
-  quote.lockStartAt = snapshot.lockStartAt ?? null;
-  quote.lockEndAt = snapshot.lockEndAt ?? null;
-  quote.lockedBy = snapshot.lockedBy ?? null;
+  const previewQuote = {
+    ...quote,
+    customer: snapshot.customer,
+    startDate: snapshot.startDate,
+    endDate: snapshot.endDate,
+    rentalDays: snapshot.rentalDays,
+    itemIds: [...(snapshot.itemIds || [])],
+    discount: snapshot.discount,
+    depositOverride: snapshot.depositOverride ? { ...snapshot.depositOverride } : {},
+    note: snapshot.note,
+    lockStartAt: snapshot.lockStartAt ?? null,
+    lockEndAt: snapshot.lockEndAt ?? null,
+    lockedBy: snapshot.lockedBy ?? null
+  };
+
+  const validation = validateQuoteConflictsForSave(db, previewQuote, quote.id);
+  if (!validation.valid) {
+    return sendJson(res, 409, {
+      error: `审批失败：${validation.errors.join("；")}`,
+      details: {
+        repair: validation.repair,
+        conflicts: validation.conflicts,
+        quoteLocks: validation.quoteLocks,
+        missing: validation.missing
+      }
+    });
+  }
+
+  quote.customer = previewQuote.customer;
+  quote.startDate = previewQuote.startDate;
+  quote.endDate = previewQuote.endDate;
+  quote.rentalDays = previewQuote.rentalDays;
+  quote.itemIds = previewQuote.itemIds;
+  quote.discount = previewQuote.discount;
+  quote.depositOverride = previewQuote.depositOverride;
+  quote.note = previewQuote.note;
+  quote.lockStartAt = previewQuote.lockStartAt;
+  quote.lockEndAt = previewQuote.lockEndAt;
+  quote.lockedBy = previewQuote.lockedBy;
 
   if (quote.status === "草稿") {
     quote.status = "已确认";
@@ -309,28 +337,58 @@ export async function restoreVersion(req, res, quoteId, versionId) {
   if (!version) return sendJson(res, 404, { error: "version_not_found" });
 
   const snapshot = version.snapshot;
-  quote.customer = snapshot.customer;
-  quote.startDate = snapshot.startDate;
-  quote.endDate = snapshot.endDate;
-  quote.rentalDays = snapshot.rentalDays;
-  quote.itemIds = [...(snapshot.itemIds || [])];
-  quote.discount = snapshot.discount;
-  quote.depositOverride = snapshot.depositOverride ? { ...snapshot.depositOverride } : {};
-  quote.note = snapshot.note;
-  quote.lockStartAt = snapshot.lockStartAt ?? null;
-  quote.lockEndAt = snapshot.lockEndAt ?? null;
-  quote.lockedBy = snapshot.lockedBy ?? null;
-  quote.currentVersionId = version.versionId;
+  const previewQuote = {
+    ...quote,
+    customer: snapshot.customer,
+    startDate: snapshot.startDate,
+    endDate: snapshot.endDate,
+    rentalDays: snapshot.rentalDays,
+    itemIds: [...(snapshot.itemIds || [])],
+    discount: snapshot.discount,
+    depositOverride: snapshot.depositOverride ? { ...snapshot.depositOverride } : {},
+    note: snapshot.note,
+    lockStartAt: snapshot.lockStartAt ?? null,
+    lockEndAt: snapshot.lockEndAt ?? null,
+    lockedBy: snapshot.lockedBy ?? null,
+    currentVersionId: version.versionId
+  };
 
   if (version.approvalStatus === "approved" && quote.approvedVersionId === version.versionId) {
-    if (quote.status !== "已转订单") {
-      quote.status = "已确认";
+    if (previewQuote.status !== "已转订单") {
+      previewQuote.status = "已确认";
     }
   } else {
-    if (quote.status === "已确认" || quote.status === "已取消") {
-      quote.status = "草稿";
+    if (previewQuote.status === "已确认" || previewQuote.status === "已取消") {
+      previewQuote.status = "草稿";
     }
   }
+
+  const validation = validateQuoteConflictsForSave(db, previewQuote, quote.id);
+  if (!validation.valid) {
+    return sendJson(res, 409, {
+      error: `恢复版本失败：${validation.errors.join("；")}`,
+      details: {
+        repair: validation.repair,
+        conflicts: validation.conflicts,
+        quoteLocks: validation.quoteLocks,
+        missing: validation.missing
+      }
+    });
+  }
+
+  quote.customer = previewQuote.customer;
+  quote.startDate = previewQuote.startDate;
+  quote.endDate = previewQuote.endDate;
+  quote.rentalDays = previewQuote.rentalDays;
+  quote.itemIds = previewQuote.itemIds;
+  quote.discount = previewQuote.discount;
+  quote.depositOverride = previewQuote.depositOverride;
+  quote.note = previewQuote.note;
+  quote.lockStartAt = previewQuote.lockStartAt;
+  quote.lockEndAt = previewQuote.lockEndAt;
+  quote.lockedBy = previewQuote.lockedBy;
+  quote.currentVersionId = previewQuote.currentVersionId;
+  quote.status = previewQuote.status;
   quote.updatedAt = new Date().toISOString();
 
   await saveDb(db);
@@ -428,6 +486,19 @@ function hasLockFieldChanged(oldData, newData) {
   return false;
 }
 
+function hasBusinessFieldChanged(oldData, newData) {
+  return oldData.startDate !== newData.startDate
+    || oldData.endDate !== newData.endDate
+    || JSON.stringify(oldData.itemIds?.sort() || []) !== JSON.stringify(newData.itemIds?.sort() || []);
+}
+
+function validateQuoteConflictsForSave(db, quote, exceptQuoteId = null) {
+  if (!quote.itemIds?.length || !quote.startDate || !quote.endDate) {
+    return { valid: true, errors: [], repair: [], conflicts: [], quoteLocks: [], missing: [] };
+  }
+  return validateEquipmentForQuotation(db, quote.itemIds, quote.startDate, quote.endDate, exceptQuoteId);
+}
+
 export async function createQuotation(req, res) {
   const db = await loadDb();
   const input = await parseBody(req);
@@ -467,25 +538,19 @@ export async function createQuotation(req, res) {
     });
   }
 
+  const validation = validateQuoteConflictsForSave(db, quotation, quotation.id);
+  if (!validation.valid) {
+    return sendJson(res, 409, {
+      error: validation.errors.join("；"),
+      details: {
+        repair: validation.repair,
+        conflicts: validation.conflicts,
+        quoteLocks: validation.quoteLocks,
+        missing: validation.missing
+      }
+    });
+  }
   if (quotation.lockEndAt) {
-    const lockValidation = validateEquipmentForQuotation(
-      db,
-      quotation.itemIds,
-      quotation.startDate,
-      quotation.endDate,
-      quotation.id
-    );
-    if (!lockValidation.valid) {
-      return sendJson(res, 409, {
-        error: `设置锁定失败：${lockValidation.errors.join("；")}`,
-        details: {
-          repair: lockValidation.repair,
-          conflicts: lockValidation.conflicts,
-          quoteLocks: lockValidation.quoteLocks,
-          missing: lockValidation.missing
-        }
-      });
-    }
     addQuoteLockHistory(quotation, "set", {
       lockStartAt: quotation.lockStartAt,
       lockEndAt: quotation.lockEndAt,
@@ -582,25 +647,23 @@ export async function updateQuotation(req, res, id) {
     }
   }
 
-  if (lockChanged && newLockEnd && newLockEnd !== oldLockEnd) {
-    const lockValidation = validateEquipmentForQuotation(
-      db,
-      merged.itemIds,
-      merged.startDate,
-      merged.endDate,
-      merged.id
-    );
-    if (!lockValidation.valid) {
+  const needsConflictCheck = hasBusinessFieldChanged(current, merged) || (lockChanged && newLockEnd && newLockEnd !== oldLockEnd);
+  if (needsConflictCheck) {
+    const validation = validateQuoteConflictsForSave(db, merged, merged.id);
+    if (!validation.valid) {
       return sendJson(res, 409, {
-        error: `设置锁定失败：${lockValidation.errors.join("；")}`,
+        error: validation.errors.join("；"),
         details: {
-          repair: lockValidation.repair,
-          conflicts: lockValidation.conflicts,
-          quoteLocks: lockValidation.quoteLocks,
-          missing: lockValidation.missing
+          repair: validation.repair,
+          conflicts: validation.conflicts,
+          quoteLocks: validation.quoteLocks,
+          missing: validation.missing
         }
       });
     }
+  }
+
+  if (lockChanged && newLockEnd && newLockEnd !== oldLockEnd) {
     if (!current.lockHistory) current.lockHistory = [];
     addQuoteLockHistory(current, "update", {
       oldLockStartAt: current.lockStartAt,
