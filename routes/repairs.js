@@ -54,7 +54,10 @@ function syncRepairFeeToSettlement(db, repair) {
   if (repair.liability !== "customer") return null;
 
   const amount = Number(repair.customerAmount || repair.actualRepairCost || repair.repairCost || 0);
-  if (amount <= 0) return null;
+  if (amount <= 0) {
+    removeRepairFeeFromSettlement(db, repair);
+    return null;
+  }
 
   const { settlement, isNew } = ensureSettlement(db, repair.orderId);
   if (isNew) {

@@ -313,7 +313,7 @@ function renderFeeList() {
 
       let sourceLink = "";
       if (f.source === "repair" && f.sourceId) {
-        sourceLink = `<a href="/repairs.html?id=${encodeURIComponent(f.sourceId)}" target="_blank" class="fee-source-link">查看工单 →</a>`;
+        sourceLink = `<a href="/repairs?id=${encodeURIComponent(f.sourceId)}" target="_blank" class="fee-source-link">查看工单 →</a>`;
       }
 
       return `

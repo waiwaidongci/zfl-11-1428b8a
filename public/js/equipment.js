@@ -175,7 +175,7 @@ function renderList() {
     viewRepairBtns.forEach((btn) => {
       btn.addEventListener("click", () => {
         const rid = btn.dataset.repairId;
-        window.location.href = `/repairs?highlight=${rid}`;
+        window.location.href = `/repairs?id=${rid}`;
       });
     });
 

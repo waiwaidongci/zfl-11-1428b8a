@@ -189,7 +189,7 @@ function renderList() {
           r.orderId
             ? `<div class="repair-meta-item">
             <span class="repair-meta-label">关联订单</span>
-            <span class="repair-meta-value"><a href="/orders.html?id=${encodeURIComponent(r.orderId)}" target="_blank">${escapeHtml(r.orderId)}</a></span>
+            <span class="repair-meta-value"><a href="/?id=${encodeURIComponent(r.orderId)}" target="_blank">${escapeHtml(r.orderId)}</a></span>
           </div>`
             : ""
         }
