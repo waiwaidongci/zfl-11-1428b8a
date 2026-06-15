@@ -12,7 +12,10 @@ const state = {
   detailFilters: {
     result: ""
   },
-  view: "list"
+  view: "list",
+  detailMode: "table",
+  quickLogs: [],
+  quickLogCounter: 0
 };
 
 const $ = (id) => document.getElementById(id);
@@ -28,6 +31,21 @@ const detailStats = $("detailStats");
 const detailItems = $("detailItems");
 const detailCountInfo = $("detailCountInfo");
 const resultFilter = $("resultFilter");
+
+const tableViewPanel = $("tableViewPanel");
+const quickViewPanel = $("quickViewPanel");
+const quickScanInput = $("quickScanInput");
+const quickActualLocation = $("quickActualLocation");
+const quickLocationField = $("quickLocationField");
+const quickProgressBar = $("quickProgressBar");
+const quickProgressText = $("quickProgressText");
+const quickCountInfo = $("quickCountInfo");
+const qsNormal = $("qsNormal");
+const qsDamaged = $("qsDamaged");
+const qsMissing = $("qsMissing");
+const qsMismatch = $("qsMismatch");
+const qsUnmarked = $("qsUnmarked");
+const quickLogList = $("quickLogList");
 
 const createModal = $("createModal");
 const createForm = $("createForm");
@@ -323,6 +341,89 @@ function renderDetail() {
     if (missingBtn) missingBtn.addEventListener("click", () => processMissing(equipmentId));
     if (mismatchBtn) mismatchBtn.addEventListener("click", () => processMismatch(equipmentId));
   });
+
+  renderQuickStats();
+}
+
+function renderQuickStats() {
+  const s = state.currentStocktake;
+  if (!s) return;
+  const stats = s.stats || { total: 0, normal: 0, missing: 0, damaged: 0, mismatch: 0, pending: 0 };
+  const total = stats.total;
+  const done = stats.normal + stats.missing + stats.damaged + stats.mismatch;
+  const unmarked = total - done;
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+
+  quickProgressBar.style.width = `${pct}%`;
+  quickProgressText.textContent = `${done} / ${total} (${pct}%)`;
+  quickCountInfo.textContent = `已完成 ${done} / 共 ${total} 台`;
+
+  qsNormal.textContent = stats.normal;
+  qsDamaged.textContent = stats.damaged;
+  qsMissing.textContent = stats.missing;
+  qsMismatch.textContent = stats.mismatch;
+  qsUnmarked.textContent = unmarked;
+}
+
+function renderQuickLogs() {
+  if (state.quickLogs.length === 0) {
+    quickLogList.innerHTML = `
+      <div style="padding:40px 20px;text-align:center;color:var(--muted);font-size:13px">
+        <div style="font-size:36px;margin-bottom:10px">📋</div>
+        开始扫描设备编号，扫码记录将显示在此处
+      </div>`;
+    return;
+  }
+
+  quickLogList.innerHTML = state.quickLogs
+    .map((log) => {
+      const badge = log.success
+        ? getResultBadge(log.result, log.result === "normal")
+        : `<span class="badge result-unmarked" style="background:#fde1dd;color:var(--red)">✗ ${log.errorTitle}</span>`;
+
+      const msgCls = log.success
+        ? (log.isDuplicate ? "warn" : "")
+        : "error";
+      const msgText = log.success
+        ? (log.isDuplicate ? `重复扫码，已覆盖原结果「${log.previousResultLabel}」` : "")
+        : log.message;
+
+      const rowCls = log.success ? (log.isDuplicate ? "highlight" : "") : "";
+
+      return `
+        <div class="quick-log-item ${rowCls}">
+          <div class="ql-index">${log.idx}</div>
+          <div class="ql-main">
+            <div class="ql-head">
+              <span class="ql-name">${escapeHtml(log.name)}</span>
+              <span class="ql-id">${escapeHtml(log.equipmentId)}</span>
+            </div>
+            <div class="ql-sub">
+              ${log.category ? `<span class="ql-cat cat-${escapeCss(log.category)}">${escapeHtml(log.category)}</span>` : ""}
+              ${log.location ? `<span>预期位置: ${escapeHtml(log.location)}</span>` : ""}
+            </div>
+            ${msgText ? `<div class="ql-msg ${msgCls}">${escapeHtml(msgText)}</div>` : ""}
+          </div>
+          <div class="ql-badge">${badge}</div>
+        </div>
+      `;
+    })
+    .join("");
+
+  quickLogList.scrollTop = 0;
+}
+
+function addQuickLog(log) {
+  state.quickLogCounter++;
+  state.quickLogs.unshift({
+    idx: state.quickLogCounter,
+    time: new Date().toISOString(),
+    ...log
+  });
+  if (state.quickLogs.length > 100) {
+    state.quickLogs.pop();
+  }
+  renderQuickLogs();
 }
 
 function openDetail(id) {
@@ -331,10 +432,15 @@ function openDetail(id) {
   state.currentStocktake = s;
   state.detailFilters.result = "";
   resultFilter.value = "";
+  state.quickLogs = [];
+  state.quickLogCounter = 0;
+  state.detailMode = "table";
   listView.classList.add("hidden");
   detailView.classList.remove("hidden");
   state.view = "detail";
+  updateViewSwitch();
   renderDetail();
+  renderQuickLogs();
 }
 
 function backToList() {
@@ -343,6 +449,24 @@ function backToList() {
   detailView.classList.add("hidden");
   listView.classList.remove("hidden");
   load();
+}
+
+function updateViewSwitch() {
+  document.querySelectorAll(".view-switch-btn").forEach((btn) => {
+    const v = btn.dataset.view;
+    btn.classList.toggle("active", v === state.detailMode);
+  });
+  tableViewPanel.classList.toggle("hidden", state.detailMode !== "table");
+  quickViewPanel.classList.toggle("hidden", state.detailMode !== "quick");
+  if (state.detailMode === "quick") {
+    setTimeout(() => quickScanInput?.focus(), 100);
+  }
+}
+
+function switchDetailMode(mode) {
+  if (!["table", "quick"].includes(mode)) return;
+  state.detailMode = mode;
+  updateViewSwitch();
 }
 
 function openCreateModal() {
@@ -726,6 +850,132 @@ function closeDiffReport() {
   diffReportModal.classList.add("hidden");
 }
 
+function toggleQuickLocationField() {
+  const result = document.querySelector('input[name="quickResult"]:checked')?.value;
+  if (result === "mismatch") {
+    quickLocationField.classList.remove("hidden");
+  } else {
+    quickLocationField.classList.add("hidden");
+    if (quickActualLocation) quickActualLocation.value = "";
+  }
+}
+
+async function handleQuickScan() {
+  const s = state.currentStocktake;
+  if (!s) return;
+  if (s.status !== "processing") {
+    showToast("只有进行中的盘点才能扫码录入", "error");
+    return;
+  }
+
+  const equipmentId = quickScanInput.value.trim();
+  if (!equipmentId) return;
+
+  const result = document.querySelector('input[name="quickResult"]:checked')?.value || "normal";
+  const actualLocation = quickActualLocation?.value.trim() || "";
+
+  if (result === "mismatch" && !actualLocation) {
+    showToast("选择库位不符时请填写实际位置", "error");
+    quickActualLocation?.focus();
+    addQuickLog({
+      success: false,
+      equipmentId,
+      name: "库位信息缺失",
+      category: "",
+      location: "",
+      result: "",
+      message: "选择库位不符时必须填写实际位置",
+      errorTitle: "参数错误"
+    });
+    return;
+  }
+
+  quickScanInput.disabled = true;
+
+  try {
+    const response = await Stocktakes.scan(s.id, {
+      equipmentId,
+      result,
+      actualLocation,
+      remark: ""
+    });
+
+    state.currentStocktake = response.stocktake;
+    const listIdx = state.list.findIndex((x) => x.id === response.stocktake.id);
+    if (listIdx !== -1) state.list[listIdx] = response.stocktake;
+
+    const item = response.item;
+    addQuickLog({
+      success: true,
+      equipmentId: item.equipmentId,
+      name: item.equipmentName,
+      category: item.category,
+      location: item.expectedLocation,
+      result: item.result,
+      isDuplicate: response.isDuplicate,
+      previousResultLabel: response.previousResultLabel
+    });
+
+    if (response.isDuplicate) {
+      showToast(`已覆盖原结果「${response.previousResultLabel}」`, "warn");
+    } else {
+      showToast(`${item.equipmentName} 已标记为「${STOCKTAKE_RESULT_LABELS[item.result]}」`);
+    }
+
+    renderStats();
+    renderList();
+    renderDetail();
+
+  } catch (err) {
+    const code = err.code || err.message?.includes("code:") ? "" : "";
+    let errorTitle = "扫码失败";
+    let name = equipmentId;
+    let category = "";
+    let location = "";
+    let message = err.message;
+
+    if (err.message?.includes("不在本次盘点范围内")) {
+      errorTitle = "范围外设备";
+      if (err.equipment) {
+        name = err.equipment.name;
+        category = err.equipment.category;
+      }
+    } else if (err.message?.includes("不存在")) {
+      errorTitle = "设备不存在";
+      name = `未知设备 (${equipmentId})`;
+    } else if (err.message?.includes("差异已处理")) {
+      errorTitle = "已处理差异";
+      if (err.item) {
+        name = err.item.equipmentName;
+        category = err.item.category;
+        message = `该设备标记为「${err.item.resultLabel}」的差异已处理`;
+      }
+    } else if (err.message?.includes("已完成或已取消")) {
+      errorTitle = "任务已结束";
+    }
+
+    addQuickLog({
+      success: false,
+      equipmentId,
+      name,
+      category,
+      location,
+      result: "",
+      message,
+      errorTitle
+    });
+
+    showToast(message, "error");
+  } finally {
+    quickScanInput.disabled = false;
+    quickScanInput.value = "";
+    if (result !== "mismatch" && quickActualLocation) {
+      quickActualLocation.value = "";
+    }
+    setTimeout(() => quickScanInput.focus(), 50);
+  }
+}
+
 async function load() {
   try {
     const [stocktakes, equipment] = await Promise.all([Stocktakes.list(), Equipment.list()]);
@@ -753,6 +1003,39 @@ $("submitResultBtn").addEventListener("click", submitResult);
 resultForm.querySelectorAll('input[name="result"]').forEach((radio) => {
   radio.addEventListener("change", toggleActualLocationField);
 });
+
+document.querySelectorAll('input[name="quickResult"]').forEach((radio) => {
+  radio.addEventListener("change", toggleQuickLocationField);
+});
+
+document.querySelectorAll(".view-switch-btn").forEach((btn) => {
+  btn.addEventListener("click", () => switchDetailMode(btn.dataset.view));
+});
+
+if (quickScanInput) {
+  quickScanInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleQuickScan();
+    }
+  });
+  quickScanInput.addEventListener("paste", (e) => {
+    setTimeout(() => {
+      if (quickScanInput.value.trim()) {
+        handleQuickScan();
+      }
+    }, 10);
+  });
+}
+
+if (quickActualLocation) {
+  quickActualLocation.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleQuickScan();
+    }
+  });
+}
 
 $("closeDamagedModal").addEventListener("click", closeDamagedModal);
 $("cancelDamagedBtn").addEventListener("click", closeDamagedModal);

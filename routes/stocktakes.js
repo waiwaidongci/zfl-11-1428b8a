@@ -178,6 +178,106 @@ export async function updateStocktake(req, res, id) {
   return sendJson(res, 200, buildStocktakePayload(db, stocktake));
 }
 
+export async function scanStocktakeItem(req, res, id) {
+  const db = await loadDb();
+  const stocktake = (db.stocktakes || []).find((s) => s.id === id);
+  if (!stocktake) return sendJson(res, 404, { error: "stocktake_not_found" });
+  if (stocktake.status === "completed" || stocktake.status === "cancelled") {
+    return sendJson(res, 400, { error: "该盘点任务已完成或已取消，无法修改" });
+  }
+
+  const input = await parseBody(req);
+  const equipmentId = String(input.equipmentId || "").trim();
+  const result = input.result || "normal";
+  const actualLocation = String(input.actualLocation || "").trim();
+  const remark = String(input.remark || "").trim();
+
+  if (!equipmentId) {
+    return sendJson(res, 400, { error: "请输入设备编号", code: "empty_id" });
+  }
+
+  const validResults = new Set([...STOCKTAKE_RESULT_TYPES]);
+  if (!validResults.has(result)) {
+    return sendJson(res, 400, { error: `无效的盘点结果: ${result}`, code: "invalid_result" });
+  }
+
+  if (result === "mismatch" && !actualLocation) {
+    return sendJson(res, 400, { error: "库位不符必须填写实际位置", code: "missing_location" });
+  }
+
+  const item = stocktake.items.find((i) => i.equipmentId === equipmentId);
+  if (!item) {
+    const allEquipment = db.equipment.find((e) => e.id === equipmentId);
+    if (allEquipment) {
+      return sendJson(res, 400, {
+        error: `设备「${allEquipment.name} (${equipmentId})」不在本次盘点范围内`,
+        code: "not_in_stocktake",
+        equipment: { id: allEquipment.id, name: allEquipment.name, category: allEquipment.category }
+      });
+    } else {
+      return sendJson(res, 400, {
+        error: `设备编号「${equipmentId}」不存在`,
+        code: "equipment_not_found"
+      });
+    }
+  }
+
+  const isDuplicate = !!item.result;
+  const isProcessedDiff = item.processed && item.result !== "normal";
+
+  if (isProcessedDiff) {
+    return sendJson(res, 400, {
+      error: `设备「${item.equipmentName} (${equipmentId})」的差异已处理，无法重新扫码`,
+      code: "diff_already_processed",
+      item: {
+        equipmentId: item.equipmentId,
+        equipmentName: item.equipmentName,
+        category: item.category,
+        result: item.result,
+        resultLabel: STOCKTAKE_RESULT_LABELS[item.result] || item.result
+      }
+    });
+  }
+
+  const previousResult = item.result;
+  item.result = result;
+  item.actualLocation = actualLocation;
+  if (remark) item.remark = remark;
+  if (result === "normal") {
+    item.processed = true;
+  } else {
+    item.processed = false;
+  }
+
+  await saveDb(db);
+
+  const eqMap = new Map(db.equipment.map((e) => [e.id, e]));
+  const eq = eqMap.get(item.equipmentId);
+  const itemWithEquipment = {
+    ...item,
+    equipment: eq
+      ? {
+          id: eq.id,
+          name: eq.name,
+          category: eq.category,
+          spec: eq.spec,
+          location: eq.location,
+          condition: eq.condition
+        }
+      : null,
+    resultLabel: STOCKTAKE_RESULT_LABELS[item.result] || item.result
+  };
+
+  return sendJson(res, 200, {
+    ok: true,
+    isDuplicate,
+    previousResult,
+    previousResultLabel: previousResult ? STOCKTAKE_RESULT_LABELS[previousResult] || previousResult : null,
+    item: itemWithEquipment,
+    stocktake: buildStocktakePayload(db, stocktake)
+  });
+}
+
 export async function submitStocktake(req, res, id) {
   const db = await loadDb();
   const idx = (db.stocktakes || []).findIndex((s) => s.id === id);

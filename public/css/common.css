@@ -363,6 +363,7 @@ button.small {
 .toast.success { background: var(--green); }
 .toast.error { background: var(--red); }
 .toast.info { background: var(--blue); }
+.toast.warn { background: var(--yellow); }
 
 @keyframes slideIn {
   from { transform: translateX(40px); opacity: 0; }

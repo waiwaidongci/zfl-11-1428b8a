@@ -79,6 +79,7 @@ import {
   getStocktake,
   createStocktake,
   updateStocktake,
+  scanStocktakeItem,
   submitStocktake,
   processDamaged,
   processMissing,
@@ -335,6 +336,11 @@ const server = http.createServer(async (req, res) => {
       if (req.method === "GET") return getStocktake(req, res, id);
       if (req.method === "PATCH") return updateStocktake(req, res, id);
       if (req.method === "DELETE") return deleteStocktake(req, res, id);
+    }
+
+    const stocktakeScanMatch = p.match(/^\/api\/stocktakes\/([^/]+)\/scan$/);
+    if (stocktakeScanMatch && req.method === "POST") {
+      return scanStocktakeItem(req, res, decodeURIComponent(stocktakeScanMatch[1]));
     }
 
     const stocktakeSubmitMatch = p.match(/^\/api\/stocktakes\/([^/]+)\/submit$/);

@@ -4,7 +4,13 @@ async function api(path, options) {
     headers: { "Content-Type": "application/json" }
   } : options);
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "请求失败");
+  if (!res.ok) {
+    const err = new Error(data.error || "请求失败");
+    if (data.code) err.code = data.code;
+    if (data.equipment) err.equipment = data.equipment;
+    if (data.item) err.item = data.item;
+    throw err;
+  }
   return data;
 }
 
@@ -253,6 +259,7 @@ export const Stocktakes = {
   get: (id) => api(`/api/stocktakes/${id}`),
   create: (data) => api("/api/stocktakes", { method: "POST", body: JSON.stringify(data) }),
   update: (id, data) => api(`/api/stocktakes/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  scan: (id, data) => api(`/api/stocktakes/${id}/scan`, { method: "POST", body: JSON.stringify(data) }),
   submit: (id) => api(`/api/stocktakes/${id}/submit`, { method: "POST" }),
   cancel: (id) => api(`/api/stocktakes/${id}/cancel`, { method: "POST" }),
   remove: (id) => api(`/api/stocktakes/${id}`, { method: "DELETE" }),

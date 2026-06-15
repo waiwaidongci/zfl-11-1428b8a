@@ -1245,7 +1245,103 @@
       "createdAt": "2026-06-15T02:41:03.442Z"
     }
   ],
-  "stocktakes": [],
+  "stocktakes": [
+    {
+      "id": "ST-638376",
+      "name": "2026年6月月末盘点测试",
+      "category": "",
+      "status": "processing",
+      "note": "",
+      "items": [
+        {
+          "equipmentId": "T-NEW001",
+          "equipmentName": "新桁架",
+          "category": "桁架",
+          "spec": "400mm 3m",
+          "expectedLocation": "外场架",
+          "actualLocation": "",
+          "result": "damaged",
+          "remark": "",
+          "processed": false,
+          "linkedRepairId": null
+        },
+        {
+          "equipmentId": "C-NEW001",
+          "equipmentName": "新控台",
+          "category": "控台",
+          "spec": "",
+          "expectedLocation": "控台柜",
+          "actualLocation": "副仓C区",
+          "result": "mismatch",
+          "remark": "",
+          "processed": false,
+          "linkedRepairId": null
+        },
+        {
+          "equipmentId": "L-NEW002",
+          "equipmentName": "LED染色灯",
+          "category": "灯具",
+          "spec": "18颗四合一",
+          "expectedLocation": "主仓B",
+          "actualLocation": "",
+          "result": "",
+          "remark": "",
+          "processed": false,
+          "linkedRepairId": null
+        },
+        {
+          "equipmentId": "L-NEW001",
+          "equipmentName": "新光束灯",
+          "category": "灯具",
+          "spec": "230W 7R",
+          "expectedLocation": "主仓A",
+          "actualLocation": "",
+          "result": "",
+          "remark": "",
+          "processed": false,
+          "linkedRepairId": null
+        },
+        {
+          "equipmentId": "L-443651",
+          "equipmentName": "230W光束灯",
+          "category": "灯具",
+          "spec": "7R 230W",
+          "expectedLocation": "主仓A",
+          "actualLocation": "",
+          "result": "",
+          "remark": "",
+          "processed": false,
+          "linkedRepairId": null
+        },
+        {
+          "equipmentId": "L-002",
+          "equipmentName": "LED帕灯",
+          "category": "灯具",
+          "spec": "18x10W",
+          "expectedLocation": "主仓B",
+          "actualLocation": "",
+          "result": "normal",
+          "remark": "",
+          "processed": true,
+          "linkedRepairId": null
+        },
+        {
+          "equipmentId": "C-001",
+          "equipmentName": "MA控台",
+          "category": "控台",
+          "spec": "Command Wing",
+          "expectedLocation": "控台柜",
+          "actualLocation": "",
+          "result": "",
+          "remark": "",
+          "processed": false,
+          "linkedRepairId": null
+        }
+      ],
+      "createdAt": "2026-06-15T03:37:18.376Z",
+      "completedAt": null
+    }
+  ],
   "handoverDrafts": [],
   "paymentPlans": [
     {

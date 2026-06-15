@@ -62,7 +62,7 @@
 
     <div class="stats" id="detailStats"></div>
 
-    <div class="panel">
+    <div class="panel" id="tableViewPanel">
       <div class="toolbar">
         <select id="resultFilter">
           <option value="">全部设备</option>
@@ -74,11 +74,76 @@
           <option value="pending">待处理</option>
           <option value="processed">已处理</option>
         </select>
+        <div class="view-switch">
+          <button class="view-switch-btn active" data-view="table">📋 表格模式</button>
+          <button class="view-switch-btn" data-view="quick">⚡ 快速录入</button>
+        </div>
         <span class="toolbar-spacer"></span>
         <span class="meta" id="detailCountInfo"></span>
       </div>
 
       <div id="detailItems" class="stocktake-items"></div>
+    </div>
+
+    <div class="panel hidden" id="quickViewPanel">
+      <div class="toolbar">
+        <div class="view-switch">
+          <button class="view-switch-btn" data-view="table">📋 表格模式</button>
+          <button class="view-switch-btn active" data-view="quick">⚡ 快速录入</button>
+        </div>
+        <span class="toolbar-spacer"></span>
+        <span class="meta" id="quickCountInfo"></span>
+      </div>
+
+      <div class="quick-scan-area">
+        <div class="quick-scan-header">
+          <div class="quick-scan-input-wrap">
+            <span class="quick-scan-icon">📷</span>
+            <input type="text" id="quickScanInput" placeholder="扫描或粘贴设备编号，按回车确认..." autocomplete="off">
+          </div>
+          <div class="quick-scan-result-picker">
+            <label class="quick-result-option quick-normal">
+              <input type="radio" name="quickResult" value="normal" checked>
+              <span>✓ 正常</span>
+            </label>
+            <label class="quick-result-option quick-damaged">
+              <input type="radio" name="quickResult" value="damaged">
+              <span>⚠ 损坏</span>
+            </label>
+            <label class="quick-result-option quick-missing">
+              <input type="radio" name="quickResult" value="missing">
+              <span>? 丢失</span>
+            </label>
+            <label class="quick-result-option quick-mismatch">
+              <input type="radio" name="quickResult" value="mismatch">
+              <span>📍 库位不符</span>
+            </label>
+          </div>
+          <div class="quick-scan-location hidden" id="quickLocationField">
+            <input type="text" id="quickActualLocation" placeholder="实际位置（库位不符时必填">
+          </div>
+        </div>
+
+        <div class="quick-progress">
+          <div class="quick-progress-item">
+            <span class="qp-label">进度</span>
+            <div class="qp-bar"><div class="qp-bar-fill" id="quickProgressBar"></div></div>
+            <span class="qp-text" id="quickProgressText">0 / 0</span>
+          </div>
+          <div class="quick-stats-mini">
+            <span class="qsm qsm-normal">正常 <strong id="qsNormal">0</strong></span>
+            <span class="qsm qsm-damaged">损坏 <strong id="qsDamaged">0</strong></span>
+            <span class="qsm qsm-missing">丢失 <strong id="qsMissing">0</strong></span>
+            <span class="qsm qsm-mismatch">库位 <strong id="qsMismatch">0</strong></span>
+            <span class="qsm qsm-unmarked">未盘 <strong id="qsUnmarked">0</strong></span>
+          </div>
+        </div>
+
+        <div class="quick-log-area">
+          <div class="quick-log-title">📝 扫码记录</div>
+          <div class="quick-log-list" id="quickLogList"></div>
+        </div>
+      </div>
     </div>
   </main>
 
