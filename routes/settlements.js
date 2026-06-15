@@ -345,7 +345,12 @@ function getOrderRepairCompensation(db, orderId) {
   let total = 0;
   const items = [];
   for (const r of repairs) {
-    const amount = Number(r.customerAmount || r.actualRepairCost || r.repairCost || 0);
+    const customerAmount =
+      r.customerAmount === undefined || r.customerAmount === null || r.customerAmount === ""
+        ? null
+        : Number(r.customerAmount) || 0;
+    const amount =
+      customerAmount !== null ? customerAmount : Number(r.actualRepairCost || r.repairCost || 0);
     if (amount > 0) {
       total += amount;
       items.push({

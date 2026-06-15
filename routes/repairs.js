@@ -49,11 +49,22 @@ function ensureSettlement(db, orderId) {
   return { settlement, isNew };
 }
 
+function normalizeOptionalAmount(value) {
+  if (value === undefined || value === null || value === "") return null;
+  return Number(value) || 0;
+}
+
+function getRepairCustomerAmount(repair) {
+  const customerAmount = normalizeOptionalAmount(repair.customerAmount);
+  if (customerAmount !== null) return customerAmount;
+  return Number(repair.actualRepairCost || repair.repairCost || 0);
+}
+
 function syncRepairFeeToSettlement(db, repair) {
   if (!repair.orderId) return null;
   if (repair.liability !== "customer") return null;
 
-  const amount = Number(repair.customerAmount || repair.actualRepairCost || repair.repairCost || 0);
+  const amount = getRepairCustomerAmount(repair);
   if (amount <= 0) {
     removeRepairFeeFromSettlement(db, repair);
     return null;
@@ -174,7 +185,7 @@ export async function createRepair(req, res) {
     sourceId: input.sourceId?.trim() || null,
     orderId: input.orderId?.trim() || null,
     liability,
-    customerAmount: input.customerAmount != null ? Number(input.customerAmount) || 0 : 0,
+    customerAmount: normalizeOptionalAmount(input.customerAmount),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     completedAt: null
@@ -240,7 +251,7 @@ export async function updateRepair(req, res, id) {
     }
   }
   if (input.customerAmount !== undefined) {
-    merged.customerAmount = Number(input.customerAmount) || 0;
+    merged.customerAmount = normalizeOptionalAmount(input.customerAmount);
   }
 
   let statusChanged = false;
@@ -276,7 +287,7 @@ export async function updateRepair(req, res, id) {
     input.liability !== undefined && input.liability !== current.liability;
   const customerAmountChanged =
     input.customerAmount !== undefined &&
-    Number(input.customerAmount || 0) !== Number(current.customerAmount || 0);
+    normalizeOptionalAmount(input.customerAmount) !== normalizeOptionalAmount(current.customerAmount);
   const actualCostChanged =
     input.actualRepairCost !== undefined &&
     Number(input.actualRepairCost || 0) !== Number(current.actualRepairCost || 0);

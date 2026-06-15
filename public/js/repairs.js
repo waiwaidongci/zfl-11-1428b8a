@@ -104,6 +104,13 @@ function renderTimeline(status) {
     .join("")}</div>`;
 }
 
+function getRepairCustomerAmount(repair) {
+  if (repair.customerAmount !== undefined && repair.customerAmount !== null && repair.customerAmount !== "") {
+    return Number(repair.customerAmount) || 0;
+  }
+  return Number(repair.actualRepairCost || repair.repairCost || 0);
+}
+
 function renderList() {
   const data = getFiltered();
   countInfo.textContent = `显示 ${data.length} / 共 ${state.list.length} 条`;
@@ -175,9 +182,7 @@ function renderList() {
           r.liability === "customer"
             ? `<div class="repair-meta-item">
             <span class="repair-meta-label">客户承担</span>
-            <span class="repair-meta-value cost">¥${(
-              Number(r.customerAmount) || Number(r.actualRepairCost) || Number(r.repairCost) || 0
-            ).toFixed(2)}</span>
+            <span class="repair-meta-value cost">¥${getRepairCustomerAmount(r).toFixed(2)}</span>
           </div>`
             : ""
         }
