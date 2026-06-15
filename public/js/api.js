@@ -260,6 +260,7 @@ export const Stocktakes = {
   create: (data) => api("/api/stocktakes", { method: "POST", body: JSON.stringify(data) }),
   update: (id, data) => api(`/api/stocktakes/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
   scan: (id, data) => api(`/api/stocktakes/${id}/scan`, { method: "POST", body: JSON.stringify(data) }),
+  markProcessed: (id, equipmentId) => api(`/api/stocktakes/${id}/mark-processed/${equipmentId}`, { method: "POST" }),
   submit: (id) => api(`/api/stocktakes/${id}/submit`, { method: "POST" }),
   cancel: (id) => api(`/api/stocktakes/${id}/cancel`, { method: "POST" }),
   remove: (id) => api(`/api/stocktakes/${id}`, { method: "DELETE" }),

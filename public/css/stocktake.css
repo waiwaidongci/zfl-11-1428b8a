@@ -908,7 +908,7 @@
 
 .quick-log-item {
   display: grid;
-  grid-template-columns: 36px 1fr auto;
+  grid-template-columns: 36px 1fr auto auto;
   gap: 10px;
   align-items: center;
   padding: 8px 14px;
@@ -1052,4 +1052,86 @@
     padding: 4px 8px;
     font-size: 11px;
   }
+}
+
+.ql-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.ql-locate-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e5e8e5;
+  background: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.15s ease;
+}
+
+.ql-locate-btn:hover {
+  background: #f0f9ff;
+  border-color: var(--primary);
+  transform: scale(1.1);
+}
+
+@keyframes flashPulse {
+  0%, 100% {
+    background: transparent;
+    box-shadow: 0 0 0 0 rgba(46, 160, 67, 0);
+  }
+  20% {
+    background: #fff9e6;
+    box-shadow: 0 0 0 8px rgba(46, 160, 67, 0.15);
+  }
+  40% {
+    background: #fffbe0;
+    box-shadow: 0 0 0 12px rgba(46, 160, 67, 0.08);
+  }
+  60% {
+    background: #fff9e6;
+    box-shadow: 0 0 0 8px rgba(46, 160, 67, 0.05);
+  }
+  80% {
+    background: #fffbe0;
+    box-shadow: 0 0 0 4px rgba(46, 160, 67, 0.02);
+  }
+}
+
+.flash-highlight {
+  animation: flashPulse 2.5s ease;
+  border-radius: 8px;
+}
+
+.stocktake-item .process-btn {
+  padding: 4px 8px;
+  font-size: 11px;
+  border: 1px dashed var(--yellow);
+  background: #fffbf0;
+  color: #b45309;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.stocktake-item .process-btn:hover {
+  background: var(--yellow);
+  color: #fff;
+  border-style: solid;
+}
+
+.stocktake-item.processed .item-result .badge {
+  opacity: 0.6;
+  text-decoration: line-through;
+}
+
+.stocktake-item.processed .item-name h5::after {
+  content: "✓";
+  margin-left: 6px;
+  color: var(--primary);
+  font-size: 11px;
 }

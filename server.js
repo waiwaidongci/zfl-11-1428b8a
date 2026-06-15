@@ -81,6 +81,7 @@ import {
   updateStocktake,
   scanStocktakeItem,
   submitStocktake,
+  markItemProcessed,
   processDamaged,
   processMissing,
   processMismatch,
@@ -341,6 +342,11 @@ const server = http.createServer(async (req, res) => {
     const stocktakeScanMatch = p.match(/^\/api\/stocktakes\/([^/]+)\/scan$/);
     if (stocktakeScanMatch && req.method === "POST") {
       return scanStocktakeItem(req, res, decodeURIComponent(stocktakeScanMatch[1]));
+    }
+
+    const stocktakeMarkProcessedMatch = p.match(/^\/api\/stocktakes\/([^/]+)\/mark-processed\/([^/]+)$/);
+    if (stocktakeMarkProcessedMatch && req.method === "POST") {
+      return markItemProcessed(req, res, decodeURIComponent(stocktakeMarkProcessedMatch[1]), decodeURIComponent(stocktakeMarkProcessedMatch[2]));
     }
 
     const stocktakeSubmitMatch = p.match(/^\/api\/stocktakes\/([^/]+)\/submit$/);

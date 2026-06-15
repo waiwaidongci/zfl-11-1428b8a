@@ -435,6 +435,30 @@ export async function processMismatch(req, res, id, equipmentId) {
   return sendJson(res, 200, buildStocktakePayload(db, stocktake));
 }
 
+export async function markItemProcessed(req, res, id, equipmentId) {
+  const db = await loadDb();
+  const stocktake = (db.stocktakes || []).find((s) => s.id === id);
+  if (!stocktake) return sendJson(res, 404, { error: "stocktake_not_found" });
+  if (stocktake.status !== "processing") {
+    return sendJson(res, 400, { error: "只能在进行中的盘点任务中标记" });
+  }
+
+  const item = stocktake.items.find((i) => i.equipmentId === equipmentId);
+  if (!item) return sendJson(res, 404, { error: "item_not_found" });
+  if (!item.result || item.result === "normal") {
+    return sendJson(res, 400, { error: "该设备无待处理的差异" });
+  }
+  if (item.processed) {
+    return sendJson(res, 400, { error: "该设备已标记为已处理" });
+  }
+
+  item.processed = true;
+  item.manuallyProcessed = true;
+
+  await saveDb(db);
+  return sendJson(res, 200, buildStocktakePayload(db, stocktake));
+}
+
 export async function cancelStocktake(req, res, id) {
   const db = await loadDb();
   const idx = (db.stocktakes || []).findIndex((s) => s.id === id);

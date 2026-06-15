@@ -1262,8 +1262,9 @@
           "actualLocation": "",
           "result": "damaged",
           "remark": "",
-          "processed": false,
-          "linkedRepairId": null
+          "processed": true,
+          "linkedRepairId": null,
+          "manuallyProcessed": true
         },
         {
           "equipmentId": "C-NEW001",
@@ -1284,9 +1285,9 @@
           "spec": "18颗四合一",
           "expectedLocation": "主仓B",
           "actualLocation": "",
-          "result": "",
+          "result": "normal",
           "remark": "",
-          "processed": false,
+          "processed": true,
           "linkedRepairId": null
         },
         {

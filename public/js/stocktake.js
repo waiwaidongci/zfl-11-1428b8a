@@ -286,6 +286,7 @@ function renderDetail() {
       const eq = item.equipment || {};
       const canEdit = s.status === "processing";
       const canProcess = s.status === "completed";
+      const isDiffItem = item.result && item.result !== "normal";
       const condLabel = { available: "在库可用", repair: "维修中", rented: "租赁中", missing: "已丢失" }[eq.condition] || eq.condition;
 
       return `
@@ -320,6 +321,7 @@ function renderDetail() {
       </div>
       <div class="item-actions">
         ${canEdit ? `<button class="secondary small" data-action="edit">记录结果</button>` : ""}
+        ${canEdit && isDiffItem && !item.processed ? `<button class="process-btn" data-action="mark-processed">标记已处理</button>` : ""}
         ${canProcess && item.result === "damaged" && !item.processed ? `<button class="danger small" data-action="repair">转维修</button>` : ""}
         ${canProcess && item.result === "missing" && !item.processed ? `<button class="danger small" data-action="missing">冻结库存</button>` : ""}
         ${canProcess && item.result === "mismatch" && !item.processed ? `<button class="secondary small" data-action="mismatch">回写位置</button>` : ""}
@@ -332,11 +334,13 @@ function renderDetail() {
   detailItems.querySelectorAll(".stocktake-item").forEach((itemEl) => {
     const equipmentId = itemEl.dataset.id;
     const editBtn = itemEl.querySelector('[data-action="edit"]');
+    const markProcessedBtn = itemEl.querySelector('[data-action="mark-processed"]');
     const repairBtn = itemEl.querySelector('[data-action="repair"]');
     const missingBtn = itemEl.querySelector('[data-action="missing"]');
     const mismatchBtn = itemEl.querySelector('[data-action="mismatch"]');
 
     if (editBtn) editBtn.addEventListener("click", () => openResultModal(equipmentId));
+    if (markProcessedBtn) markProcessedBtn.addEventListener("click", () => markItemProcessed(equipmentId));
     if (repairBtn) repairBtn.addEventListener("click", () => openDamagedModal(equipmentId));
     if (missingBtn) missingBtn.addEventListener("click", () => processMissing(equipmentId));
     if (mismatchBtn) mismatchBtn.addEventListener("click", () => processMismatch(equipmentId));
@@ -365,6 +369,18 @@ function renderQuickStats() {
   qsUnmarked.textContent = unmarked;
 }
 
+function scrollToItem(equipmentId) {
+  switchDetailMode("table");
+  setTimeout(() => {
+    const itemEl = detailItems.querySelector(`.stocktake-item[data-id="${CSS.escape(equipmentId)}"]`);
+    if (itemEl) {
+      itemEl.scrollIntoView({ behavior: "smooth", block: "center" });
+      itemEl.classList.add("flash-highlight");
+      setTimeout(() => itemEl.classList.remove("flash-highlight"), 2500);
+    }
+  }, 150);
+}
+
 function renderQuickLogs() {
   if (state.quickLogs.length === 0) {
     quickLogList.innerHTML = `
@@ -389,6 +405,9 @@ function renderQuickLogs() {
         : log.message;
 
       const rowCls = log.success ? (log.isDuplicate ? "highlight" : "") : "";
+      const locateBtn = log.success && log.result
+        ? `<button class="ql-locate-btn" data-equipment-id="${escapeHtml(log.equipmentId)}" title="定位到表格">🎯</button>`
+        : "";
 
       return `
         <div class="quick-log-item ${rowCls}">
@@ -405,10 +424,15 @@ function renderQuickLogs() {
             ${msgText ? `<div class="ql-msg ${msgCls}">${escapeHtml(msgText)}</div>` : ""}
           </div>
           <div class="ql-badge">${badge}</div>
+          <div class="ql-actions">${locateBtn}</div>
         </div>
       `;
     })
     .join("");
+
+  quickLogList.querySelectorAll(".ql-locate-btn").forEach((btn) => {
+    btn.addEventListener("click", () => scrollToItem(btn.dataset.equipmentId));
+  });
 
   quickLogList.scrollTop = 0;
 }
@@ -683,6 +707,33 @@ async function processMismatch(equipmentId) {
     if (eqIdx !== -1) state.equipmentList[eqIdx].location = item.actualLocation;
 
     showToast("设备位置已更新");
+    renderStats();
+    renderList();
+    renderDetail();
+  } catch (err) {
+    showToast(err.message, "error");
+  }
+}
+
+async function markItemProcessed(equipmentId) {
+  const item = state.currentStocktake.items.find((i) => i.equipmentId === equipmentId);
+  if (!item) return;
+
+  const resultLabel = {
+    damaged: "损坏",
+    missing: "丢失",
+    mismatch: "库位不符"
+  }[item.result] || item.result;
+
+  if (!confirm(`确定将「${item.equipmentName} (${equipmentId})」的「${resultLabel}」差异标记为已处理吗？标记后无法再次扫码修改。`)) return;
+
+  try {
+    const updated = await Stocktakes.markProcessed(state.currentStocktake.id, equipmentId);
+    state.currentStocktake = updated;
+    const listIdx = state.list.findIndex((x) => x.id === updated.id);
+    if (listIdx !== -1) state.list[listIdx] = updated;
+
+    showToast("差异已标记为已处理");
     renderStats();
     renderList();
     renderDetail();
