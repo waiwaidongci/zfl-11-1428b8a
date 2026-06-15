@@ -1207,7 +1207,7 @@
       ],
       "note": "",
       "createdAt": "2026-06-14T12:21:18.081Z",
-      "updatedAt": "2026-06-15T02:41:03.442Z"
+      "updatedAt": "2026-06-15T03:08:53.065Z"
     },
     {
       "id": "S-408511",
@@ -1232,6 +1232,18 @@
     }
   ],
   "payments": [
+    {
+      "id": "P-933065",
+      "settlementId": "S-678081",
+      "orderId": "O-1781394904983",
+      "amount": 200,
+      "type": "payment",
+      "method": "alipay",
+      "planId": "PP-240504",
+      "paymentDate": "2026-06-15",
+      "remark": "支付宝支付剩余定金",
+      "createdAt": "2026-06-15T03:08:53.065Z"
+    },
     {
       "id": "P-263442",
       "settlementId": "S-678081",

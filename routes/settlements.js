@@ -836,18 +836,18 @@ function calcPlanNodeStatus(db, plan, allPayments) {
   const effectivePaid = plan.type === "deposit_return" ? returnedAmount : paidAmount;
   const amount = Number(plan.amount) || 0;
 
+  const today = new Date().toISOString().split("T")[0];
+  const isOverdue = plan.dueDate && plan.dueDate < today;
+
   let status;
   if (effectivePaid >= amount - 0.01 && amount > 0) {
     status = "completed";
+  } else if (isOverdue) {
+    status = "overdue";
   } else if (effectivePaid > 0.01) {
     status = "partial";
   } else {
-    const today = new Date().toISOString().split("T")[0];
-    if (plan.dueDate && plan.dueDate < today) {
-      status = "overdue";
-    } else {
-      status = "pending";
-    }
+    status = "pending";
   }
 
   return {
@@ -882,6 +882,9 @@ function calcPlanOverallStatus(db, settlement, plans) {
       hasPending = true;
       allCompleted = false;
     }
+    if (s.paidAmount > 0.01 && s.status !== "completed") {
+      hasPartial = true;
+    }
   }
 
   let status, statusLabel;
@@ -890,7 +893,7 @@ function calcPlanOverallStatus(db, settlement, plans) {
     statusLabel = "计划全部完成";
   } else if (hasOverdue) {
     status = "overdue";
-    statusLabel = "有计划逾期";
+    statusLabel = hasPartial ? "有计划逾期（部分完成）" : "有计划逾期";
   } else if (hasPartial) {
     status = "partial";
     statusLabel = "部分计划完成";
