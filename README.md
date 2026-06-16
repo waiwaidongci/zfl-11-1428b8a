@@ -47,6 +47,7 @@ cp .env.example .env
 | `PORT` | `3011` | 服务监听端口 |
 | `RENTAL_DB_PATH` | `data/rental.json` | 数据文件路径 |
 | `NODE_ENV` | `development` | 运行环境 |
+| `PREFLIGHT_SKIP_PORT` | 未设置 | 设为 `1` 或 `true` 可跳过端口检查（CI 环境使用） |
 
 ### 2. 启动开发服务器
 

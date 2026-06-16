@@ -22,23 +22,24 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
 
-    - name: 检查端口可用性
+    - name: 创建测试数据目录并设置权限
+      run: |
+        mkdir -p data/test
+        chmod -R 755 data/
+        echo "✓ 测试数据目录已创建"
+        ls -la data/
+
+    - name: 查找可用端口并导出
       run: |
         node -e "
         const { createServer } = require('net');
         const server = createServer();
-        server.once('error', (err) => {
-          if (err.code === 'EADDRINUSE') {
-            console.log('端口 3011 被占用，CI 环境可能有问题');
-            process.exit(1);
-          }
-        });
-        server.once('listening', () => {
+        server.listen(0, '127.0.0.1', () => {
+          const port = server.address().port;
           server.close();
-          console.log('端口 3011 可用');
-          process.exit(0);
+          console.log('找到可用端口:', port);
+          require('fs').appendFileSync(process.env.GITHUB_ENV, 'CI_AVAILABLE_PORT=' + port + '\n');
         });
-        server.listen(3011, '127.0.0.1');
         "
 
     - name: 验证数据文件结构
@@ -53,17 +54,26 @@ jobs:
             console.error('数据文件缺少必要字段:', missing);
             process.exit(1);
           }
-          console.log('数据文件结构验证通过');
+          console.log('✓ 生产数据文件结构验证通过');
           "
         else
-          echo "⚠ 生产数据文件不存在，首次启动时会自动创建"
+          echo "⚠ 生产数据文件不存在，首次启动时会自动创建（此为正常情况）"
         fi
 
-    - name: 运行启动前检查
+    - name: 运行启动前检查（使用可用端口和CI测试数据路径）
+      run: npm run preflight
+      env:
+        NODE_ENV: test
+        PORT: ${{ env.CI_AVAILABLE_PORT }}
+        RENTAL_DB_PATH: data/test/rental.ci.json
+        PREFLIGHT_SKIP_PORT: "false"
+
+    - name: 运行启动前检查（跳过端口检查模式）
       run: npm run preflight
       env:
         NODE_ENV: test
         RENTAL_DB_PATH: data/test/rental.ci.json
+        PREFLIGHT_SKIP_PORT: "1"
 
     - name: 运行测试
       run: npm test
@@ -72,9 +82,15 @@ jobs:
 
     - name: 测试数据隔离验证
       run: |
-        if [ -f "data/test/rental.test.json" ]; then
-          echo "✗ 测试数据未清理，存在污染风险"
-          exit 1
+        if [ -d "data/test" ] && [ -n "$(ls -A data/test 2>/dev/null)" ]; then
+          echo "⚠ 测试数据目录仍有内容，检查是否为残留..."
+          ls -la data/test/
+          if [ -f "data/test/rental.test.json" ]; then
+            echo "✗ rental.test.json 未被清理，存在污染风险"
+            exit 1
+          else
+            echo "✓ 测试主数据文件已清理，目录中其他文件可接受"
+          fi
         else
           echo "✓ 测试数据已正确清理"
         fi
@@ -82,10 +98,9 @@ jobs:
     - name: 验证生产数据未被修改
       run: |
         if [ -f "data/rental.json" ]; then
-          echo "生产数据文件存在"
+          echo "✓ 生产数据文件存在"
           node -e "
           const fs = require('fs');
-          const path = require('path');
           const prodDb = 'data/rental.json';
           const testDb = 'data/test/rental.test.json';
           if (fs.existsSync(testDb)) {
@@ -96,6 +111,10 @@ jobs:
             } else {
               console.log('✓ 生产数据与测试数据隔离正常');
             }
+          } else {
+            console.log('✓ 测试数据库文件不存在，确认隔离有效');
           }
           "
+        else
+          echo "生产数据文件不存在（首次运行的正常场景）"
         fi

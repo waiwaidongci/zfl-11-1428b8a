@@ -16,19 +16,25 @@ function resolveDbPath() {
 
 async function checkPort(port) {
   return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      server.close();
+      reject(new Error(`端口 ${port} 检查超时`));
+    }, 2000);
+
     const server = createServer();
     server.once("error", (err) => {
+      clearTimeout(timeout);
       if (err.code === "EADDRINUSE") {
-        reject(new Error(`端口 ${port} 已被占用，请先关闭占用该端口的进程或修改 PORT 环境变量`));
+        reject(new Error(`端口 ${port} 已被占用，请先关闭占用该端口的进程或修改 PORT 环境变量（如：PORT=3012 npm start）`));
       } else {
         reject(err);
       }
     });
     server.once("listening", () => {
-      server.close();
-      resolve(true);
+      clearTimeout(timeout);
+      server.close(() => resolve(true));
     });
-    server.listen(port, "127.0.0.1");
+    server.listen(port, "0.0.0.0");
   });
 }
 
@@ -39,6 +45,19 @@ async function checkDataFile(dbPath) {
   } catch (err) {
     if (err.code === "ENOENT") {
       const dir = dirname(dbPath);
+      let currentDir = dir;
+      while (currentDir !== dirname(currentDir)) {
+        try {
+          await access(currentDir, constants.F_OK | constants.W_OK);
+          return { exists: false, writable: true, path: dbPath, willCreate: true, parentDir: currentDir };
+        } catch (dirErr) {
+          if (dirErr.code === "ENOENT") {
+            currentDir = dirname(currentDir);
+            continue;
+          }
+          break;
+        }
+      }
       try {
         await access(dir, constants.W_OK);
         return { exists: false, writable: true, path: dbPath, willCreate: true };
@@ -56,19 +75,24 @@ async function main() {
   const port = Number(process.env.PORT || 3011);
   const dbPath = resolveDbPath();
   const nodeEnv = process.env.NODE_ENV || "development";
+  const skipPort = process.env.PREFLIGHT_SKIP_PORT === "1" || process.env.PREFLIGHT_SKIP_PORT === "true";
 
   console.log(`\n[preflight] 启动前检查 (环境: ${nodeEnv})`);
   console.log(`[preflight] ──────────────────────────────`);
 
   let passed = true;
 
-  console.log(`[preflight] 检查端口 ${port} ...`);
-  try {
-    await checkPort(port);
-    console.log(`[preflight] ✓ 端口 ${port} 可用`);
-  } catch (err) {
-    console.log(`[preflight] ✗ ${err.message}`);
-    passed = false;
+  if (skipPort) {
+    console.log(`[preflight] ⊘ 端口检查已跳过 (PREFLIGHT_SKIP_PORT=${process.env.PREFLIGHT_SKIP_PORT})`);
+  } else {
+    console.log(`[preflight] 检查端口 ${port} ...`);
+    try {
+      await checkPort(port);
+      console.log(`[preflight] ✓ 端口 ${port} 可用`);
+    } catch (err) {
+      console.log(`[preflight] ✗ ${err.message}`);
+      passed = false;
+    }
   }
 
   console.log(`[preflight] 检查数据文件 ${dbPath} ...`);
@@ -77,7 +101,11 @@ async function main() {
     if (status.exists) {
       console.log(`[preflight] ✓ 数据文件存在且可读写`);
     } else if (status.willCreate) {
-      console.log(`[preflight] ⚠ 数据文件不存在，启动时将自动创建初始数据`);
+      if (status.parentDir) {
+        console.log(`[preflight] ⚠ 数据文件不存在，父目录 ${status.parentDir} 可写，启动时将自动创建目录和初始数据`);
+      } else {
+        console.log(`[preflight] ⚠ 数据文件不存在，启动时将自动创建初始数据`);
+      }
     }
   } catch (err) {
     console.log(`[preflight] ✗ ${err.message}`);
