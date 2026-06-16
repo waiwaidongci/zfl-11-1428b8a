@@ -29,23 +29,45 @@
   <main>
     <div class="stats" id="stats"></div>
 
-    <div class="panel">
-      <div class="toolbar">
-        <input id="search" type="search" placeholder="搜索编号/名称/规格/位置...">
-        <select id="categoryFilter">
-          <option value="">全部类别</option>
-        </select>
-        <select id="conditionFilter">
-          <option value="">全部状态</option>
-          <option value="available">在库可用</option>
-          <option value="repair">维修中</option>
-        </select>
-        <span class="toolbar-spacer"></span>
-        <span class="meta" id="countInfo"></span>
-        <button id="reloadBtn" class="ghost small">↻ 刷新</button>
-      </div>
+    <div class="tabs" id="mainTabs">
+      <button class="tab-btn active" data-tab="equipment">📦 设备列表</button>
+      <button class="tab-btn" data-tab="packages">🎁 套餐管理</button>
+    </div>
 
-      <div id="equipmentGrid" class="eq-grid"></div>
+    <div class="tab-panel active" data-panel="equipment">
+      <div class="panel">
+        <div class="toolbar">
+          <input id="search" type="search" placeholder="搜索编号/名称/规格/位置...">
+          <select id="categoryFilter">
+            <option value="">全部类别</option>
+          </select>
+          <select id="conditionFilter">
+            <option value="">全部状态</option>
+            <option value="available">在库可用</option>
+            <option value="repair">维修中</option>
+          </select>
+          <span class="toolbar-spacer"></span>
+          <span class="meta" id="countInfo"></span>
+          <button id="reloadBtn" class="ghost small">↻ 刷新</button>
+        </div>
+        <div id="equipmentGrid" class="eq-grid"></div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="packages">
+      <div class="panel">
+        <div class="toolbar">
+          <input id="pkgSearch" type="search" placeholder="搜索套餐名称/类别/描述...">
+          <select id="pkgCategoryFilter">
+            <option value="">全部类别</option>
+          </select>
+          <span class="toolbar-spacer"></span>
+          <span class="meta" id="pkgCountInfo"></span>
+          <button id="pkgReloadBtn" class="ghost small">↻ 刷新</button>
+          <button id="addPackageBtn" class="secondary">+ 新建套餐</button>
+        </div>
+        <div id="packagesGrid" class="eq-grid"></div>
+      </div>
     </div>
   </main>
 
@@ -221,6 +243,65 @@
     <div class="dropdown-title">导出当前筛选结果</div>
     <button class="dropdown-item" data-format="csv">📄 导出 CSV</button>
     <button class="dropdown-item" data-format="json">📋 导出 JSON</button>
+  </div>
+
+  <div id="packageModal" class="modal-backdrop hidden">
+    <div class="modal wide" style="max-width:880px">
+      <header>
+        <h3 id="packageModalTitle">新建套餐</h3>
+        <button id="closePackageModal" class="ghost">×</button>
+      </header>
+      <div class="body">
+        <form id="packageForm" autocomplete="off">
+          <label>套餐编号（留空自动生成）</label>
+          <input name="id" placeholder="如 PKG-003">
+
+          <div class="form-row" style="display:grid;grid-template-columns:2fr 1fr;gap:0 14px">
+            <div>
+              <label>套餐名称 *</label>
+              <input name="name" required placeholder="如 发布会基础灯光套装">
+            </div>
+            <div>
+              <label>套餐类别</label>
+              <select name="category">
+                <option value="通用">通用</option>
+                <option value="发布会">发布会</option>
+                <option value="演唱会">演唱会</option>
+                <option value="婚礼">婚礼</option>
+                <option value="会议">会议</option>
+                <option value="演出">演出</option>
+                <option value="其他">其他</option>
+              </select>
+            </div>
+          </div>
+
+          <label>套餐描述</label>
+          <textarea name="description" placeholder="简单描述适用场景、包含内容等" rows="2"></textarea>
+
+          <div class="sel-head">
+            <label style="margin:0">选择套餐设备 *</label>
+            <div style="display:flex;gap:8px;align-items:center">
+              <select id="pkgItemCategoryFilter" class="mini">
+                <option value="">全部类别</option>
+              </select>
+              <input id="pkgItemSearch" type="search" class="mini" placeholder="搜索设备..." style="min-width:160px;padding:5px 8px">
+            </div>
+          </div>
+          <div id="pkgEquipmentGrid" class="eq-grid" style="max-height:280px;overflow-y:auto;padding:4px;border:1px solid var(--line);border-radius:8px"></div>
+          <p class="meta" id="pkgSelectionInfo" style="margin-top:8px"></p>
+
+          <div class="sel-head" style="margin-top:16px">
+            <label style="margin:0">🔧 押金自定义（可选，留空使用默认押金规则）</label>
+            <span class="meta" style="font-size:12px;color:var(--muted)">为套餐内的设备设置专属押金，创建报价时会自动应用</span>
+          </div>
+          <div id="pkgDepositOverrides" style="border:1px solid var(--line);border-radius:8px;padding:10px;max-height:180px;overflow-y:auto"></div>
+        </form>
+      </div>
+      <div class="actions">
+        <button id="cancelPackageBtn" type="button" class="ghost">取消</button>
+        <button id="submitPackageBtn" type="button" class="secondary">💾 保存套餐</button>
+      </div>
+    </div>
   </div>
 
   <script type="module" src="/js/equipment.js"></script>

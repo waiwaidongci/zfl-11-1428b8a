@@ -1,4 +1,4 @@
-import { Equipment, Quotations, Customers, showToast, overlap } from "./api.js";
+import { Equipment, Quotations, Customers, Packages, showToast, overlap } from "./api.js";
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
@@ -7,10 +7,13 @@ let allEquipment = [];
 let allQuotations = [];
 let allCustomers = [];
 let allOrders = [];
+let allPackages = [];
 let customerFilterFromUrl = "";
 
 const selectedItems = new Set();
 const depositOverrides = {};
+const selectedPackages = new Set();
+const packageItemIssues = {};
 let editingId = null;
 let currentPreview = null;
 let currentDetailId = null;
@@ -231,9 +234,276 @@ function renderItems() {
 }
 
 function renderSelection() {
+  const pkgInfo = selectedPackages.size > 0
+    ? ` · 含 ${selectedPackages.size} 个套餐`
+    : "";
   $("#selection").textContent = selectedItems.size
-    ? `已选择 ${selectedItems.size} 台：${[...selectedItems].join("、")}`
-    : "还没有选择设备（点击卡片勾选）";
+    ? `已选择 ${selectedItems.size} 台${pkgInfo}：${[...selectedItems].join("、")}`
+    : `还没有选择设备（点击卡片勾选或选择套餐快速添加）${pkgInfo}`;
+}
+
+function renderPackagesList() {
+  const wrap = $("#packagesList");
+  if (!wrap) return;
+
+  if (!allPackages || !allPackages.length) {
+    wrap.innerHTML = `<div style="padding:10px;text-align:center;color:var(--muted);font-size:12px;grid-column:1/-1">暂无套餐，请到 <a href="/equipment" style="color:var(--green)">设备管理-套餐管理</a> 创建</div>`;
+    return;
+  }
+
+  const start = $("#startDateInput")?.value;
+  const end = $("#endDateInput")?.value;
+
+  wrap.innerHTML = allPackages
+    .map((pkg) => {
+      const isSelected = selectedPackages.has(pkg.id);
+      const eqMap = new Map(allEquipment.map((e) => [e.id, e]));
+      const repairIds = (pkg.items || []).filter((it) => it.condition === "repair").map((it) => it.id);
+      const missingIds = (pkg.items || []).filter((it) => !it.exists).map((it) => it.id);
+      const issues = packageItemIssues[pkg.id] || [];
+      const hasIssue = repairIds.length > 0 || missingIds.length > 0 || issues.length > 0;
+
+      const issueCount = repairIds.length + missingIds.length + issues.length;
+      const issueBadge = hasIssue
+        ? `<span class="badge repair" title="${issueCount} 个问题" style="position:absolute;top:8px;right:8px">⚠️ ${issueCount}</span>`
+        : "";
+
+      const issueList = [];
+      if (missingIds.length) issueList.push(`<li>❌ 已删除：${missingIds.join("、")}</li>`);
+      if (repairIds.length) issueList.push(`<li>🔧 维修中：${repairIds.join("、")}</li>`);
+      issues.forEach((iss) => {
+        if (iss.type === "conflict") issueList.push(`<li>📅 租期冲突：${iss.id} ${iss.name} → ${iss.conflictOrderCustomer || iss.conflictOrderId || ''} ${iss.conflictRange || ''}</li>`);
+        if (iss.type === "quote_lock") issueList.push(`<li>🔒 报价锁定：${iss.id} ${iss.name} → 报价 ${iss.conflictQuoteId || ''} ${iss.conflictQuoteCustomer || ''}</li>`);
+      });
+
+      const issueHtml = hasIssue
+        ? `<div class="package-issue-hint" style="margin-top:6px;padding:6px 8px;background:#fff4f2;border:1px solid #f0c0b8;border-radius:4px;font-size:11px;color:var(--red)">
+            <strong>⚠️ 存在问题：</strong>
+            <ul style="margin:4px 0 0;padding-left:16px">${issueList.join("")}</ul>
+          </div>`
+        : "";
+
+      const tags = (pkg.itemIds || []).slice(0, 4).map((iid) => {
+        const e = eqMap.get(iid);
+        return `<span class="item-tag" style="font-size:10px;padding:1px 5px">${escapeHtml(e ? e.name : iid)}</span>`;
+      }).join("");
+      const moreTag = (pkg.itemIds || []).length > 4
+        ? `<span class="item-tag" style="font-size:10px;padding:1px 5px">+${(pkg.itemIds || []).length - 4}</span>`
+        : "";
+
+      return `<div class="package-card" data-pkg-id="${escapeHtml(pkg.id)}" data-selected="${isSelected ? "1" : "0"}"
+        style="padding:10px 12px;border:2px solid ${isSelected ? 'var(--green)' : 'var(--line)'};border-radius:8px;cursor:pointer;transition:all 0.15s;background:${isSelected ? '#f1faf3' : '#fff'};position:relative">
+        ${issueBadge}
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:4px">
+          <div>
+            <strong style="font-size:13px">${escapeHtml(pkg.name)}</strong>
+            <span class="cat-pill cat-${escapeCss(pkg.category || '通用')}" style="margin-left:6px;font-size:10px;padding:1px 6px">${escapeHtml(pkg.category || "通用")}</span>
+          </div>
+          <span class="meta" style="font-size:10px;white-space:nowrap">${(pkg.itemIds || []).length} 台</span>
+        </div>
+        ${pkg.description ? `<div class="meta" style="font-size:11px;margin-bottom:4px">${escapeHtml(pkg.description)}</div>` : ""}
+        <div style="display:flex;flex-wrap:wrap;gap:3px">${tags}${moreTag}</div>
+        ${issueHtml}
+      </div>`;
+    })
+    .join("");
+
+  $$(".package-card").forEach((card) => {
+    card.onclick = () => handlePackageClick(card.dataset.pkgId);
+  });
+}
+
+async function handlePackageClick(pkgId) {
+  const pkg = allPackages.find((p) => p.id === pkgId);
+  if (!pkg) return;
+
+  if (selectedPackages.has(pkgId)) {
+    selectedPackages.delete(pkgId);
+    (pkg.itemIds || []).forEach((iid) => {
+      selectedItems.delete(iid);
+      delete depositOverrides[iid];
+    });
+    delete packageItemIssues[pkgId];
+  } else {
+    selectedPackages.add(pkgId);
+
+    const eqMap = new Map(allEquipment.map((e) => [e.id, e]));
+    const repairItems = [];
+    const missingItems = [];
+    (pkg.itemIds || []).forEach((iid) => {
+      const eq = eqMap.get(iid);
+      if (!eq) {
+        missingItems.push(iid);
+        return;
+      }
+      if (eq.condition === "repair") {
+        repairItems.push({ id: iid, name: eq.name });
+        return;
+      }
+      selectedItems.add(iid);
+      if (pkg.depositOverrides && pkg.depositOverrides[iid] && !depositOverrides[iid]) {
+        depositOverrides[iid] = { ...pkg.depositOverrides[iid] };
+      }
+    });
+
+    const issues = [];
+    if (missingItems.length) {
+      missingItems.forEach((id) => issues.push({ type: "missing", id, name: id }));
+    }
+    if (repairItems.length) {
+      repairItems.forEach((r) => issues.push({ type: "repair", id: r.id, name: r.name }));
+    }
+
+    const start = $("#startDateInput")?.value;
+    const end = $("#endDateInput")?.value;
+    if (start && end && editingId) {
+      try {
+        const check = await Packages.checkAvailability(pkgId, {
+          startDate: start,
+          endDate: end,
+          exceptQuoteId: editingId
+        });
+        (check.conflicts || []).forEach((c) => issues.push({ type: "conflict", ...c }));
+        (check.quoteLocks || []).forEach((c) => issues.push({ type: "quote_lock", ...c }));
+      } catch (e) {}
+    } else if (start && end) {
+      const conflictIds = checkItemConflictsLocally(pkg.itemIds, start, end);
+      conflictIds.forEach((c) => issues.push(c));
+    }
+
+    if (issues.length) {
+      packageItemIssues[pkgId] = issues;
+    }
+  }
+
+  renderPackagesList();
+  renderItems();
+  renderSelection();
+  renderPackageIssuesAlert();
+  schedulePreview();
+}
+
+function checkItemConflictsLocally(itemIds, startDate, endDate) {
+  const issues = [];
+  const occupied = new Set();
+
+  (allOrders || []).forEach((o) => {
+    if (["已取消", "已归还"].includes(o.status)) return;
+    if (overlap(startDate, endDate, o.startDate, o.endDate)) {
+      (o.itemIds || []).forEach((id) => occupied.add(id));
+    }
+  });
+
+  const eqMap = new Map(allEquipment.map((e) => [e.id, e]));
+  itemIds.forEach((id) => {
+    if (occupied.has(id)) {
+      const eq = eqMap.get(id);
+      issues.push({
+        type: "conflict",
+        id,
+        name: eq ? eq.name : id,
+        conflictOrderId: "本地检测",
+        conflictOrderCustomer: "订单占用",
+        conflictRange: `${startDate} ~ ${endDate}`
+      });
+    }
+  });
+
+  return issues;
+}
+
+function renderPackageIssuesAlert() {
+  const alertEl = $("#packageIssuesAlert");
+  if (!alertEl) return;
+
+  const allIssues = [];
+  Object.entries(packageItemIssues).forEach(([pkgId, issues]) => {
+    const pkg = allPackages.find((p) => p.id === pkgId);
+    const pkgName = pkg ? pkg.name : pkgId;
+    issues.forEach((iss) => {
+      let text = "";
+      switch (iss.type) {
+        case "missing":
+          text = `套餐「${pkgName}」：设备 ${iss.id || iss.name} 已不存在，建议替换或移除`;
+          break;
+        case "repair":
+          text = `套餐「${pkgName}」：${iss.id} ${iss.name} 正在维修中，建议替换或移除`;
+          break;
+        case "conflict":
+          text = `套餐「${pkgName}」：${iss.id} ${iss.name} 租期冲突（${iss.conflictOrderCustomer || iss.conflictOrderId || '已有订单'} ${iss.conflictRange || ''}），建议替换`;
+          break;
+        case "quote_lock":
+          text = `套餐「${pkgName}」：${iss.id} ${iss.name} 被其他报价锁定（报价 ${iss.conflictQuoteId || ''} ${iss.conflictQuoteCustomer || ''}），建议替换`;
+          break;
+      }
+      if (text) allIssues.push({ text, pkgId, iss });
+    });
+  });
+
+  if (!allIssues.length) {
+    alertEl.classList.add("hidden");
+    alertEl.innerHTML = "";
+    return;
+  }
+
+  const uniqueMissing = new Set();
+  const uniqueRepair = new Set();
+  allIssues.forEach(({ iss }) => {
+    if (iss.type === "missing") uniqueMissing.add(iss.id);
+    if (iss.type === "repair") uniqueRepair.add(iss.id);
+  });
+
+  const hasBlocking = uniqueMissing.size > 0 || uniqueRepair.size > 0;
+
+  const html = `
+    <div style="margin-bottom:6px;font-weight:700">
+      ${hasBlocking ? "❌ 套餐存在必须处理的问题" : "⚠️ 套餐存在需要注意的问题"}
+    </div>
+    <ul style="margin:4px 0;padding-left:18px">
+      ${allIssues.map(({ text, pkgId, iss }) => `
+        <li style="margin-bottom:3px">
+          ${escapeHtml(text)}
+          ${['missing', 'repair'].includes(iss.type)
+            ? `<button class="ghost small" style="padding:1px 6px;font-size:10px;margin-left:4px" onclick="window.__removePkgItem?.('${pkgId}','${iss.id}','${iss.type}')">✂️ 移除</button>`
+            : `<button class="ghost small" style="padding:1px 6px;font-size:10px;margin-left:4px" onclick="window.__showReplaceTip?.()">🔄 替换建议</button>`
+          }
+        </li>
+      `).join("")}
+    </ul>
+    ${hasBlocking ? `<div style="margin-top:6px;font-size:11px;color:var(--muted)">提示：维修中或已删除的设备需要处理后才能保存报价单</div>` : ""}
+  `;
+
+  alertEl.innerHTML = html;
+  alertEl.classList.remove("hidden");
+}
+
+window.__removePkgItem = function(pkgId, itemId, issueType) {
+  if (!selectedPackages.has(pkgId)) return;
+  selectedItems.delete(itemId);
+  delete depositOverrides[itemId];
+  if (packageItemIssues[pkgId]) {
+    packageItemIssues[pkgId] = packageItemIssues[pkgId].filter((iss) => iss.id !== itemId);
+    if (packageItemIssues[pkgId].length === 0) delete packageItemIssues[pkgId];
+  }
+  showToast(`已从选择中移除设备 ${itemId}`);
+  renderPackagesList();
+  renderItems();
+  renderSelection();
+  renderPackageIssuesAlert();
+  schedulePreview();
+};
+
+window.__showReplaceTip = function() {
+  showToast("请手动取消选择冲突设备，然后从设备列表中选择其他可用的同类设备", "info");
+};
+
+async function loadPackagesData() {
+  try {
+    allPackages = await Packages.list();
+  } catch (e) {
+    allPackages = [];
+  }
+  renderPackagesList();
 }
 
 function renderCategoryFilters() {
@@ -407,7 +677,9 @@ function resetEditForm() {
   editingId = null;
   $("#quoteForm").reset();
   selectedItems.clear();
+  selectedPackages.clear();
   Object.keys(depositOverrides).forEach((k) => delete depositOverrides[k]);
+  Object.keys(packageItemIssues).forEach((k) => delete packageItemIssues[k]);
   currentPreview = null;
   pendingLockStartAt = null;
   pendingLockEndAt = null;
@@ -462,6 +734,9 @@ async function openEdit(id = null) {
       selectedItems.clear();
       (q.itemIds || []).forEach((iid) => selectedItems.add(iid));
 
+      selectedPackages.clear();
+      (q.packageIds || []).forEach((pid) => selectedPackages.add(pid));
+
       if (q.depositOverride && typeof q.depositOverride === "object") {
         Object.keys(q.depositOverride).forEach((iid) => {
           depositOverrides[iid] = { ...q.depositOverride[iid] };
@@ -492,6 +767,8 @@ async function openEdit(id = null) {
       }
 
       renderItems();
+      renderPackagesList();
+      renderPackageIssuesAlert();
       if (q.summary) renderPreview(q.summary);
     } catch (err) {
       showToast(err.message, "error");
@@ -528,6 +805,7 @@ async function submitQuote() {
   const form = $("#quoteForm");
   const data = Object.fromEntries(new FormData(form).entries());
   data.itemIds = [...selectedItems];
+  data.packageIds = [...selectedPackages];
 
   Object.keys(depositOverrides).forEach((iid) => {
     if (!data.itemIds.includes(iid)) delete depositOverrides[iid];
@@ -722,6 +1000,22 @@ function renderDetail(q, check) {
         <th>折扣</th>
         <td>${q.discount ? (Number(q.discount) <= 1 ? `${Math.round((1 - Number(q.discount)) * 100)}% 折扣` : `减 ¥${Number(q.discount)}`) : "无折扣"}</td>
       </tr>
+      ${(q.packages && q.packages.length) ? `
+      <tr>
+        <th>使用套餐</th>
+        <td colspan="3">
+          <div style="display:flex;flex-wrap:wrap;gap:6px">
+            ${q.packages.map((p) => `
+              <span class="item-tag" style="padding:4px 10px;font-size:12px;background:${p.exists ? '#e8f5e9' : '#ffebee'};color:${p.exists ? '#2e7d32' : '#c62828'}">
+                🎁 ${escapeHtml(p.name)}
+                <span class="meta" style="margin-left:4px">(${p.itemCount} 台)</span>
+                ${p.exists ? '' : ' <span style="color:#c62828">（已删除）</span>'}
+              </span>
+            `).join("")}
+          </div>
+        </td>
+      </tr>
+      ` : ""}
       <tr>
         <th>备注</th>
         <td colspan="3">${escapeHtml(q.note || "—")}</td>
@@ -896,6 +1190,12 @@ function renderVersionsTab(q) {
                 <span class="snapshot-label">折扣：</span>
                 <span>${snapshot.discount ? (Number(snapshot.discount) <= 1 ? `${Math.round((1 - Number(snapshot.discount)) * 100)}% 折扣` : `减 ¥${Number(snapshot.discount)}`) : "无折扣"}</span>
               </div>
+              ${(snapshot.packages && snapshot.packages.length) ? `
+              <div class="snapshot-row">
+                <span class="snapshot-label">套餐：</span>
+                <span>${snapshot.packages.map((p) => escapeHtml(p.name)).join("、")}</span>
+              </div>
+              ` : ""}
               <div class="snapshot-row">
                 <span class="snapshot-label">合计：</span>
                 <span class="snapshot-total">¥${fmtMoney(summary.grandTotal || 0)}</span>
@@ -998,10 +1298,16 @@ function renderVersionComparison(v1, v2) {
     return `${d.startDate} 至 ${d.endDate}${d.rentalDays ? ` · ${d.rentalDays}天` : ""}`;
   }
 
+  function formatPackages(pkgs) {
+    if (!pkgs || !pkgs.length) return "—";
+    return pkgs.map((p) => p.name).join("、");
+  }
+
   const fields = [
     { label: "客户", ...diffField(s1.customer, s2.customer) },
     { label: "租期", ...diffField(s1, s2, formatDateRange) },
     { label: "折扣", ...diffField(s1.discount, s2.discount, formatDiscount) },
+    { label: "使用套餐", ...diffField(s1.packages, s2.packages, formatPackages) },
     { label: "设备数量", ...diffField((s1.itemIds || []).length, (s2.itemIds || []).length, (v) => `${v} 件`) },
     { label: "租金小计", ...diffField(sum1.subtotal, sum2.subtotal, (v) => `¥${fmtMoney(v)}`) },
     { label: "优惠金额", ...diffField(sum1.discountAmount, sum2.discountAmount, (v) => `¥${fmtMoney(v)}`) },

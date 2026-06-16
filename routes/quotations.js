@@ -8,6 +8,32 @@ const QUOTE_STATUSES = ["草稿", "已确认", "已转订单", "已取消"];
 
 export const QUOTE_LOCK_KEY_FIELDS = ["lockStartAt", "lockEndAt", "lockedBy"];
 
+function buildPackagesInfo(db, packageIds) {
+  if (!packageIds || !packageIds.length) return [];
+  const pkgMap = new Map((db.packages || []).map((p) => [p.id, p]));
+  return packageIds.map((pid) => {
+    const pkg = pkgMap.get(pid);
+    if (!pkg) {
+      return {
+        id: pid,
+        name: "（已删除）",
+        category: "",
+        description: "",
+        itemCount: 0,
+        exists: false
+      };
+    }
+    return {
+      id: pkg.id,
+      name: pkg.name,
+      category: pkg.category || "通用",
+      description: pkg.description || "",
+      itemCount: (pkg.itemIds || []).length,
+      exists: true
+    };
+  });
+}
+
 function buildQuotationPayload(db, quote, withSummary = true) {
   const eqMap = new Map(db.equipment.map((e) => [e.id, e]));
   const customer = (db.customers || []).find((c) => c.name === quote.customer);
@@ -24,9 +50,12 @@ function buildQuotationPayload(db, quote, withSummary = true) {
     };
   });
 
+  const packages = buildPackagesInfo(db, quote.packageIds || []);
+
   const payload = {
     ...quote,
     items,
+    packages,
     customerContact: customer ? customer.contact : "",
     customerPhone: customer ? customer.phone : "",
     customerActivity: customer ? customer.activityType : "",
@@ -59,6 +88,8 @@ function buildVersionSnapshot(db, quote) {
     };
   });
 
+  const packages = buildPackagesInfo(db, quote.packageIds || []);
+
   let summary = null;
   if (quote.itemIds?.length && quote.startDate && quote.endDate) {
     summary = buildQuoteSummary(
@@ -78,6 +109,8 @@ function buildVersionSnapshot(db, quote) {
     rentalDays: quote.rentalDays,
     itemIds: quote.itemIds ? [...quote.itemIds] : [],
     items,
+    packageIds: quote.packageIds ? [...quote.packageIds] : [],
+    packages,
     discount: quote.discount,
     depositOverride: quote.depositOverride ? { ...quote.depositOverride } : {},
     note: quote.note,
@@ -510,6 +543,10 @@ export async function createQuotation(req, res) {
     return sendJson(res, 400, { error: errors.join("；") });
   }
 
+  const packageIds = Array.isArray(input.packageIds)
+    ? [...new Set(input.packageIds.filter(Boolean))]
+    : [];
+
   const quotation = {
     id: input.id?.trim() || genQuotationId(),
     customer: String(input.customer).trim(),
@@ -517,6 +554,7 @@ export async function createQuotation(req, res) {
     endDate: input.endDate,
     rentalDays: calcRentalDays(input.startDate, input.endDate),
     itemIds: [...new Set(input.itemIds.filter(Boolean))],
+    packageIds,
     discount: input.discount != null ? Number(input.discount) : 0,
     depositOverride: input.depositOverride || {},
     status: "草稿",
@@ -609,6 +647,11 @@ export async function updateQuotation(req, res, id) {
   }
   if (input.itemIds !== undefined) {
     merged.itemIds = [...new Set(input.itemIds.filter(Boolean))];
+  }
+  if (input.packageIds !== undefined) {
+    merged.packageIds = Array.isArray(input.packageIds)
+      ? [...new Set(input.packageIds.filter(Boolean))]
+      : [];
   }
   if (input.discount !== undefined) merged.discount = Number(input.discount) || 0;
   if (input.depositOverride !== undefined) merged.depositOverride = input.depositOverride;

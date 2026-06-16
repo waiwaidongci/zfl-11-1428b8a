@@ -90,6 +90,16 @@ import {
   deleteStocktake
 } from "./routes/stocktakes.js";
 
+import {
+  listPackages,
+  getPackage,
+  createPackage,
+  updatePackage,
+  deletePackage,
+  checkPackageAvailability,
+  previewPackageQuote
+} from "./routes/packages.js";
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const publicDir = join(__dirname, "public");
 const port = Number(process.env.PORT || 3011);
@@ -378,6 +388,23 @@ const server = http.createServer(async (req, res) => {
     const stocktakeMismatchMatch = p.match(/^\/api\/stocktakes\/([^/]+)\/mismatch\/([^/]+)$/);
     if (stocktakeMismatchMatch && req.method === "POST") {
       return processMismatch(req, res, decodeURIComponent(stocktakeMismatchMatch[1]), decodeURIComponent(stocktakeMismatchMatch[2]));
+    }
+
+    if (req.method === "GET" && p === "/api/packages") return listPackages(req, res);
+    if (req.method === "POST" && p === "/api/packages") return createPackage(req, res);
+    if (req.method === "POST" && p === "/api/packages/preview-quote") return previewPackageQuote(req, res);
+
+    const packageMatch = p.match(/^\/api\/packages\/([^/]+)$/);
+    if (packageMatch) {
+      const id = decodeURIComponent(packageMatch[1]);
+      if (req.method === "GET") return getPackage(req, res, id);
+      if (req.method === "PATCH") return updatePackage(req, res, id);
+      if (req.method === "DELETE") return deletePackage(req, res, id);
+    }
+
+    const packageAvailabilityMatch = p.match(/^\/api\/packages\/([^/]+)\/availability$/);
+    if (packageAvailabilityMatch && req.method === "GET") {
+      return checkPackageAvailability(req, res, decodeURIComponent(packageAvailabilityMatch[1]));
     }
 
     notFound(res);

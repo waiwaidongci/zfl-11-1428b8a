@@ -10,6 +10,8 @@ const seed = {
   equipment: [
     { id: "L-001", name: "摇头染色灯", category: "灯具", spec: "19颗蜂眼", location: "主仓A", condition: "available" },
     { id: "L-002", name: "LED帕灯", category: "灯具", spec: "18x10W", location: "主仓B", condition: "available" },
+    { id: "L-003", name: "光束灯", category: "灯具", spec: "230W 7R", location: "主仓A", condition: "available" },
+    { id: "L-004", name: "追光灯", category: "灯具", spec: "2500W", location: "主仓B", condition: "available" },
     { id: "C-001", name: "MA控台", category: "控台", spec: "Command Wing", location: "控台柜", condition: "available" },
     { id: "T-001", name: "铝合金桁架", category: "桁架", spec: "300mm 2m", location: "外场架", condition: "repair" }
   ],
@@ -38,6 +40,30 @@ const seed = {
       updatedAt: "2026-06-10T09:30:00.000Z",
       completedAt: null
     }
+  ],
+  packages: [
+    {
+      id: "PKG-001",
+      name: "发布会基础灯光套装",
+      category: "发布会",
+      description: "适用于中型发布会的基础灯光配置",
+      itemIds: ["L-001", "L-002", "C-001"],
+      depositOverrides: {},
+      createdAt: "2026-06-10T10:00:00.000Z",
+      updatedAt: "2026-06-10T10:00:00.000Z"
+    },
+    {
+      id: "PKG-002",
+      name: "演唱会完整灯光套装",
+      category: "演唱会",
+      description: "演唱会全套灯光设备，含追光和光束",
+      itemIds: ["L-001", "L-002", "L-003", "L-004", "C-001"],
+      depositOverrides: {
+        "L-003": { deposit: 800 }
+      },
+      createdAt: "2026-06-12T14:00:00.000Z",
+      updatedAt: "2026-06-12T14:00:00.000Z"
+    }
   ]
 };
 
@@ -56,6 +82,7 @@ export async function loadDb() {
   if (!db.paymentPlans) db.paymentPlans = [];
   if (!db.stocktakes) db.stocktakes = [];
   if (!db.handoverDrafts) db.handoverDrafts = [];
+  if (!db.packages) db.packages = [];
 
   db.quotations = db.quotations.map((q) => {
     if (!q.versions || !Array.isArray(q.versions)) {
@@ -166,6 +193,10 @@ export function genHandoverDraftId() {
   return `HD-${Date.now().toString().slice(-6)}`;
 }
 
+export function genPackageId() {
+  return `PKG-${Date.now().toString().slice(-6)}`;
+}
+
 let settlementFeeIdSeq = 0;
 
 export function genSettlementFeeId() {
@@ -190,6 +221,7 @@ export const QUOTE_KEY_FIELDS = [
   "startDate",
   "endDate",
   "itemIds",
+  "packageIds",
   "discount",
   "depositOverride",
   "note"
@@ -199,7 +231,7 @@ export function hasKeyFieldChanged(oldData, newData) {
   for (const field of QUOTE_KEY_FIELDS) {
     const oldVal = oldData[field];
     const newVal = newData[field];
-    if (field === "itemIds") {
+    if (field === "itemIds" || field === "packageIds") {
       const oldArr = Array.isArray(oldVal) ? [...oldVal].sort() : [];
       const newArr = Array.isArray(newVal) ? [...newVal].sort() : [];
       if (oldArr.length !== newArr.length) return true;

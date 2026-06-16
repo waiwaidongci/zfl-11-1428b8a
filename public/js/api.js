@@ -299,3 +299,19 @@ export const BLOCK_TYPE_LABELS = {
   quote_lock_expired: "锁定已过期",
   quotation: "报价草稿"
 };
+
+export const Packages = {
+  list: (params) => {
+    const qs = params ? "?" + new URLSearchParams(params).toString() : "";
+    return api(`/api/packages${qs}`);
+  },
+  get: (id) => api(`/api/packages/${id}`),
+  create: (data) => api("/api/packages", { method: "POST", body: JSON.stringify(data) }),
+  update: (id, data) => api(`/api/packages/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  remove: (id) => api(`/api/packages/${id}`, { method: "DELETE" }),
+  checkAvailability: (id, params) => {
+    const qs = params ? "?" + new URLSearchParams(params).toString() : "";
+    return api(`/api/packages/${id}/availability${qs}`);
+  },
+  previewQuote: (data) => api("/api/packages/preview-quote", { method: "POST", body: JSON.stringify(data) })
+};
