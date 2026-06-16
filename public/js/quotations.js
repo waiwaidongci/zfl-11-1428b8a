@@ -1,4 +1,4 @@
-import { Equipment, Quotations, Customers, Packages, showToast, overlap } from "./api.js";
+import { Equipment, Quotations, Customers, Packages, showToast, overlap, formatConflictDetails, renderConflictDetailsHtml } from "./api.js";
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
@@ -591,7 +591,30 @@ async function runPreview() {
     });
     currentPreview = summary;
     renderPreview(summary);
+
+    const alertEl = $("#editConflictAlert");
+    if (alertEl && summary.lockCheck && !summary.lockCheck.valid) {
+      const parts = formatConflictDetails(summary.lockCheck);
+      if (parts.length) {
+        alertEl.innerHTML = renderConflictDetailsHtml(summary.lockCheck, "预览提醒：存在潜在冲突");
+        alertEl.classList.remove("hidden");
+      } else {
+        alertEl.classList.add("hidden");
+        alertEl.innerHTML = "";
+      }
+    } else if (alertEl) {
+      alertEl.classList.add("hidden");
+      alertEl.innerHTML = "";
+    }
   } catch (err) {
+    const alertEl = $("#editConflictAlert");
+    if (alertEl && err.details) {
+      const parts = formatConflictDetails(err.details);
+      if (parts.length) {
+        alertEl.innerHTML = renderConflictDetailsHtml(err.details, "预览失败");
+        alertEl.classList.remove("hidden");
+      }
+    }
     showToast(err.message, "error");
   }
 }
@@ -695,6 +718,11 @@ function resetEditForm() {
   $("#lockEndAtInput").value = "";
   $("#lockAppliedHint").classList.add("hidden");
   $("#lockAppliedRange").textContent = "";
+  const alertEl = $("#editConflictAlert");
+  if (alertEl) {
+    alertEl.classList.add("hidden");
+    alertEl.innerHTML = "";
+  }
 }
 
 async function openEdit(id = null) {
@@ -864,6 +892,17 @@ async function submitQuote() {
     await load();
     openDetail(result.id);
   } catch (err) {
+    const alertEl = $("#editConflictAlert");
+    if (alertEl && err.details) {
+      const parts = formatConflictDetails(err.details);
+      if (parts.length) {
+        alertEl.innerHTML = renderConflictDetailsHtml(err.details, "保存失败");
+        alertEl.classList.remove("hidden");
+      } else {
+        alertEl.classList.add("hidden");
+        alertEl.innerHTML = "";
+      }
+    }
     showToast(err.message, "error");
   }
 }
@@ -913,10 +952,12 @@ function renderDetail(q, check) {
       const issues = [];
       if (check.reason) issues.push(`<li>${escapeHtml(check.reason)}</li>`);
       if (check.equipmentCheck) {
-        (check.equipmentCheck.repair || []).forEach((r) => issues.push(`<li>⚠️ 维修中：${escapeHtml(r.id)} ${escapeHtml(r.name)}</li>`));
-        (check.equipmentCheck.conflicts || []).forEach((c) => issues.push(`<li>⚠️ 租期冲突：${escapeHtml(c.id)} ${escapeHtml(c.name)} → ${escapeHtml(c.conflictOrderCustomer || c.conflictOrderId || "")} ${escapeHtml(c.conflictRange || "")}</li>`));
-        (check.equipmentCheck.quoteLocks || []).forEach((c) => issues.push(`<li>🔒 报价锁定冲突：${escapeHtml(c.id)} ${escapeHtml(c.name)} → 报价 ${escapeHtml(c.conflictQuoteId || "")} ${escapeHtml(c.conflictQuoteCustomer || "")}（锁定至 ${escapeHtml(new Date(c.lockEndAt || '').toLocaleString('zh-CN').slice(0, 16))}，租期 ${escapeHtml(c.conflictRange || "")}）</li>`));
-        (check.equipmentCheck.missing || []).forEach((m) => issues.push(`<li>⚠️ 设备不存在：${escapeHtml(m)}</li>`));
+        (check.equipmentCheck.repair || []).forEach((r) => issues.push(`<li>🔧 维修中：${escapeHtml(r.id)} ${escapeHtml(r.name)}</li>`));
+        (check.equipmentCheck.conditionMissing || []).forEach((r) => issues.push(`<li>⚠️ 设备缺失：${escapeHtml(r.id)} ${escapeHtml(r.name)}</li>`));
+        (check.equipmentCheck.rented || []).forEach((r) => issues.push(`<li>📦 租赁中：${escapeHtml(r.id)} ${escapeHtml(r.name)}${r.orderCustomer ? `（客户：${escapeHtml(r.orderCustomer)}）` : r.orderId ? `（订单：${escapeHtml(r.orderId)}）` : ""}</li>`));
+        (check.equipmentCheck.conflicts || []).forEach((c) => issues.push(`<li>📅 租期冲突：${escapeHtml(c.id)} ${escapeHtml(c.name)} → ${escapeHtml(c.conflictOrderCustomer || c.conflictOrderId || "")} ${escapeHtml(c.conflictRange || "")}</li>`));
+        (check.equipmentCheck.quoteLocks || []).forEach((c) => issues.push(`<li>🔒 报价锁定冲突：${escapeHtml(c.id)} ${escapeHtml(c.name)} → 报价 ${escapeHtml(c.conflictQuoteId || "")} ${escapeHtml(c.conflictQuoteCustomer || "")}${c.conflictQuoteLockEndAt ? `（锁定至 ${escapeHtml(new Date(c.conflictQuoteLockEndAt).toLocaleString('zh-CN').slice(0, 16))}）` : ""}，租期 ${escapeHtml(c.conflictRange || "")}</li>`));
+        (check.equipmentCheck.missing || []).forEach((m) => issues.push(`<li>❌ 设备不存在：${escapeHtml(m)}</li>`));
       }
       alertHtml = `<div class="conflict-alert">
         <div class="ca-title">❌ 无法转订单</div>

@@ -1,4 +1,4 @@
-import { Equipment, Orders, Customers, Settlements, showToast, overlap } from "./api.js";
+import { Equipment, Orders, Customers, Settlements, showToast, overlap, formatConflictDetails, renderConflictDetailsHtml } from "./api.js";
 
 const orderForm = document.querySelector("#orderForm");
 const itemsEl = document.querySelector("#items");
@@ -1071,6 +1071,10 @@ document.querySelector("#reload").onclick = load;
 
 orderForm.onsubmit = async (event) => {
   event.preventDefault();
+  const conflictAlert = document.querySelector("#conflictAlert");
+  conflictAlert.classList.add("hidden");
+  conflictAlert.innerHTML = "";
+
   const data = Object.fromEntries(new FormData(orderForm).entries());
   data.itemIds = [...selected];
   try {
@@ -1083,7 +1087,16 @@ orderForm.onsubmit = async (event) => {
     itemCategoryFilter.value = "";
     await load();
   } catch (error) {
-    showToast(error.message, "error");
+    if (error.details) {
+      const parts = formatConflictDetails(error.details);
+      if (parts.length) {
+        conflictAlert.innerHTML = renderConflictDetailsHtml(error.details, "提交失败：设备不可用");
+        conflictAlert.classList.remove("hidden");
+      }
+      showToast(error.message, "error");
+    } else {
+      showToast(error.message, "error");
+    }
   }
 };
 

@@ -9,9 +9,92 @@ async function api(path, options) {
     if (data.code) err.code = data.code;
     if (data.equipment) err.equipment = data.equipment;
     if (data.item) err.item = data.item;
+    if (data.details) err.details = data.details;
     throw err;
   }
   return data;
+}
+
+export const CONFLICT_TYPE_ICONS = {
+  repair: "🔧",
+  rented: "📦",
+  missing: "❌",
+  conflict: "📅",
+  quote_lock: "🔒",
+  condition_missing: "⚠️"
+};
+
+export function formatConflictDetails(details) {
+  if (!details) return "";
+  const parts = [];
+
+  if (details.repair && details.repair.length) {
+    const items = details.repair.map((r) => `${r.id} ${r.name}`).join("、");
+    parts.push(`🔧 维修中：${items}`);
+  }
+
+  if (details.conditionMissing && details.conditionMissing.length) {
+    const items = details.conditionMissing.map((r) => `${r.id} ${r.name}`).join("、");
+    parts.push(`⚠️ 设备缺失：${items}`);
+  }
+
+  if (details.rented && details.rented.length) {
+    const items = details.rented.map((r) =>
+      `${r.id} ${r.name}${r.orderCustomer ? `（客户：${r.orderCustomer}）` : r.orderId ? `（订单：${r.orderId}）` : ""}`
+    ).join("、");
+    parts.push(`📦 租赁中：${items}`);
+  }
+
+  if (details.conflicts && details.conflicts.length) {
+    const items = details.conflicts.map((c) => {
+      const extra = c.conflictOrderCustomer || c.conflictOrderId || "";
+      const range = c.conflictRange || "";
+      return `${c.id} ${c.name}${extra ? ` → ${extra}` : ""}${range ? `（${range}）` : ""}`;
+    }).join("；");
+    parts.push(`📅 租期冲突：${items}`);
+  }
+
+  if (details.quoteLocks && details.quoteLocks.length) {
+    const items = details.quoteLocks.map((c) => {
+      const quote = c.conflictQuoteId || "";
+      const customer = c.conflictQuoteCustomer || "";
+      const lockEnd = c.conflictQuoteLockEndAt
+        ? `，锁定至 ${new Date(c.conflictQuoteLockEndAt).toLocaleString('zh-CN').slice(0, 16)}`
+        : "";
+      const range = c.conflictRange || "";
+      return `${c.id} ${c.name} → 报价 ${quote} ${customer}${lockEnd}（租期 ${range}）`;
+    }).join("；");
+    parts.push(`🔒 报价锁定冲突：${items}`);
+  }
+
+  if (details.missing && details.missing.length) {
+    const ids = details.missing.join("、");
+    parts.push(`❌ 设备不存在：${ids}`);
+  }
+
+  return parts;
+}
+
+export function renderConflictDetailsHtml(details, title = "设备不可用") {
+  if (!details) return "";
+  const parts = formatConflictDetails(details);
+  if (!parts.length) return "";
+  return `
+    <div style="padding:12px 14px;background:#fff4f2;border:1px solid #f0c0b8;border-radius:8px;">
+      <div style="font-weight:700;color:var(--red);margin-bottom:6px">❌ ${escapeHtml(title)}</div>
+      <ul style="margin:4px 0 0;padding-left:18px;list-style:none">
+        ${parts.map((p) => `<li style="margin-bottom:3px">${escapeHtml(p)}</li>`).join("")}
+      </ul>
+    </div>
+  `;
+}
+
+function escapeHtml(str) {
+  return String(str || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 export function showToast(message, type = "success") {

@@ -297,7 +297,9 @@ export async function approveVersion(req, res, quoteId, versionId) {
         repair: validation.repair,
         conflicts: validation.conflicts,
         quoteLocks: validation.quoteLocks,
-        missing: validation.missing
+        missing: validation.missing,
+        rented: validation.rented,
+        conditionMissing: validation.conditionMissing
       }
     });
   }
@@ -405,7 +407,9 @@ export async function restoreVersion(req, res, quoteId, versionId) {
         repair: validation.repair,
         conflicts: validation.conflicts,
         quoteLocks: validation.quoteLocks,
-        missing: validation.missing
+        missing: validation.missing,
+        rented: validation.rented,
+        conditionMissing: validation.conditionMissing
       }
     });
   }
@@ -531,7 +535,8 @@ function hasBusinessFieldChanged(oldData, newData) {
 
 function validateQuoteConflictsForSave(db, quote, exceptQuoteId = null) {
   if (!quote.itemIds?.length || !quote.startDate || !quote.endDate) {
-    return { valid: true, errors: [], repair: [], conflicts: [], quoteLocks: [], missing: [] };
+    return {
+      valid: true, errors: [], repair: [], conflicts: [], quoteLocks: [], missing: [], rented: [], conditionMissing: [] };
   }
   return validateEquipmentForQuotation(db, quote.itemIds, quote.startDate, quote.endDate, exceptQuoteId);
 }
@@ -573,13 +578,6 @@ export async function createQuotation(req, res) {
     return sendJson(res, 409, { error: `报价单编号 ${quotation.id} 已存在` });
   }
 
-  const repairItems = findRepairItems(db, quotation.itemIds);
-  if (repairItems.length) {
-    return sendJson(res, 409, {
-      error: `维修中设备不可加入报价单：${repairItems.map((r) => `${r.id} ${r.name}`).join("、")}`
-    });
-  }
-
   const validation = validateQuoteConflictsForSave(db, quotation, quotation.id);
   if (!validation.valid) {
     return sendJson(res, 409, {
@@ -588,7 +586,9 @@ export async function createQuotation(req, res) {
         repair: validation.repair,
         conflicts: validation.conflicts,
         quoteLocks: validation.quoteLocks,
-        missing: validation.missing
+        missing: validation.missing,
+        rented: validation.rented,
+        conditionMissing: validation.conditionMissing
       }
     });
   }
@@ -686,10 +686,18 @@ export async function updateQuotation(req, res, id) {
   }
 
   if (merged.itemIds?.length) {
-    const repairItems = findRepairItems(db, merged.itemIds);
-    if (repairItems.length) {
+    const validation = validateQuoteConflictsForSave(db, merged, merged.id);
+    if (validation.repair.length) {
       return sendJson(res, 409, {
-        error: `维修中设备不可加入报价单：${repairItems.map((r) => `${r.id} ${r.name}`).join("、")}`
+        error: `维修中设备不可加入报价单：${validation.repair.map((r) => `${r.id} ${r.name}`).join("、")}`,
+        details: {
+          repair: validation.repair,
+          conflicts: validation.conflicts,
+          quoteLocks: validation.quoteLocks,
+          missing: validation.missing,
+          rented: validation.rented,
+          conditionMissing: validation.conditionMissing
+        }
       });
     }
   }
@@ -704,7 +712,9 @@ export async function updateQuotation(req, res, id) {
           repair: validation.repair,
           conflicts: validation.conflicts,
           quoteLocks: validation.quoteLocks,
-          missing: validation.missing
+          missing: validation.missing,
+          rented: validation.rented,
+          conditionMissing: validation.conditionMissing
         }
       });
     }
@@ -814,13 +824,6 @@ export async function previewQuote(req, res) {
     return sendJson(res, 400, { error: "结束日期不能早于开始日期" });
   }
 
-  const repairItems = findRepairItems(db, itemIds);
-  if (repairItems.length) {
-    return sendJson(res, 409, {
-      error: `维修中设备不可加入报价单：${repairItems.map((r) => `${r.id} ${r.name}`).join("、")}`
-    });
-  }
-
   const validation = validateEquipmentForQuotation(db, itemIds, startDate, endDate, input.quotationId || null);
   const summary = buildQuoteSummary(db.equipment, itemIds, startDate, endDate, depositOverride, discount);
 
@@ -830,6 +833,8 @@ export async function previewQuote(req, res) {
     conflicts: validation.conflicts,
     quoteLocks: validation.quoteLocks,
     missing: validation.missing,
+    rented: validation.rented,
+    conditionMissing: validation.conditionMissing,
     errors: validation.errors
   };
 
@@ -868,7 +873,10 @@ export async function checkConvertibility(req, res, id) {
       repair: validation.repair,
       conflicts: validation.conflicts,
       quoteLocks: validation.quoteLocks,
-      missing: validation.missing
+      missing: validation.missing,
+      rented: validation.rented,
+      conditionMissing: validation.conditionMissing,
+      errors: validation.errors
     };
     if (!validation.valid) {
       response.convertible = false;

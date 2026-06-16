@@ -38,17 +38,14 @@ export async function createOrder(req, res) {
       repair: validation.repair,
       conflicts: validation.conflicts,
       quoteLocks: validation.quoteLocks,
-      missing: validation.missing
+      missing: validation.missing,
+      rented: validation.rented,
+      conditionMissing: validation.conditionMissing
     };
     return sendJson(res, 409, {
       error: `设备不可用（${validation.errors.join("；")}）`,
       details
     });
-  }
-
-  const rented = db.equipment.filter((item) => input.itemIds.includes(item.id) && item.condition === "rented").map((item) => item.id);
-  if (rented.length) {
-    return sendJson(res, 409, { error: `设备不可用（租赁中: ${rented.join("、")}）` });
   }
 
   const order = {
@@ -145,22 +142,38 @@ export async function updateOrder(req, res, id) {
     }
 
     const validation = validateEquipmentForOrder(db, input.itemIds, newStartDate, newEndDate, id, null);
-    if (!validation.valid) {
-      const details = {
-        repair: validation.repair,
-        conflicts: validation.conflicts,
-        quoteLocks: validation.quoteLocks,
-        missing: validation.missing
-      };
-      return sendJson(res, 409, {
-        error: `设备不可用（${validation.errors.join("；")}）`,
-        details
-      });
-    }
 
-    const rented = db.equipment.filter((item) => input.itemIds.includes(item.id) && item.condition === "rented" && order.status !== "已出库").map((item) => item.id);
-    if (rented.length) {
-      return sendJson(res, 409, { error: `设备不可用（租赁中: ${rented.join("、")}）` });
+    if (!validation.valid) {
+      let filteredRented = validation.rented;
+      if (["已出库", "待归还"].includes(order.status)) {
+        filteredRented = validation.rented.filter((r) => r.orderId !== id);
+      }
+      const hasRentedIssue = filteredRented.length > 0;
+
+      const hasRepair = validation.repair.length > 0;
+      const hasConflict = validation.conflicts.length > 0;
+      const hasQuoteLock = validation.quoteLocks.length > 0;
+      const hasMissing = validation.missing.length > 0;
+
+      if (hasRepair || hasConflict || hasQuoteLock || hasMissing || hasRentedIssue) {
+        const details = {
+          repair: validation.repair,
+          conflicts: validation.conflicts,
+          quoteLocks: validation.quoteLocks,
+          missing: validation.missing,
+          rented: filteredRented,
+          conditionMissing: validation.conditionMissing
+        };
+        const errorMsgs = [...validation.errors];
+        if (!hasRentedIssue && validation.rented.length > 0) {
+          const idx = errorMsgs.findIndex((m) => m.startsWith("租赁中设备："));
+          if (idx >= 0) errorMsgs.splice(idx, 1);
+        }
+        return sendJson(res, 409, {
+          error: `设备不可用（${errorMsgs.join("；")}）`,
+          details
+        });
+      }
     }
   }
 
