@@ -1,4 +1,4 @@
-import { Orders, Settlements, AuditLogs, showToast, SETTLEMENT_STATUS_LABELS, FEE_TYPE_LABELS, PAYMENT_METHOD_LABELS, PAYMENT_TYPE_LABELS, PAYMENT_PLAN_NODE_TYPE_LABELS, PAYMENT_PLAN_NODE_STATUS_LABELS, PAYMENT_PLAN_OVERALL_STATUS_LABELS } from "./api.js";
+import { Orders, Settlements, renderAuditHistory, escapeHtml, showToast, SETTLEMENT_STATUS_LABELS, FEE_TYPE_LABELS, PAYMENT_METHOD_LABELS, PAYMENT_TYPE_LABELS, PAYMENT_PLAN_NODE_TYPE_LABELS, PAYMENT_PLAN_NODE_STATUS_LABELS, PAYMENT_PLAN_OVERALL_STATUS_LABELS } from "./api.js";
 
 let orders = [];
 let settlements = [];
@@ -191,8 +191,7 @@ function renderSettlementDetail() {
   };
 
   renderAuditHistory("settlementAuditHistory", {
-    objectType: ["settlement", "settlement_fee", "payment"],
-    objectId: currentOrderId,
+    orderId: currentOrderId,
     onRefresh: refreshSettlementAndHistory
   });
 }
@@ -726,97 +725,6 @@ async function syncRepairFees() {
 function printSettlement() {
   if (!currentOrderId) return;
   window.open(`/print?type=settlement&id=${encodeURIComponent(currentOrderId)}`, "_blank");
-}
-
-function escapeHtml(str) {
-  return String(str || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-function formatDateTime(isoString) {
-  if (!isoString) return "";
-  try {
-    const date = new Date(isoString);
-    return date.toLocaleString("zh-CN", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit"
-    });
-  } catch {
-    return isoString;
-  }
-}
-
-async function renderAuditHistory(containerId, { objectType, objectId, onRefresh }) {
-  const container = document.getElementById(containerId);
-  if (!container) return;
-
-  container.innerHTML = `<div class="audit-empty">加载中…</div>`;
-
-  try {
-    let allLogs = [];
-    const types = Array.isArray(objectType) ? objectType : [objectType];
-
-    for (const type of types) {
-      try {
-        const logs = await AuditLogs.list({ objectType: type, objectId, limit: 50 });
-        if (Array.isArray(logs)) {
-          allLogs = allLogs.concat(logs);
-        }
-      } catch {
-      }
-    }
-
-    allLogs.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-    if (!allLogs.length) {
-      container.innerHTML = `<div class="audit-empty">暂无操作历史</div>`;
-      return;
-    }
-
-    container.innerHTML = allLogs.map((log) => {
-      const revertBtn = log.reversible && !log.reverted
-        ? `<button class="ghost small audit-revert" data-log-id="${escapeHtml(log.id)}">撤销</button>`
-        : log.reverted
-          ? `<span class="audit-reverted">已撤销</span>`
-          : "";
-
-      return `
-        <div class="audit-item">
-          <div class="audit-dot"></div>
-          <div class="audit-content">
-            <div class="audit-head">
-              <span class="audit-action">${escapeHtml(log.actionLabel || log.action)}</span>
-              <span class="audit-time">${formatDateTime(log.createdAt)}</span>
-            </div>
-            ${log.summary ? `<div class="audit-summary">${escapeHtml(log.summary)}</div>` : ""}
-            ${log.detail ? `<div class="audit-detail">${escapeHtml(log.detail)}</div>` : ""}
-            ${revertBtn}
-          </div>
-        </div>
-      `;
-    }).join("");
-
-    container.querySelectorAll("button.audit-revert").forEach((btn) => {
-      btn.onclick = async () => {
-        if (!confirm("确定要撤销此操作吗？")) return;
-        try {
-          await AuditLogs.revert(btn.dataset.logId);
-          showToast("操作已撤销");
-          if (onRefresh) await onRefresh();
-        } catch (err) {
-          showToast(err.message, "error");
-        }
-      };
-    });
-  } catch (err) {
-    container.innerHTML = `<div class="audit-empty">加载失败：${escapeHtml(err.message)}</div>`;
-  }
 }
 
 window.closeFeeModal = closeFeeModal;

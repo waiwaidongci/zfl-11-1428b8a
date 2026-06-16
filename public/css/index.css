@@ -377,3 +377,94 @@ select.mini {
 .handover-actions button {
   flex: 1;
 }
+
+#orderAuditHistory::before {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background: var(--line);
+  border-radius: 1px;
+}
+.audit-item {
+  position: relative;
+  padding: 0 0 14px;
+}
+.audit-dot {
+  position: absolute;
+  left: -18px;
+  top: 5px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px var(--line);
+}
+.audit-content {
+  padding: 6px 10px;
+  background: #fafbfa;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+}
+.audit-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.audit-action {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--blue);
+}
+.audit-time {
+  font-size: 11px;
+  color: var(--muted);
+}
+.audit-summary {
+  font-size: 12px;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+.audit-detail {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.audit-revert {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--red);
+  border-color: var(--red);
+}
+.audit-reverted {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--muted);
+  background: #f5f5f5;
+  padding: 1px 8px;
+  border-radius: 4px;
+}
+.audit-empty {
+  text-align: center;
+  padding: 16px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+#orderAuditHistory{position:relative;padding-left:18px;max-height:340px;overflow-y:auto}
+#orderAuditHistory::before{content:"";position:absolute;left:6px;top:4px;bottom:4px;width:2px;background:var(--line);border-radius:1px}
+.audit-item{position:relative;margin-bottom:14px}
+.audit-dot{position:absolute;left:-15px;top:4px;width:10px;height:10px;border-radius:50%;background:var(--green);border:2px solid #fff;box-shadow:0 0 0 2px var(--line)}
+.audit-content{background:#f8faf8;border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.audit-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px}
+.audit-action{font-weight:600;font-size:13px;color:var(--green)}
+.audit-time{font-size:11px;color:var(--muted);font-family:ui-monospace,Menlo,monospace}
+.audit-summary{font-size:13px;margin-bottom:4px;line-height:1.5}
+.audit-detail{font-size:12px;color:var(--muted);line-height:1.5}
+.audit-revert{margin-top:8px}
+.audit-reverted{display:inline-block;margin-top:8px;padding:2px 8px;background:#f3f3f3;color:var(--muted);border-radius:4px;font-size:11px}

@@ -1,4 +1,4 @@
-import { Stocktakes, Equipment, AuditLogs, showToast, STOCKTAKE_STATUS_LABELS, STOCKTAKE_RESULT_LABELS } from "./api.js";
+import { Stocktakes, Equipment, renderAuditHistory, escapeHtml, showToast, STOCKTAKE_STATUS_LABELS, STOCKTAKE_RESULT_LABELS } from "./api.js";
 
 const state = {
   list: [],
@@ -59,14 +59,6 @@ const damagedForm = $("damagedForm");
 
 const diffReportModal = $("diffReportModal");
 
-function escapeHtml(str) {
-  return String(str || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
 function escapeCss(str) {
   return String(str || "").replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, "_");
 }
@@ -77,80 +69,6 @@ function formatDate(iso) {
     return new Date(iso).toLocaleString("zh-CN");
   } catch {
     return "-";
-  }
-}
-
-function formatDateTime(iso) {
-  if (!iso) return "-";
-  try {
-    return new Date(iso).toLocaleString("zh-CN", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit"
-    });
-  } catch {
-    return "-";
-  }
-}
-
-async function renderAuditHistory(containerId, { objectType, objectId, onRefresh }) {
-  const container = $(containerId);
-  if (!container) return;
-  container.innerHTML = `<div class="audit-empty">加载中...</div>`;
-
-  try {
-    const allLogs = await AuditLogs.list({ objectType, limit: 50 });
-    const logs = allLogs.filter((log) => log.objectId && log.objectId.startsWith(`${objectId}:`));
-
-    if (!logs.length) {
-      container.innerHTML = `<div class="audit-empty">暂无操作记录</div>`;
-      return;
-    }
-
-    container.innerHTML = logs
-      .map((log) => {
-        const canRevert = log.reversible && !log.reverted;
-        return `
-        <div class="audit-item" data-log-id="${escapeHtml(log.id)}">
-          <div class="audit-dot"></div>
-          <div class="audit-content">
-            <div class="audit-head">
-              <div>
-                <span class="audit-action">${escapeHtml(log.actionLabel || log.action || "操作")}</span>
-                ${log.objectId ? `<span class="audit-object">${escapeHtml(log.objectId)}</span>` : ""}
-              </div>
-              <span class="audit-time">${formatDateTime(log.createdAt)}</span>
-            </div>
-            ${log.summary ? `<div class="audit-summary">${escapeHtml(log.summary)}</div>` : ""}
-            ${log.detail ? `<div class="audit-detail">${escapeHtml(log.detail)}</div>` : ""}
-            ${log.reverted ? `<div class="audit-reverted">已撤销</div>` : ""}
-            ${canRevert ? `<div class="audit-revert"><button class="ghost small revert-btn" data-log-id="${escapeHtml(log.id)}">撤销</button></div>` : ""}
-          </div>
-        </div>
-      `;
-      })
-      .join("");
-
-    container.querySelectorAll(".revert-btn").forEach((btn) => {
-      btn.addEventListener("click", async (e) => {
-        e.preventDefault();
-        const logId = btn.dataset.logId;
-        if (!confirm("确定撤销此操作吗？")) return;
-        try {
-          await AuditLogs.revert(logId);
-          showToast("操作已撤销");
-          if (onRefresh) onRefresh();
-          renderAuditHistory(containerId, { objectType, objectId, onRefresh });
-        } catch (err) {
-          showToast(err.message, "error");
-        }
-      });
-    });
-  } catch (err) {
-    container.innerHTML = `<div class="audit-empty" style="color:var(--red)">加载失败：${escapeHtml(err.message)}</div>`;
   }
 }
 

@@ -1,4 +1,4 @@
-import { Equipment, Quotations, Customers, Packages, showToast, overlap, formatConflictDetails, renderConflictDetailsHtml } from "./api.js";
+import { Equipment, Quotations, Customers, Packages, showToast, overlap, formatConflictDetails, renderConflictDetailsHtml, renderAuditHistory, escapeHtml } from "./api.js";
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
@@ -23,14 +23,6 @@ let currentCompareV2 = null;
 let detailTab = "info";
 let pendingLockStartAt = null;
 let pendingLockEndAt = null;
-
-function escapeHtml(str) {
-  return String(str || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
 
 function fmtMoney(n) {
   const v = Number(n) || 0;
@@ -1113,10 +1105,14 @@ function renderDetail(q, check) {
       <button class="tab-btn ${detailTab === 'info' ? 'active' : ''}" data-tab="info">📋 基本信息</button>
       <button class="tab-btn ${detailTab === 'versions' ? 'active' : ''}" data-tab="versions">📜 版本历史 (${allVersions.length})</button>
       <button class="tab-btn ${detailTab === 'compare' ? 'active' : ''}" data-tab="compare">⚖️ 版本对比</button>
+      <button class="tab-btn ${detailTab === 'audit' ? 'active' : ''}" data-tab="audit">📝 操作历史</button>
     </div>
     <div class="tab-content" style="display:${detailTab === 'info' ? 'block' : 'none'}" data-tab="info">${infoTabContent}</div>
     <div class="tab-content" style="display:${detailTab === 'versions' ? 'block' : 'none'}" data-tab="versions">${versionsHtml}</div>
     <div class="tab-content" style="display:${detailTab === 'compare' ? 'block' : 'none'}" data-tab="compare">${compareHtml}</div>
+    <div class="tab-content" style="display:${detailTab === 'audit' ? 'block' : 'none'}" data-tab="audit">
+      <div id="quoteAuditHistory" style="max-height:400px;overflow-y:auto;position:relative;padding-left:18px"></div>
+    </div>
   `;
 
   $$(".tab-btn").forEach((btn) => {
@@ -1127,10 +1123,23 @@ function renderDetail(q, check) {
         c.style.display = c.dataset.tab === detailTab ? "block" : "none";
       });
       bindDetailTabEvents(q);
+      if (detailTab === "audit") {
+        renderAuditHistory("quoteAuditHistory", {
+          objectType: ["quotation", "quotation_version"],
+          objectId: q.id
+        });
+      }
     };
   });
 
   bindDetailTabEvents(q);
+
+  if (detailTab === "audit") {
+    renderAuditHistory("quoteAuditHistory", {
+      objectType: ["quotation", "quotation_version"],
+      objectId: q.id
+    });
+  }
 
   const canEdit = q.status !== "已转订单";
   const canConvert = q.status === "已确认";

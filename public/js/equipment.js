@@ -4,7 +4,9 @@ import {
   Packages,
   showToast,
   REPAIR_STATUS_LABELS,
-  REPAIR_SOURCE_LABELS
+  REPAIR_SOURCE_LABELS,
+  renderAuditHistory,
+  escapeHtml
 } from "./api.js";
 
 const state = {
@@ -211,14 +213,6 @@ function renderList() {
   });
 }
 
-function escapeHtml(str) {
-  return String(str || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
 function escapeCss(str) {
   return String(str || "").replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, "_");
 }
@@ -294,6 +288,11 @@ function openEdit(id) {
   eqForm.location.value = eq.location || "";
   eqForm.condition.value = eq.condition;
   eqForm.id.readOnly = true;
+  $("equipmentAuditPanel").classList.remove("hidden");
+  renderAuditHistory("equipmentAuditHistory", {
+    objectType: "equipment",
+    objectId: id
+  });
   openModal();
 }
 
@@ -303,6 +302,7 @@ function openCreate() {
   eqForm.reset();
   eqForm.id.readOnly = false;
   eqForm.condition.value = "available";
+  $("equipmentAuditPanel").classList.add("hidden");
   openModal();
 }
 

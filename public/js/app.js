@@ -1,4 +1,4 @@
-import { Equipment, Orders, Customers, Settlements, showToast, overlap, formatConflictDetails, renderConflictDetailsHtml } from "./api.js";
+import { Equipment, Orders, Customers, Settlements, showToast, overlap, formatConflictDetails, renderConflictDetailsHtml, renderAuditHistory, escapeHtml } from "./api.js";
 
 const orderForm = document.querySelector("#orderForm");
 const itemsEl = document.querySelector("#items");
@@ -581,6 +581,11 @@ function renderOrderDetail(o, autoFocusAction) {
     ${pendingReturnBtnHtml}
 
     ${handoverFormHtml}
+
+    <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line)">
+      <h4 style="margin:0 0 10px 0;font-size:14px">📝 操作历史</h4>
+      <div id="orderAuditHistory"></div>
+    </div>
   `;
 
   function collectCheckoutDraftData() {
@@ -1027,6 +1032,8 @@ function renderOrderDetail(o, autoFocusAction) {
       window.location.href = `/settlement?id=${encodeURIComponent(currentDetailOrderId)}`;
     };
   }
+
+  renderAuditHistory("orderAuditHistory", { orderId: o.id });
 }
 
 window.closeOrderDetail = closeOrderDetail;
@@ -1113,14 +1120,6 @@ async function load() {
   } catch (err) {
     showToast(err.message, "error");
   }
-}
-
-function escapeHtml(str) {
-  return String(str || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
 }
 
 orderForm.addEventListener("input", renderItems);

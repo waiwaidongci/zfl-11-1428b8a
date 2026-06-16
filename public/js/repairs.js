@@ -1,7 +1,8 @@
 import {
   Repairs,
   Equipment,
-  AuditLogs,
+  renderAuditHistory,
+  escapeHtml,
   showToast,
   REPAIR_STATUS_LABELS,
   REPAIR_SOURCE_LABELS,
@@ -266,82 +267,6 @@ function formatDate(iso) {
   } catch {
     return "-";
   }
-}
-
-function formatDateTime(iso) {
-  if (!iso) return "-";
-  try {
-    return new Date(iso).toLocaleString("zh-CN", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit"
-    });
-  } catch {
-    return "-";
-  }
-}
-
-async function renderAuditHistory(containerId, { objectType, objectId, onRefresh }) {
-  const container = document.getElementById(containerId);
-  if (!container) return;
-
-  try {
-    const logs = await AuditLogs.list({ objectType, objectId, limit: 50 });
-    if (!logs || !logs.length) {
-      container.innerHTML = `<div class="audit-empty">暂无操作记录</div>`;
-      return;
-    }
-
-    container.innerHTML = logs
-      .map((log) => {
-        const canRevert = log.reversible && !log.reverted;
-        return `
-          <div class="audit-item" data-id="${log.id}">
-            <div class="audit-dot"></div>
-            <div class="audit-content">
-              <div class="audit-head">
-                <span class="audit-action">${escapeHtml(log.actionLabel || log.action)}</span>
-                <span class="audit-time">${formatDateTime(log.timestamp)}</span>
-              </div>
-              ${log.summary ? `<div class="audit-summary">${escapeHtml(log.summary)}</div>` : ""}
-              ${log.detail ? `<div class="audit-detail">${escapeHtml(log.detail)}</div>` : ""}
-              ${canRevert ? `<button class="audit-revert ghost small" data-log-id="${log.id}">撤销</button>` : ""}
-              ${log.reverted ? `<span class="audit-reverted">已撤销</span>` : ""}
-            </div>
-          </div>
-        `;
-      })
-      .join("");
-
-    container.querySelectorAll(".audit-revert").forEach((btn) => {
-      btn.addEventListener("click", async () => {
-        const logId = btn.dataset.logId;
-        try {
-          await AuditLogs.revert(logId);
-          showToast("操作已撤销");
-          if (onRefresh) {
-            await onRefresh();
-          } else {
-            await renderAuditHistory(containerId, { objectType, objectId, onRefresh });
-          }
-        } catch (err) {
-          showToast(err.message, "error");
-        }
-      });
-    });
-  } catch (err) {
-    container.innerHTML = `<div class="audit-empty">加载操作历史失败：${escapeHtml(err.message)}</div>`;
-  }
-}
-
-function escapeHtml(str) {
-  return String(str || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
 }
 
 function escapeCss(str) {
