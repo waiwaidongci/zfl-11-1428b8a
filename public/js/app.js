@@ -97,8 +97,14 @@ function renderItems() {
   }
 
   document.querySelectorAll(".item").forEach((el) => {
-    el.onclick = () => {
-      if (el.classList.contains("disabled")) return;
+    el.onclick = async () => {
+      if (el.classList.contains("disabled")) {
+        await showItemAvailabilityReason(el.dataset.id, start, end);
+        return;
+      }
+      const conflictAlert = document.querySelector("#conflictAlert");
+      conflictAlert.classList.add("hidden");
+      conflictAlert.innerHTML = "";
       selected.has(el.dataset.id) ? selected.delete(el.dataset.id) : selected.add(el.dataset.id);
       renderSelection();
       renderItems();
@@ -106,6 +112,62 @@ function renderItems() {
   });
 
   renderSelection();
+}
+
+function availabilityResultToDetails(result) {
+  const byType = result?.byType || {};
+  return {
+    repair: (byType.repair || []).map((c) => ({ id: c.equipmentId, name: c.equipmentName })),
+    conflicts: (byType.order_rental || []).map((c) => ({
+      id: c.equipmentId,
+      name: c.equipmentName,
+      conflictOrderId: c.orderId,
+      conflictOrderCustomer: c.orderCustomer,
+      conflictRange: c.conflictRange
+    })),
+    quoteLocks: (byType.quote_lock || []).map((c) => ({
+      id: c.equipmentId,
+      name: c.equipmentName,
+      conflictQuoteId: c.quoteId,
+      conflictQuoteCustomer: c.quoteCustomer,
+      conflictQuoteLockEndAt: c.lockEndAt,
+      conflictRange: c.conflictRange
+    })),
+    rented: (byType.rented || []).map((c) => ({
+      id: c.equipmentId,
+      name: c.equipmentName,
+      orderId: c.orderId,
+      orderCustomer: c.orderCustomer,
+      orderStatus: c.orderStatus
+    })),
+    missing: [
+      ...(byType.not_found || []).map((c) => c.equipmentId),
+      ...(byType.missing || []).map((c) => c.equipmentId)
+    ],
+    conditionMissing: (byType.missing || []).map((c) => ({ id: c.equipmentId, name: c.equipmentName }))
+  };
+}
+
+async function showItemAvailabilityReason(itemId, startDate, endDate) {
+  const conflictAlert = document.querySelector("#conflictAlert");
+  try {
+    const result = await Equipment.checkAvailability({
+      itemIds: [itemId],
+      startDate: startDate || null,
+      endDate: endDate || null
+    });
+    const details = availabilityResultToDetails(result);
+    const parts = formatConflictDetails(details);
+    if (parts.length) {
+      conflictAlert.innerHTML = renderConflictDetailsHtml(details, "设备不可选择");
+      conflictAlert.classList.remove("hidden");
+      return;
+    }
+  } catch (error) {
+    showToast(error.message, "error");
+    return;
+  }
+  showToast("当前设备不可选择", "error");
 }
 
 function renderSelection() {

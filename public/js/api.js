@@ -68,7 +68,10 @@ export function formatConflictDetails(details) {
   }
 
   if (details.missing && details.missing.length) {
-    const ids = details.missing.join("、");
+    const conditionMissingIds = new Set((details.conditionMissing || []).map((item) => item.id));
+    const notFoundIds = details.missing.filter((id) => !conditionMissingIds.has(id));
+    const ids = notFoundIds.join("、");
+    if (!ids) return parts;
     parts.push(`❌ 设备不存在：${ids}`);
   }
 
