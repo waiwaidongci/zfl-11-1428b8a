@@ -432,7 +432,7 @@ export function escapeHtml(str) {
     .replace(/"/g, "&quot;");
 }
 
-export async function renderAuditHistory(containerId, { objectType, objectId, orderId, onRefresh }) {
+export async function renderAuditHistory(containerId, { objectType, objectId, objectIdPrefix, orderId, onRefresh }) {
   const container = document.getElementById(containerId);
   if (!container) return;
 
@@ -449,7 +449,10 @@ export async function renderAuditHistory(containerId, { objectType, objectId, or
       for (const type of types) {
         if (!type) continue;
         try {
-          const logs = await AuditLogs.list({ objectType: type, objectId, limit: 50 });
+          const params = { objectType: type, limit: 50 };
+          if (objectId) params.objectId = objectId;
+          if (objectIdPrefix) params.objectIdPrefix = objectIdPrefix;
+          const logs = await AuditLogs.list(params);
           if (Array.isArray(logs)) allLogs = allLogs.concat(logs);
         } catch {}
       }

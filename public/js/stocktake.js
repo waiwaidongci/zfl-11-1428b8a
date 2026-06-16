@@ -464,7 +464,7 @@ function refreshStocktakeAudit() {
   if (!state.currentStocktake) return;
   renderAuditHistory("stocktakeAuditHistory", {
     objectType: "stocktake_item",
-    objectId: state.currentStocktake.id,
+    objectIdPrefix: `${state.currentStocktake.id}:`,
     onRefresh: async () => {
       const updated = await Stocktakes.get(state.currentStocktake.id);
       state.currentStocktake = updated;

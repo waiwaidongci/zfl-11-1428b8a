@@ -12,11 +12,12 @@ export async function listAuditLogsApi(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const objectType = url.searchParams.get("objectType");
   const objectId = url.searchParams.get("objectId");
+  const objectIdPrefix = url.searchParams.get("objectIdPrefix");
   const action = url.searchParams.get("action");
   const orderId = url.searchParams.get("orderId");
   const limit = Number(url.searchParams.get("limit")) || 100;
 
-  const logs = await listAuditLogs(db, { objectType, objectId, action, orderId, limit });
+  const logs = await listAuditLogs(db, { objectType, objectId, objectIdPrefix, action, orderId, limit });
   return sendJson(res, 200, logs.map(buildAuditPayload));
 }
 

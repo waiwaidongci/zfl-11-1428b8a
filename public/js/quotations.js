@@ -1126,7 +1126,8 @@ function renderDetail(q, check) {
       if (detailTab === "audit") {
         renderAuditHistory("quoteAuditHistory", {
           objectType: ["quotation", "quotation_version"],
-          objectId: q.id
+          objectId: q.id,
+          objectIdPrefix: `${q.id}:`
         });
       }
     };
@@ -1137,7 +1138,8 @@ function renderDetail(q, check) {
   if (detailTab === "audit") {
     renderAuditHistory("quoteAuditHistory", {
       objectType: ["quotation", "quotation_version"],
-      objectId: q.id
+      objectId: q.id,
+      objectIdPrefix: `${q.id}:`
     });
   }
 
