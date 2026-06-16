@@ -5,112 +5,17 @@ import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
 import { sendJson, sendFile, sendHtml, MIME } from "./lib/http.js";
 
-import {
-  listEquipment,
-  createEquipment,
-  updateEquipment,
-  patchCondition,
-  deleteEquipment,
-  previewImport,
-  confirmImport,
-  exportEquipment
-} from "./routes/equipment.js";
-
-import {
-  checkAvailability,
-  listAvailable,
-  getConflictTypes
-} from "./routes/equipmentAvailability.js";
-
-import { listOrders, getOrder, createOrder, updateOrder, listHandovers, createHandover, getHandover, getHandoverDraft, saveHandoverDraft, deleteHandoverDraft } from "./routes/orders.js";
-
-import {
-  listCustomers,
-  getCustomer,
-  createCustomer,
-  updateCustomer,
-  deleteCustomer
-} from "./routes/customers.js";
-
-import {
-  listQuotations,
-  getQuotation,
-  createQuotation,
-  updateQuotation,
-  deleteQuotation,
-  previewQuote,
-  convertToOrder,
-  checkConvertibility,
-  listVersions,
-  getVersion,
-  createVersion,
-  approveVersion,
-  rejectVersion,
-  restoreVersion,
-  compareVersions
-} from "./routes/quotations.js";
-
-import {
-  listRepairs,
-  getRepair,
-  createRepair,
-  updateRepair,
-  advanceRepairStatus,
-  deleteRepair,
-  getEquipmentRepairs
-} from "./routes/repairs.js";
-
-import { getSchedule } from "./routes/schedule.js";
-
-import {
-  listSettlements,
-  getSettlement,
-  updateSettlement,
-  addFee,
-  updateFee,
-  deleteFee,
-  syncQuoteFees,
-  syncHandoverFees,
-  syncRepairFees,
-  addPayment,
-  updatePayment,
-  deletePayment,
-  listPaymentPlans,
-  addPaymentPlan,
-  updatePaymentPlan,
-  deletePaymentPlan
-} from "./routes/settlements.js";
-
-import {
-  listStocktakes,
-  getStocktake,
-  createStocktake,
-  updateStocktake,
-  scanStocktakeItem,
-  submitStocktake,
-  markItemProcessed,
-  processDamaged,
-  processMissing,
-  processMismatch,
-  cancelStocktake,
-  deleteStocktake
-} from "./routes/stocktakes.js";
-
-import {
-  listPackages,
-  getPackage,
-  createPackage,
-  updatePackage,
-  deletePackage,
-  checkPackageAvailability,
-  previewPackageQuote
-} from "./routes/packages.js";
-
-import {
-  listAuditLogsApi,
-  getAuditLogApi,
-  revertAuditLogApi
-} from "./routes/audit.js";
+import * as equipment from "./routes/equipment.js";
+import * as equipmentAvailability from "./routes/equipmentAvailability.js";
+import * as orders from "./routes/orders.js";
+import * as customers from "./routes/customers.js";
+import * as quotations from "./routes/quotations.js";
+import * as repairs from "./routes/repairs.js";
+import * as schedule from "./routes/schedule.js";
+import * as settlements from "./routes/settlements.js";
+import * as stocktakes from "./routes/stocktakes.js";
+import * as packages from "./routes/packages.js";
+import * as audit from "./routes/audit.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const publicDir = join(__dirname, "public");
@@ -138,6 +43,161 @@ async function serveStatic(req, res, pathname) {
   }
 }
 
+function createRouter() {
+  const routes = [];
+
+  function compilePattern(pattern) {
+    const paramNames = [];
+    let regexStr = "^";
+    let i = 0;
+
+    while (i < pattern.length) {
+      if (pattern[i] === ":") {
+        let j = i + 1;
+        while (j < pattern.length && /[a-zA-Z0-9_]/.test(pattern[j])) j++;
+        paramNames.push(pattern.slice(i + 1, j));
+        regexStr += "([^/]+)";
+        i = j;
+      } else {
+        regexStr += pattern[i].replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        i++;
+      }
+    }
+
+    regexStr += "$";
+    return { regex: new RegExp(regexStr), paramNames };
+  }
+
+  function addRoute(method, pattern, handler) {
+    const { regex, paramNames } = compilePattern(pattern);
+    routes.push({ method, regex, paramNames, handler });
+  }
+
+  function group(prefix, registerRoutes) {
+    const originalAdd = (method, pattern, handler) => {
+      const fullPattern = pattern === "/" ? prefix : prefix + pattern;
+      addRoute(method, fullPattern, handler);
+    };
+    registerRoutes(originalAdd);
+  }
+
+  function match(req, res, pathname) {
+    for (const route of routes) {
+      if (route.method !== req.method) continue;
+      const match = pathname.match(route.regex);
+      if (!match) continue;
+
+      const params = route.paramNames.map((name, idx) =>
+        decodeURIComponent(match[idx + 1])
+      );
+      return route.handler(req, res, ...params);
+    }
+    return null;
+  }
+
+  return { addRoute, group, match };
+}
+
+const router = createRouter();
+
+router.addRoute("GET", "/api/equipment", equipment.listEquipment);
+router.addRoute("POST", "/api/equipment", equipment.createEquipment);
+router.addRoute("GET", "/api/equipment/export", equipment.exportEquipment);
+router.addRoute("POST", "/api/equipment/import/preview", equipment.previewImport);
+router.addRoute("POST", "/api/equipment/import", equipment.confirmImport);
+router.addRoute("PATCH", "/api/equipment/:id", equipment.updateEquipment);
+router.addRoute("DELETE", "/api/equipment/:id", equipment.deleteEquipment);
+router.addRoute("PATCH", "/api/equipment/:id/condition", equipment.patchCondition);
+router.addRoute("GET", "/api/equipment/:id/repairs", repairs.getEquipmentRepairs);
+
+router.addRoute("POST", "/api/equipment/availability/check", equipmentAvailability.checkAvailability);
+router.addRoute("GET", "/api/equipment/availability", equipmentAvailability.listAvailable);
+router.addRoute("GET", "/api/equipment/availability/conflict-types", equipmentAvailability.getConflictTypes);
+
+router.addRoute("GET", "/api/orders", orders.listOrders);
+router.addRoute("POST", "/api/orders", orders.createOrder);
+router.addRoute("GET", "/api/orders/:id", orders.getOrder);
+router.addRoute("PATCH", "/api/orders/:id", orders.updateOrder);
+router.addRoute("GET", "/api/orders/:orderId/handovers", orders.listHandovers);
+router.addRoute("POST", "/api/orders/:orderId/handovers", orders.createHandover);
+router.addRoute("GET", "/api/orders/:orderId/handovers/draft/:type", orders.getHandoverDraft);
+router.addRoute("POST", "/api/orders/:orderId/handovers/draft/:type", orders.saveHandoverDraft);
+router.addRoute("DELETE", "/api/orders/:orderId/handovers/draft/:type", orders.deleteHandoverDraft);
+router.addRoute("GET", "/api/orders/:orderId/handovers/:handoverId", orders.getHandover);
+
+router.addRoute("GET", "/api/customers", customers.listCustomers);
+router.addRoute("POST", "/api/customers", customers.createCustomer);
+router.addRoute("GET", "/api/customers/:id", customers.getCustomer);
+router.addRoute("PATCH", "/api/customers/:id", customers.updateCustomer);
+router.addRoute("DELETE", "/api/customers/:id", customers.deleteCustomer);
+
+router.addRoute("GET", "/api/quotations", quotations.listQuotations);
+router.addRoute("POST", "/api/quotations", quotations.createQuotation);
+router.addRoute("POST", "/api/quotations/preview", quotations.previewQuote);
+router.addRoute("GET", "/api/quotations/:id", quotations.getQuotation);
+router.addRoute("PATCH", "/api/quotations/:id", quotations.updateQuotation);
+router.addRoute("DELETE", "/api/quotations/:id", quotations.deleteQuotation);
+router.addRoute("POST", "/api/quotations/:id/convert", quotations.convertToOrder);
+router.addRoute("GET", "/api/quotations/:id/check", quotations.checkConvertibility);
+router.addRoute("GET", "/api/quotations/:quoteId/versions", quotations.listVersions);
+router.addRoute("POST", "/api/quotations/:quoteId/versions", quotations.createVersion);
+router.addRoute("GET", "/api/quotations/:quoteId/versions/compare", quotations.compareVersions);
+router.addRoute("POST", "/api/quotations/:quoteId/versions/:versionId/approve", quotations.approveVersion);
+router.addRoute("POST", "/api/quotations/:quoteId/versions/:versionId/reject", quotations.rejectVersion);
+router.addRoute("POST", "/api/quotations/:quoteId/versions/:versionId/restore", quotations.restoreVersion);
+router.addRoute("GET", "/api/quotations/:quoteId/versions/:versionId", quotations.getVersion);
+
+router.addRoute("GET", "/api/repairs", repairs.listRepairs);
+router.addRoute("POST", "/api/repairs", repairs.createRepair);
+router.addRoute("GET", "/api/repairs/:id", repairs.getRepair);
+router.addRoute("PATCH", "/api/repairs/:id", repairs.updateRepair);
+router.addRoute("DELETE", "/api/repairs/:id", repairs.deleteRepair);
+router.addRoute("POST", "/api/repairs/:id/advance", repairs.advanceRepairStatus);
+
+router.addRoute("GET", "/api/schedule", schedule.getSchedule);
+
+router.addRoute("GET", "/api/settlements", settlements.listSettlements);
+router.addRoute("GET", "/api/orders/:orderId/settlement", settlements.getSettlement);
+router.addRoute("PATCH", "/api/orders/:orderId/settlement", settlements.updateSettlement);
+router.addRoute("POST", "/api/orders/:orderId/settlement/fees", settlements.addFee);
+router.addRoute("PATCH", "/api/orders/:orderId/settlement/fees/:feeId", settlements.updateFee);
+router.addRoute("DELETE", "/api/orders/:orderId/settlement/fees/:feeId", settlements.deleteFee);
+router.addRoute("POST", "/api/orders/:orderId/settlement/sync-quote", settlements.syncQuoteFees);
+router.addRoute("POST", "/api/orders/:orderId/settlement/sync-handover", settlements.syncHandoverFees);
+router.addRoute("POST", "/api/orders/:orderId/settlement/sync-repair", settlements.syncRepairFees);
+router.addRoute("POST", "/api/orders/:orderId/settlement/payments", settlements.addPayment);
+router.addRoute("PATCH", "/api/orders/:orderId/settlement/payments/:paymentId", settlements.updatePayment);
+router.addRoute("DELETE", "/api/orders/:orderId/settlement/payments/:paymentId", settlements.deletePayment);
+router.addRoute("GET", "/api/orders/:orderId/settlement/plans", settlements.listPaymentPlans);
+router.addRoute("POST", "/api/orders/:orderId/settlement/plans", settlements.addPaymentPlan);
+router.addRoute("PATCH", "/api/orders/:orderId/settlement/plans/:planId", settlements.updatePaymentPlan);
+router.addRoute("DELETE", "/api/orders/:orderId/settlement/plans/:planId", settlements.deletePaymentPlan);
+
+router.addRoute("GET", "/api/stocktakes", stocktakes.listStocktakes);
+router.addRoute("POST", "/api/stocktakes", stocktakes.createStocktake);
+router.addRoute("GET", "/api/stocktakes/:id", stocktakes.getStocktake);
+router.addRoute("PATCH", "/api/stocktakes/:id", stocktakes.updateStocktake);
+router.addRoute("DELETE", "/api/stocktakes/:id", stocktakes.deleteStocktake);
+router.addRoute("POST", "/api/stocktakes/:id/scan", stocktakes.scanStocktakeItem);
+router.addRoute("POST", "/api/stocktakes/:id/submit", stocktakes.submitStocktake);
+router.addRoute("POST", "/api/stocktakes/:id/cancel", stocktakes.cancelStocktake);
+router.addRoute("POST", "/api/stocktakes/:id/mark-processed/:equipmentId", stocktakes.markItemProcessed);
+router.addRoute("POST", "/api/stocktakes/:id/damaged/:equipmentId", stocktakes.processDamaged);
+router.addRoute("POST", "/api/stocktakes/:id/missing/:equipmentId", stocktakes.processMissing);
+router.addRoute("POST", "/api/stocktakes/:id/mismatch/:equipmentId", stocktakes.processMismatch);
+
+router.addRoute("GET", "/api/packages", packages.listPackages);
+router.addRoute("POST", "/api/packages", packages.createPackage);
+router.addRoute("POST", "/api/packages/preview-quote", packages.previewPackageQuote);
+router.addRoute("GET", "/api/packages/:id", packages.getPackage);
+router.addRoute("PATCH", "/api/packages/:id", packages.updatePackage);
+router.addRoute("DELETE", "/api/packages/:id", packages.deletePackage);
+router.addRoute("GET", "/api/packages/:id/availability", packages.checkPackageAvailability);
+
+router.addRoute("GET", "/api/audit-logs", audit.listAuditLogsApi);
+router.addRoute("GET", "/api/audit-logs/:id", audit.getAuditLogApi);
+router.addRoute("POST", "/api/audit-logs/:id/revert", audit.revertAuditLogApi);
+
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://${req.headers.host}`);
@@ -148,293 +208,8 @@ const server = http.createServer(async (req, res) => {
       if (served) return;
     }
 
-    if (req.method === "GET" && p === "/api/equipment") return listEquipment(req, res);
-    if (req.method === "POST" && p === "/api/equipment") return createEquipment(req, res);
-    if (req.method === "GET" && p === "/api/equipment/export") return exportEquipment(req, res);
-    if (req.method === "POST" && p === "/api/equipment/import/preview") return previewImport(req, res);
-    if (req.method === "POST" && p === "/api/equipment/import") return confirmImport(req, res);
-
-    const eqMatch = p.match(/^\/api\/equipment\/([^/]+)$/);
-    if (eqMatch) {
-      const id = decodeURIComponent(eqMatch[1]);
-      if (req.method === "PATCH") return updateEquipment(req, res, id);
-      if (req.method === "DELETE") return deleteEquipment(req, res, id);
-    }
-
-    const eqCondMatch = p.match(/^\/api\/equipment\/([^/]+)\/condition$/);
-    if (eqCondMatch && req.method === "PATCH") {
-      return patchCondition(req, res, decodeURIComponent(eqCondMatch[1]));
-    }
-
-    if (req.method === "POST" && p === "/api/equipment/availability/check") return checkAvailability(req, res);
-    if (req.method === "GET" && p === "/api/equipment/availability") return listAvailable(req, res);
-    if (req.method === "GET" && p === "/api/equipment/availability/conflict-types") return getConflictTypes(req, res);
-
-    if (req.method === "GET" && p === "/api/orders") return listOrders(req, res);
-    if (req.method === "POST" && p === "/api/orders") return createOrder(req, res);
-
-    const orderMatch = p.match(/^\/api\/orders\/([^/]+)$/);
-    if (orderMatch) {
-      const id = decodeURIComponent(orderMatch[1]);
-      if (req.method === "GET") return getOrder(req, res, id);
-      if (req.method === "PATCH") return updateOrder(req, res, id);
-    }
-
-    const handoverMatch = p.match(/^\/api\/orders\/([^/]+)\/handovers$/);
-    if (handoverMatch) {
-      const orderId = decodeURIComponent(handoverMatch[1]);
-      if (req.method === "GET") return listHandovers(req, res, orderId);
-      if (req.method === "POST") return createHandover(req, res, orderId);
-    }
-
-    const handoverDraftMatch = p.match(/^\/api\/orders\/([^/]+)\/handovers\/draft\/(checkout|return)$/);
-    if (handoverDraftMatch) {
-      const orderId = decodeURIComponent(handoverDraftMatch[1]);
-      const type = handoverDraftMatch[2];
-      if (req.method === "GET") return getHandoverDraft(req, res, orderId, type);
-      if (req.method === "POST") return saveHandoverDraft(req, res, orderId, type);
-      if (req.method === "DELETE") return deleteHandoverDraft(req, res, orderId, type);
-    }
-
-    const handoverDetailMatch = p.match(/^\/api\/orders\/([^/]+)\/handovers\/([^/]+)$/);
-    if (handoverDetailMatch) {
-      const orderId = decodeURIComponent(handoverDetailMatch[1]);
-      const handoverId = decodeURIComponent(handoverDetailMatch[2]);
-      if (req.method === "GET") return getHandover(req, res, orderId, handoverId);
-    }
-
-    if (req.method === "GET" && p === "/api/customers") return listCustomers(req, res);
-    if (req.method === "POST" && p === "/api/customers") return createCustomer(req, res);
-
-    const customerMatch = p.match(/^\/api\/customers\/([^/]+)$/);
-    if (customerMatch) {
-      const id = decodeURIComponent(customerMatch[1]);
-      if (req.method === "GET") return getCustomer(req, res, id);
-      if (req.method === "PATCH") return updateCustomer(req, res, id);
-      if (req.method === "DELETE") return deleteCustomer(req, res, id);
-    }
-
-    if (req.method === "GET" && p === "/api/quotations") return listQuotations(req, res);
-    if (req.method === "POST" && p === "/api/quotations") return createQuotation(req, res);
-    if (req.method === "POST" && p === "/api/quotations/preview") return previewQuote(req, res);
-
-    const quoteMatch = p.match(/^\/api\/quotations\/([^/]+)$/);
-    if (quoteMatch) {
-      const id = decodeURIComponent(quoteMatch[1]);
-      if (req.method === "GET") return getQuotation(req, res, id);
-      if (req.method === "PATCH") return updateQuotation(req, res, id);
-      if (req.method === "DELETE") return deleteQuotation(req, res, id);
-    }
-
-    const quoteConvertMatch = p.match(/^\/api\/quotations\/([^/]+)\/convert$/);
-    if (quoteConvertMatch && req.method === "POST") {
-      return convertToOrder(req, res, decodeURIComponent(quoteConvertMatch[1]));
-    }
-
-    const quoteCheckMatch = p.match(/^\/api\/quotations\/([^/]+)\/check$/);
-    if (quoteCheckMatch && req.method === "GET") {
-      return checkConvertibility(req, res, decodeURIComponent(quoteCheckMatch[1]));
-    }
-
-    const quoteVersionsMatch = p.match(/^\/api\/quotations\/([^/]+)\/versions$/);
-    if (quoteVersionsMatch) {
-      const quoteId = decodeURIComponent(quoteVersionsMatch[1]);
-      if (req.method === "GET") return listVersions(req, res, quoteId);
-      if (req.method === "POST") return createVersion(req, res, quoteId);
-    }
-
-    const quoteVersionsCompareMatch = p.match(/^\/api\/quotations\/([^/]+)\/versions\/compare$/);
-    if (quoteVersionsCompareMatch && req.method === "GET") {
-      return compareVersions(req, res, decodeURIComponent(quoteVersionsCompareMatch[1]));
-    }
-
-    const quoteVersionApproveMatch = p.match(/^\/api\/quotations\/([^/]+)\/versions\/([^/]+)\/approve$/);
-    if (quoteVersionApproveMatch && req.method === "POST") {
-      return approveVersion(req, res, decodeURIComponent(quoteVersionApproveMatch[1]), decodeURIComponent(quoteVersionApproveMatch[2]));
-    }
-
-    const quoteVersionRejectMatch = p.match(/^\/api\/quotations\/([^/]+)\/versions\/([^/]+)\/reject$/);
-    if (quoteVersionRejectMatch && req.method === "POST") {
-      return rejectVersion(req, res, decodeURIComponent(quoteVersionRejectMatch[1]), decodeURIComponent(quoteVersionRejectMatch[2]));
-    }
-
-    const quoteVersionRestoreMatch = p.match(/^\/api\/quotations\/([^/]+)\/versions\/([^/]+)\/restore$/);
-    if (quoteVersionRestoreMatch && req.method === "POST") {
-      return restoreVersion(req, res, decodeURIComponent(quoteVersionRestoreMatch[1]), decodeURIComponent(quoteVersionRestoreMatch[2]));
-    }
-
-    const quoteVersionMatch = p.match(/^\/api\/quotations\/([^/]+)\/versions\/([^/]+)$/);
-    if (quoteVersionMatch) {
-      const quoteId = decodeURIComponent(quoteVersionMatch[1]);
-      const versionId = decodeURIComponent(quoteVersionMatch[2]);
-      if (req.method === "GET") return getVersion(req, res, quoteId, versionId);
-    }
-
-    if (req.method === "GET" && p === "/api/repairs") return listRepairs(req, res);
-    if (req.method === "POST" && p === "/api/repairs") return createRepair(req, res);
-
-    const repairMatch = p.match(/^\/api\/repairs\/([^/]+)$/);
-    if (repairMatch) {
-      const id = decodeURIComponent(repairMatch[1]);
-      if (req.method === "GET") return getRepair(req, res, id);
-      if (req.method === "PATCH") return updateRepair(req, res, id);
-      if (req.method === "DELETE") return deleteRepair(req, res, id);
-    }
-
-    const repairAdvanceMatch = p.match(/^\/api\/repairs\/([^/]+)\/advance$/);
-    if (repairAdvanceMatch && req.method === "POST") {
-      return advanceRepairStatus(req, res, decodeURIComponent(repairAdvanceMatch[1]));
-    }
-
-    const eqRepairsMatch = p.match(/^\/api\/equipment\/([^/]+)\/repairs$/);
-    if (eqRepairsMatch && req.method === "GET") {
-      return getEquipmentRepairs(req, res, decodeURIComponent(eqRepairsMatch[1]));
-    }
-
-    if (req.method === "GET" && p === "/api/schedule") return getSchedule(req, res);
-
-    if (req.method === "GET" && p === "/api/settlements") return listSettlements(req, res);
-
-    const settlementMatch = p.match(/^\/api\/orders\/([^/]+)\/settlement$/);
-    if (settlementMatch) {
-      const orderId = decodeURIComponent(settlementMatch[1]);
-      if (req.method === "GET") return getSettlement(req, res, orderId);
-      if (req.method === "PATCH") return updateSettlement(req, res, orderId);
-    }
-
-    const settlementFeesMatch = p.match(/^\/api\/orders\/([^/]+)\/settlement\/fees$/);
-    if (settlementFeesMatch) {
-      const orderId = decodeURIComponent(settlementFeesMatch[1]);
-      if (req.method === "POST") return addFee(req, res, orderId);
-    }
-
-    const settlementFeeMatch = p.match(/^\/api\/orders\/([^/]+)\/settlement\/fees\/([^/]+)$/);
-    if (settlementFeeMatch) {
-      const orderId = decodeURIComponent(settlementFeeMatch[1]);
-      const feeId = decodeURIComponent(settlementFeeMatch[2]);
-      if (req.method === "PATCH") return updateFee(req, res, orderId, feeId);
-      if (req.method === "DELETE") return deleteFee(req, res, orderId, feeId);
-    }
-
-    const syncQuoteFeesMatch = p.match(/^\/api\/orders\/([^/]+)\/settlement\/sync-quote$/);
-    if (syncQuoteFeesMatch && req.method === "POST") {
-      return syncQuoteFees(req, res, decodeURIComponent(syncQuoteFeesMatch[1]));
-    }
-
-    const syncHandoverFeesMatch = p.match(/^\/api\/orders\/([^/]+)\/settlement\/sync-handover$/);
-    if (syncHandoverFeesMatch && req.method === "POST") {
-      return syncHandoverFees(req, res, decodeURIComponent(syncHandoverFeesMatch[1]));
-    }
-
-    const syncRepairFeesMatch = p.match(/^\/api\/orders\/([^/]+)\/settlement\/sync-repair$/);
-    if (syncRepairFeesMatch && req.method === "POST") {
-      return syncRepairFees(req, res, decodeURIComponent(syncRepairFeesMatch[1]));
-    }
-
-    const settlementPaymentsMatch = p.match(/^\/api\/orders\/([^/]+)\/settlement\/payments$/);
-    if (settlementPaymentsMatch) {
-      const orderId = decodeURIComponent(settlementPaymentsMatch[1]);
-      if (req.method === "POST") return addPayment(req, res, orderId);
-    }
-
-    const settlementPaymentMatch = p.match(/^\/api\/orders\/([^/]+)\/settlement\/payments\/([^/]+)$/);
-    if (settlementPaymentMatch) {
-      const orderId = decodeURIComponent(settlementPaymentMatch[1]);
-      const paymentId = decodeURIComponent(settlementPaymentMatch[2]);
-      if (req.method === "PATCH") return updatePayment(req, res, orderId, paymentId);
-      if (req.method === "DELETE") return deletePayment(req, res, orderId, paymentId);
-    }
-
-    const settlementPlansMatch = p.match(/^\/api\/orders\/([^/]+)\/settlement\/plans$/);
-    if (settlementPlansMatch) {
-      const orderId = decodeURIComponent(settlementPlansMatch[1]);
-      if (req.method === "GET") return listPaymentPlans(req, res, orderId);
-      if (req.method === "POST") return addPaymentPlan(req, res, orderId);
-    }
-
-    const settlementPlanMatch = p.match(/^\/api\/orders\/([^/]+)\/settlement\/plans\/([^/]+)$/);
-    if (settlementPlanMatch) {
-      const orderId = decodeURIComponent(settlementPlanMatch[1]);
-      const planId = decodeURIComponent(settlementPlanMatch[2]);
-      if (req.method === "PATCH") return updatePaymentPlan(req, res, orderId, planId);
-      if (req.method === "DELETE") return deletePaymentPlan(req, res, orderId, planId);
-    }
-
-    if (req.method === "GET" && p === "/api/stocktakes") return listStocktakes(req, res);
-    if (req.method === "POST" && p === "/api/stocktakes") return createStocktake(req, res);
-
-    const stocktakeMatch = p.match(/^\/api\/stocktakes\/([^/]+)$/);
-    if (stocktakeMatch) {
-      const id = decodeURIComponent(stocktakeMatch[1]);
-      if (req.method === "GET") return getStocktake(req, res, id);
-      if (req.method === "PATCH") return updateStocktake(req, res, id);
-      if (req.method === "DELETE") return deleteStocktake(req, res, id);
-    }
-
-    const stocktakeScanMatch = p.match(/^\/api\/stocktakes\/([^/]+)\/scan$/);
-    if (stocktakeScanMatch && req.method === "POST") {
-      return scanStocktakeItem(req, res, decodeURIComponent(stocktakeScanMatch[1]));
-    }
-
-    const stocktakeMarkProcessedMatch = p.match(/^\/api\/stocktakes\/([^/]+)\/mark-processed\/([^/]+)$/);
-    if (stocktakeMarkProcessedMatch && req.method === "POST") {
-      return markItemProcessed(req, res, decodeURIComponent(stocktakeMarkProcessedMatch[1]), decodeURIComponent(stocktakeMarkProcessedMatch[2]));
-    }
-
-    const stocktakeSubmitMatch = p.match(/^\/api\/stocktakes\/([^/]+)\/submit$/);
-    if (stocktakeSubmitMatch && req.method === "POST") {
-      return submitStocktake(req, res, decodeURIComponent(stocktakeSubmitMatch[1]));
-    }
-
-    const stocktakeCancelMatch = p.match(/^\/api\/stocktakes\/([^/]+)\/cancel$/);
-    if (stocktakeCancelMatch && req.method === "POST") {
-      return cancelStocktake(req, res, decodeURIComponent(stocktakeCancelMatch[1]));
-    }
-
-    const stocktakeDamagedMatch = p.match(/^\/api\/stocktakes\/([^/]+)\/damaged\/([^/]+)$/);
-    if (stocktakeDamagedMatch && req.method === "POST") {
-      return processDamaged(req, res, decodeURIComponent(stocktakeDamagedMatch[1]), decodeURIComponent(stocktakeDamagedMatch[2]));
-    }
-
-    const stocktakeMissingMatch = p.match(/^\/api\/stocktakes\/([^/]+)\/missing\/([^/]+)$/);
-    if (stocktakeMissingMatch && req.method === "POST") {
-      return processMissing(req, res, decodeURIComponent(stocktakeMissingMatch[1]), decodeURIComponent(stocktakeMissingMatch[2]));
-    }
-
-    const stocktakeMismatchMatch = p.match(/^\/api\/stocktakes\/([^/]+)\/mismatch\/([^/]+)$/);
-    if (stocktakeMismatchMatch && req.method === "POST") {
-      return processMismatch(req, res, decodeURIComponent(stocktakeMismatchMatch[1]), decodeURIComponent(stocktakeMismatchMatch[2]));
-    }
-
-    if (req.method === "GET" && p === "/api/packages") return listPackages(req, res);
-    if (req.method === "POST" && p === "/api/packages") return createPackage(req, res);
-    if (req.method === "POST" && p === "/api/packages/preview-quote") return previewPackageQuote(req, res);
-
-    const packageMatch = p.match(/^\/api\/packages\/([^/]+)$/);
-    if (packageMatch) {
-      const id = decodeURIComponent(packageMatch[1]);
-      if (req.method === "GET") return getPackage(req, res, id);
-      if (req.method === "PATCH") return updatePackage(req, res, id);
-      if (req.method === "DELETE") return deletePackage(req, res, id);
-    }
-
-    const packageAvailabilityMatch = p.match(/^\/api\/packages\/([^/]+)\/availability$/);
-    if (packageAvailabilityMatch && req.method === "GET") {
-      return checkPackageAvailability(req, res, decodeURIComponent(packageAvailabilityMatch[1]));
-    }
-
-    if (req.method === "GET" && p === "/api/audit-logs") return listAuditLogsApi(req, res);
-
-    const auditLogMatch = p.match(/^\/api\/audit-logs\/([^/]+)$/);
-    if (auditLogMatch) {
-      const id = decodeURIComponent(auditLogMatch[1]);
-      if (req.method === "GET") return getAuditLogApi(req, res, id);
-    }
-
-    const auditLogRevertMatch = p.match(/^\/api\/audit-logs\/([^/]+)\/revert$/);
-    if (auditLogRevertMatch && req.method === "POST") {
-      return revertAuditLogApi(req, res, decodeURIComponent(auditLogRevertMatch[1]));
-    }
+    const matched = router.match(req, res, p);
+    if (matched !== null) return matched;
 
     notFound(res);
   } catch (error) {

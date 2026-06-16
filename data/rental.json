@@ -1381,7 +1381,19 @@
       "completedAt": null
     }
   ],
-  "handoverDrafts": [],
+  "handoverDrafts": [
+    {
+      "id": "HD-136757",
+      "orderId": "O-1001",
+      "type": "checkout",
+      "createdAt": "2026-06-16T15:35:36.757Z",
+      "updatedAt": "2026-06-16T15:35:36.757Z",
+      "handler": "",
+      "actualTime": "",
+      "itemConfirmations": [],
+      "remarks": ""
+    }
+  ],
   "paymentPlans": [
     {
       "id": "PP-251278",
