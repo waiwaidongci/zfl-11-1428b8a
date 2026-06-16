@@ -1575,6 +1575,7 @@ async function load() {
       Customers.list(),
       import("./api.js").then((m) => (typeof m.Orders !== "undefined" ? m.Orders.list() : fetch("/api/orders").then((r) => r.json())))
     ]);
+    loadPackagesData();
     renderCategoryFilters();
     renderCustomerOptions();
     renderStats();

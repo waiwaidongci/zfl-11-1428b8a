@@ -377,6 +377,7 @@ export async function restoreVersion(req, res, quoteId, versionId) {
     endDate: snapshot.endDate,
     rentalDays: snapshot.rentalDays,
     itemIds: [...(snapshot.itemIds || [])],
+    packageIds: [...(snapshot.packageIds || [])],
     discount: snapshot.discount,
     depositOverride: snapshot.depositOverride ? { ...snapshot.depositOverride } : {},
     note: snapshot.note,
@@ -414,6 +415,7 @@ export async function restoreVersion(req, res, quoteId, versionId) {
   quote.endDate = previewQuote.endDate;
   quote.rentalDays = previewQuote.rentalDays;
   quote.itemIds = previewQuote.itemIds;
+  quote.packageIds = previewQuote.packageIds;
   quote.discount = previewQuote.discount;
   quote.depositOverride = previewQuote.depositOverride;
   quote.note = previewQuote.note;
