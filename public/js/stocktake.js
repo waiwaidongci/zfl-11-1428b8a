@@ -1,4 +1,4 @@
-import { Stocktakes, Equipment, showToast, STOCKTAKE_STATUS_LABELS, STOCKTAKE_RESULT_LABELS } from "./api.js";
+import { Stocktakes, Equipment, AuditLogs, showToast, STOCKTAKE_STATUS_LABELS, STOCKTAKE_RESULT_LABELS } from "./api.js";
 
 const state = {
   list: [],
@@ -77,6 +77,80 @@ function formatDate(iso) {
     return new Date(iso).toLocaleString("zh-CN");
   } catch {
     return "-";
+  }
+}
+
+function formatDateTime(iso) {
+  if (!iso) return "-";
+  try {
+    return new Date(iso).toLocaleString("zh-CN", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit"
+    });
+  } catch {
+    return "-";
+  }
+}
+
+async function renderAuditHistory(containerId, { objectType, objectId, onRefresh }) {
+  const container = $(containerId);
+  if (!container) return;
+  container.innerHTML = `<div class="audit-empty">加载中...</div>`;
+
+  try {
+    const allLogs = await AuditLogs.list({ objectType, limit: 50 });
+    const logs = allLogs.filter((log) => log.objectId && log.objectId.startsWith(`${objectId}:`));
+
+    if (!logs.length) {
+      container.innerHTML = `<div class="audit-empty">暂无操作记录</div>`;
+      return;
+    }
+
+    container.innerHTML = logs
+      .map((log) => {
+        const canRevert = log.reversible && !log.reverted;
+        return `
+        <div class="audit-item" data-log-id="${escapeHtml(log.id)}">
+          <div class="audit-dot"></div>
+          <div class="audit-content">
+            <div class="audit-head">
+              <div>
+                <span class="audit-action">${escapeHtml(log.actionLabel || log.action || "操作")}</span>
+                ${log.objectId ? `<span class="audit-object">${escapeHtml(log.objectId)}</span>` : ""}
+              </div>
+              <span class="audit-time">${formatDateTime(log.createdAt)}</span>
+            </div>
+            ${log.summary ? `<div class="audit-summary">${escapeHtml(log.summary)}</div>` : ""}
+            ${log.detail ? `<div class="audit-detail">${escapeHtml(log.detail)}</div>` : ""}
+            ${log.reverted ? `<div class="audit-reverted">已撤销</div>` : ""}
+            ${canRevert ? `<div class="audit-revert"><button class="ghost small revert-btn" data-log-id="${escapeHtml(log.id)}">撤销</button></div>` : ""}
+          </div>
+        </div>
+      `;
+      })
+      .join("");
+
+    container.querySelectorAll(".revert-btn").forEach((btn) => {
+      btn.addEventListener("click", async (e) => {
+        e.preventDefault();
+        const logId = btn.dataset.logId;
+        if (!confirm("确定撤销此操作吗？")) return;
+        try {
+          await AuditLogs.revert(logId);
+          showToast("操作已撤销");
+          if (onRefresh) onRefresh();
+          renderAuditHistory(containerId, { objectType, objectId, onRefresh });
+        } catch (err) {
+          showToast(err.message, "error");
+        }
+      });
+    });
+  } catch (err) {
+    container.innerHTML = `<div class="audit-empty" style="color:var(--red)">加载失败：${escapeHtml(err.message)}</div>`;
   }
 }
 
@@ -465,6 +539,24 @@ function openDetail(id) {
   updateViewSwitch();
   renderDetail();
   renderQuickLogs();
+  refreshStocktakeAudit();
+}
+
+function refreshStocktakeAudit() {
+  if (!state.currentStocktake) return;
+  renderAuditHistory("stocktakeAuditHistory", {
+    objectType: "stocktake_item",
+    objectId: state.currentStocktake.id,
+    onRefresh: async () => {
+      const updated = await Stocktakes.get(state.currentStocktake.id);
+      state.currentStocktake = updated;
+      const listIdx = state.list.findIndex((x) => x.id === state.currentStocktake.id);
+      if (listIdx !== -1) state.list[listIdx] = updated;
+      renderStats();
+      renderList();
+      renderDetail();
+    }
+  });
 }
 
 function backToList() {
@@ -604,6 +696,7 @@ async function submitResult() {
     renderStats();
     renderList();
     renderDetail();
+    refreshStocktakeAudit();
   } catch (err) {
     showToast(err.message, "error");
   }
@@ -662,6 +755,7 @@ async function submitDamaged() {
     renderStats();
     renderList();
     renderDetail();
+    refreshStocktakeAudit();
   } catch (err) {
     showToast(err.message, "error");
   }
@@ -686,6 +780,7 @@ async function processMissing(equipmentId) {
     renderStats();
     renderList();
     renderDetail();
+    refreshStocktakeAudit();
   } catch (err) {
     showToast(err.message, "error");
   }
@@ -710,6 +805,7 @@ async function processMismatch(equipmentId) {
     renderStats();
     renderList();
     renderDetail();
+    refreshStocktakeAudit();
   } catch (err) {
     showToast(err.message, "error");
   }
@@ -737,6 +833,7 @@ async function markItemProcessed(equipmentId) {
     renderStats();
     renderList();
     renderDetail();
+    refreshStocktakeAudit();
   } catch (err) {
     showToast(err.message, "error");
   }
@@ -754,7 +851,10 @@ async function submitStocktake(id) {
     showToast("盘点已提交，差异报告已生成");
     renderStats();
     renderList();
-    if (state.view === "detail") renderDetail();
+    if (state.view === "detail") {
+      renderDetail();
+      refreshStocktakeAudit();
+    }
     if (updated.stats?.pending > 0) {
       setTimeout(() => showDiffReport(id), 500);
     }
@@ -777,7 +877,10 @@ async function cancelStocktake(id) {
     showToast("盘点任务已取消");
     renderStats();
     renderList();
-    if (state.view === "detail") renderDetail();
+    if (state.view === "detail") {
+      renderDetail();
+      refreshStocktakeAudit();
+    }
   } catch (err) {
     showToast(err.message, "error");
   }
@@ -976,6 +1079,7 @@ async function handleQuickScan() {
     renderStats();
     renderList();
     renderDetail();
+    refreshStocktakeAudit();
 
   } catch (err) {
     const code = err.code || err.message?.includes("code:") ? "" : "";
@@ -1042,6 +1146,11 @@ async function load() {
 $("addBtn").addEventListener("click", openCreateModal);
 $("reloadBtn").addEventListener("click", load);
 $("backBtn").addEventListener("click", backToList);
+
+const refreshAuditBtn = $("refreshAuditBtn");
+if (refreshAuditBtn) {
+  refreshAuditBtn.addEventListener("click", refreshStocktakeAudit);
+}
 
 $("closeCreateModal").addEventListener("click", closeCreateModal);
 $("cancelCreateBtn").addEventListener("click", closeCreateModal);

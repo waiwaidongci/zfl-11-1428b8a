@@ -3,6 +3,12 @@ import { sendJson, parseBody } from "../lib/http.js";
 import { buildQuoteSummary, calcRentalDays } from "../lib/quoteCalculator.js";
 import { convertQuotationToOrder, isQuoteConvertible } from "../lib/quoteToOrder.js";
 import { validateEquipmentForOrder, findRepairItems, validateEquipmentForQuotation } from "../lib/equipmentValidator.js";
+import {
+  AUDIT_OBJECT_TYPES,
+  AUDIT_ACTIONS,
+  createAuditLogEntry,
+  addAuditLog
+} from "../lib/audit.js";
 
 const QUOTE_STATUSES = ["草稿", "已确认", "已转订单", "已取消"];
 
@@ -321,6 +327,20 @@ export async function approveVersion(req, res, quoteId, versionId) {
   }
   quote.updatedAt = new Date().toISOString();
 
+  const auditEntry = createAuditLogEntry({
+    objectType: AUDIT_OBJECT_TYPES.QUOTATION_VERSION,
+    objectId: `${quoteId}:${versionId}`,
+    action: AUDIT_ACTIONS.APPROVE,
+    summary: `审批通过报价版本 V${version.versionNumber}（报价单 ${quoteId}）`,
+    detail: `审批人: ${input.approvedBy || "user"}, 审批备注: ${input.approvalNote || "无"}`,
+    before: { approvalStatus: "pending" },
+    after: { approvalStatus: "approved", approvedBy: input.approvedBy || "user", approvalNote: input.approvalNote || "" },
+    operator: input.approvedBy || "user",
+    reversible: false,
+    extra: { quoteId, versionId, versionNumber: version.versionNumber }
+  });
+  await addAuditLog(db, auditEntry);
+
   await saveDb(db);
   return sendJson(res, 200, {
     version: buildVersionPayload(db, quote, version),
@@ -353,6 +373,20 @@ export async function rejectVersion(req, res, quoteId, versionId) {
   version.rejectionReason = input.rejectionReason || "";
 
   quote.updatedAt = new Date().toISOString();
+
+  const auditEntry = createAuditLogEntry({
+    objectType: AUDIT_OBJECT_TYPES.QUOTATION_VERSION,
+    objectId: `${quoteId}:${versionId}`,
+    action: AUDIT_ACTIONS.REJECT,
+    summary: `审批驳回报价版本 V${version.versionNumber}（报价单 ${quoteId}）`,
+    detail: `驳回人: ${input.rejectedBy || "user"}, 驳回原因: ${input.rejectionReason || "无"}`,
+    before: { approvalStatus: version.approvalStatus === "rejected" ? "pending" : version.approvalStatus },
+    after: { approvalStatus: "rejected", rejectedBy: input.rejectedBy || "user", rejectionReason: input.rejectionReason || "" },
+    operator: input.rejectedBy || "user",
+    reversible: false,
+    extra: { quoteId, versionId, versionNumber: version.versionNumber }
+  });
+  await addAuditLog(db, auditEntry);
 
   await saveDb(db);
   return sendJson(res, 200, buildVersionPayload(db, quote, version));
@@ -429,6 +463,20 @@ export async function restoreVersion(req, res, quoteId, versionId) {
   quote.currentVersionId = previewQuote.currentVersionId;
   quote.status = previewQuote.status;
   quote.updatedAt = new Date().toISOString();
+
+  const auditEntry = createAuditLogEntry({
+    objectType: AUDIT_OBJECT_TYPES.QUOTATION,
+    objectId: quoteId,
+    action: AUDIT_ACTIONS.RESTORE,
+    summary: `恢复报价版本 V${version.versionNumber}（报价单 ${quoteId}）`,
+    detail: `恢复客户: ${snapshot.customer}, 租期: ${snapshot.startDate} ~ ${snapshot.endDate}, 设备数: ${(snapshot.itemIds || []).length}`,
+    before: { currentVersionId: quote.currentVersionId, status: quote.status },
+    after: { currentVersionId: version.versionId, status: previewQuote.status },
+    operator: "user",
+    reversible: false,
+    extra: { quoteId, versionId, versionNumber: version.versionNumber }
+  });
+  await addAuditLog(db, auditEntry);
 
   await saveDb(db);
   return sendJson(res, 200, buildQuotationPayload(db, quote, true));

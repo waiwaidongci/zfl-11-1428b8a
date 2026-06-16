@@ -1,5 +1,13 @@
 import { loadDb, saveDb, genEquipmentId } from "../data/db.js";
 import { sendJson, parseBody } from "../lib/http.js";
+import {
+  AUDIT_OBJECT_TYPES,
+  AUDIT_ACTIONS,
+  createAuditLogEntry,
+  addAuditLog,
+  listAuditLogs,
+  buildAuditPayload
+} from "../lib/audit.js";
 
 const REQUIRED_FIELDS = ["id", "name", "category", "spec", "location", "condition"];
 const FIELD_ALIASES = {
@@ -208,6 +216,19 @@ export async function createEquipment(req, res) {
   };
 
   db.equipment.unshift(equipment);
+
+  const auditEntry = createAuditLogEntry({
+    objectType: AUDIT_OBJECT_TYPES.EQUIPMENT,
+    objectId: equipment.id,
+    action: AUDIT_ACTIONS.CREATE,
+    summary: `创建设备 ${equipment.id} - ${equipment.name}`,
+    detail: `类别: ${equipment.category}, 规格: ${equipment.spec}, 位置: ${equipment.location}, 状态: ${equipment.condition}`,
+    after: equipment,
+    operator: input.operator || "user",
+    reversible: false
+  });
+  await addAuditLog(db, auditEntry);
+
   await saveDb(db);
   return sendJson(res, 201, equipment);
 }
@@ -218,7 +239,7 @@ export async function updateEquipment(req, res, id) {
   if (idx === -1) return sendJson(res, 404, { error: "equipment_not_found" });
 
   const input = await parseBody(req);
-  const current = db.equipment[idx];
+  const current = { ...db.equipment[idx] };
 
   if (input.name !== undefined) input.name = input.name.trim();
   if (input.category !== undefined) input.category = input.category.trim();
@@ -228,7 +249,34 @@ export async function updateEquipment(req, res, id) {
     input.condition = input.condition === "repair" ? "repair" : "available";
   }
 
-  db.equipment[idx] = { ...current, ...input };
+  const updated = { ...current, ...input };
+  db.equipment[idx] = updated;
+
+  const changedFields = {};
+  for (const key of Object.keys(input)) {
+    if (JSON.stringify(current[key]) !== JSON.stringify(input[key])) {
+      changedFields[key] = { before: current[key], after: input[key] };
+    }
+  }
+  if (Object.keys(changedFields).length > 0) {
+    const summary = Object.entries(changedFields)
+      .map(([k, v]) => `${k}: ${JSON.stringify(v.before)} → ${JSON.stringify(v.after)}`)
+      .join(", ");
+    const auditEntry = createAuditLogEntry({
+      objectType: AUDIT_OBJECT_TYPES.EQUIPMENT,
+      objectId: id,
+      action: AUDIT_ACTIONS.UPDATE,
+      summary: `修改设备 ${id}`,
+      detail: summary,
+      before: current,
+      after: updated,
+      changedFields,
+      operator: input.operator || "user",
+      reversible: false
+    });
+    await addAuditLog(db, auditEntry);
+  }
+
   await saveDb(db);
   return sendJson(res, 200, db.equipment[idx]);
 }
@@ -239,7 +287,25 @@ export async function patchCondition(req, res, id) {
   if (!equipment) return sendJson(res, 404, { error: "equipment_not_found" });
 
   const input = await parseBody(req);
+  const beforeCondition = equipment.condition;
   equipment.condition = input.condition === "repair" ? "repair" : "available";
+
+  if (beforeCondition !== equipment.condition) {
+    const auditEntry = createAuditLogEntry({
+      objectType: AUDIT_OBJECT_TYPES.EQUIPMENT,
+      objectId: id,
+      action: AUDIT_ACTIONS.UPDATE,
+      summary: `修改设备 ${id} 状态`,
+      detail: `状态: ${beforeCondition} → ${equipment.condition}`,
+      before: { condition: beforeCondition },
+      after: { condition: equipment.condition },
+      changedFields: { condition: { before: beforeCondition, after: equipment.condition } },
+      operator: input.operator || "user",
+      reversible: false
+    });
+    await addAuditLog(db, auditEntry);
+  }
+
   await saveDb(db);
   return sendJson(res, 200, equipment);
 }
@@ -256,7 +322,21 @@ export async function deleteEquipment(req, res, id) {
     return sendJson(res, 409, { error: "该设备存在进行中的订单，无法删除" });
   }
 
+  const deleted = { ...db.equipment[idx] };
   db.equipment.splice(idx, 1);
+
+  const auditEntry = createAuditLogEntry({
+    objectType: AUDIT_OBJECT_TYPES.EQUIPMENT,
+    objectId: id,
+    action: AUDIT_ACTIONS.DELETE,
+    summary: `删除设备 ${id} - ${deleted.name}`,
+    detail: `类别: ${deleted.category}, 规格: ${deleted.spec}, 位置: ${deleted.location}`,
+    before: deleted,
+    operator: "user",
+    reversible: false
+  });
+  await addAuditLog(db, auditEntry);
+
   await saveDb(db);
   return sendJson(res, 200, { ok: true });
 }

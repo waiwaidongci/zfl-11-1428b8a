@@ -1,6 +1,14 @@
 {
   "equipment": [
     {
+      "id": "L-964011",
+      "name": "测试灯光设备-已修改",
+      "category": "灯具",
+      "spec": "230W 7R",
+      "location": "主仓B",
+      "condition": "available"
+    },
+    {
       "id": "T-NEW001",
       "name": "新桁架",
       "category": "桁架",
@@ -1227,7 +1235,7 @@
       ],
       "note": "",
       "createdAt": "2026-06-14T12:21:18.081Z",
-      "updatedAt": "2026-06-15T02:41:03.442Z"
+      "updatedAt": "2026-06-16T13:34:43.694Z"
     },
     {
       "id": "S-408511",
@@ -1398,6 +1406,274 @@
       "remark": "签约时支付",
       "createdAt": "2026-06-15T02:40:40.504Z",
       "updatedAt": "2026-06-15T02:40:40.504Z"
+    }
+  ],
+  "packages": [],
+  "auditLogs": [
+    {
+      "id": "AUD-16883694-kz0c",
+      "timestamp": "2026-06-16T13:34:43.694Z",
+      "objectType": "settlement_fee",
+      "objectId": "SF-740400-001",
+      "action": "delete_fee",
+      "actionLabel": "删除费用",
+      "summary": "删除费用: 运输费 ¥99.99",
+      "detail": "订单: O-1781394904983, 费用类型: 运输费, 金额: ¥99.99, 描述: audit test fee",
+      "before": {
+        "id": "SF-740400-001",
+        "type": "transport",
+        "amount": 99.99,
+        "description": "audit test fee",
+        "source": "manual",
+        "sourceId": null,
+        "createdAt": "2026-06-16T13:32:20.400Z",
+        "updatedAt": "2026-06-16T13:32:20.400Z"
+      },
+      "after": null,
+      "changedFields": null,
+      "operator": "user",
+      "reversible": true,
+      "reverted": false,
+      "revertedAt": null,
+      "revertedBy": null,
+      "orderId": "O-1781394904983",
+      "settlementId": "S-678081"
+    },
+    {
+      "id": "AUD-16883683-72lf",
+      "timestamp": "2026-06-16T13:34:43.683Z",
+      "objectType": "equipment",
+      "objectId": "L-AUDIT-001",
+      "action": "delete",
+      "actionLabel": "删除",
+      "summary": "删除设备 L-AUDIT-001 - 审计测试设备",
+      "detail": "类别: 灯具, 规格: , 位置: 未指定",
+      "before": {
+        "id": "L-AUDIT-001",
+        "name": "审计测试设备",
+        "category": "灯具",
+        "spec": "",
+        "location": "未指定",
+        "condition": "available"
+      },
+      "after": null,
+      "changedFields": null,
+      "operator": "user",
+      "reversible": false,
+      "reverted": false,
+      "revertedAt": null,
+      "revertedBy": null
+    },
+    {
+      "id": "AUD-16852500-pgem",
+      "timestamp": "2026-06-16T13:34:12.500Z",
+      "objectType": "settlement_fee",
+      "objectId": "SF-740400-001",
+      "action": "revert",
+      "actionLabel": "撤销操作",
+      "summary": "撤销操作：删除费用 - 删除费用: 运输费 ¥99.99",
+      "detail": "撤销了 2026-06-16T13:33:22.139Z 的操作，原操作ID: AUD-16802139-suok",
+      "before": null,
+      "after": null,
+      "changedFields": null,
+      "operator": "user",
+      "reversible": false,
+      "reverted": false,
+      "revertedAt": null,
+      "revertedBy": null,
+      "revertedLogId": "AUD-16802139-suok"
+    },
+    {
+      "id": "AUD-16802139-suok",
+      "timestamp": "2026-06-16T13:33:22.139Z",
+      "objectType": "settlement_fee",
+      "objectId": "SF-740400-001",
+      "action": "delete_fee",
+      "actionLabel": "删除费用",
+      "summary": "删除费用: 运输费 ¥99.99",
+      "detail": "订单: O-1781394904983, 费用类型: 运输费, 金额: ¥99.99, 描述: audit test fee",
+      "before": {
+        "id": "SF-740400-001",
+        "type": "transport",
+        "amount": 99.99,
+        "description": "audit test fee",
+        "source": "manual",
+        "sourceId": null,
+        "createdAt": "2026-06-16T13:32:20.400Z",
+        "updatedAt": "2026-06-16T13:32:20.400Z"
+      },
+      "after": null,
+      "changedFields": null,
+      "operator": "user",
+      "reversible": true,
+      "reverted": true,
+      "revertedAt": "2026-06-16T13:34:12.500Z",
+      "revertedBy": "user",
+      "orderId": "O-1781394904983",
+      "settlementId": "S-678081"
+    },
+    {
+      "id": "AUD-16740400-zer4",
+      "timestamp": "2026-06-16T13:32:20.400Z",
+      "objectType": "settlement_fee",
+      "objectId": "SF-740400-001",
+      "action": "add_fee",
+      "actionLabel": "添加费用",
+      "summary": "添加费用: 运输费 ¥99.99",
+      "detail": "订单: O-1781394904983, 费用类型: 运输费, 金额: ¥99.99, 描述: audit test fee, 来源: manual",
+      "before": null,
+      "after": {
+        "id": "SF-740400-001",
+        "type": "transport",
+        "amount": 99.99,
+        "description": "audit test fee",
+        "source": "manual",
+        "sourceId": null,
+        "createdAt": "2026-06-16T13:32:20.400Z",
+        "updatedAt": "2026-06-16T13:32:20.400Z"
+      },
+      "changedFields": null,
+      "operator": "user",
+      "reversible": false,
+      "reverted": false,
+      "revertedAt": null,
+      "revertedBy": null,
+      "orderId": "O-1781394904983",
+      "settlementId": "S-678081"
+    },
+    {
+      "id": "AUD-16461316-ex43",
+      "timestamp": "2026-06-16T13:27:41.316Z",
+      "objectType": "equipment",
+      "objectId": "L-AUDIT-001",
+      "action": "create",
+      "actionLabel": "创建",
+      "summary": "创建设备 L-AUDIT-001 - 审计测试设备",
+      "detail": "类别: 灯具, 规格: , 位置: 未指定, 状态: available",
+      "before": null,
+      "after": {
+        "id": "L-AUDIT-001",
+        "name": "审计测试设备",
+        "category": "灯具",
+        "spec": "",
+        "location": "未指定",
+        "condition": "available"
+      },
+      "changedFields": null,
+      "operator": "user",
+      "reversible": false,
+      "reverted": false,
+      "revertedAt": null,
+      "revertedBy": null
+    },
+    {
+      "id": "AH-023508",
+      "operationType": "equipment.delete",
+      "operationTypeLabel": "删除设备",
+      "objectType": "equipment",
+      "objectId": "L-964011",
+      "operationTime": "2026-06-16T11:40:23.508Z",
+      "operator": "user",
+      "summary": "删除设备：测试灯光设备-已修改（L-964011）",
+      "details": {
+        "before": {
+          "id": "L-964011",
+          "name": "测试灯光设备-已修改",
+          "category": "灯具",
+          "spec": "230W 7R",
+          "location": "主仓B",
+          "condition": "available"
+        },
+        "readable": "设备编号: L-964011, 名称: 测试灯光设备-已修改, 类别: 灯具"
+      },
+      "revertible": true,
+      "revertInfo": {
+        "equipment": {
+          "id": "L-964011",
+          "name": "测试灯光设备-已修改",
+          "category": "灯具",
+          "spec": "230W 7R",
+          "location": "主仓B",
+          "condition": "available"
+        }
+      },
+      "reverted": true,
+      "revertedAt": "2026-06-16T11:40:40.662Z",
+      "revertedBy": "user"
+    },
+    {
+      "id": "AH-009704",
+      "operationType": "equipment.update",
+      "operationTypeLabel": "修改设备",
+      "objectType": "equipment",
+      "objectId": "L-964011",
+      "operationTime": "2026-06-16T11:40:09.704Z",
+      "operator": "user",
+      "summary": "修改设备：测试灯光设备（L-964011）",
+      "details": {
+        "before": {
+          "id": "L-964011",
+          "name": "测试灯光设备",
+          "category": "灯具",
+          "spec": "230W",
+          "location": "主仓A",
+          "condition": "available"
+        },
+        "after": {
+          "id": "L-964011",
+          "name": "测试灯光设备-已修改",
+          "category": "灯具",
+          "spec": "230W 7R",
+          "location": "主仓B",
+          "condition": "available"
+        },
+        "changes": {
+          "name": {
+            "before": "测试灯光设备",
+            "after": "测试灯光设备-已修改"
+          },
+          "spec": {
+            "before": "230W",
+            "after": "230W 7R"
+          },
+          "location": {
+            "before": "主仓A",
+            "after": "主仓B"
+          }
+        },
+        "readable": "名称: 测试灯光设备 → 测试灯光设备-已修改; 规格: 230W → 230W 7R; 位置: 主仓A → 主仓B"
+      },
+      "revertible": false,
+      "revertInfo": null,
+      "reverted": false,
+      "revertedAt": null,
+      "revertedBy": null
+    },
+    {
+      "id": "AH-964011",
+      "operationType": "equipment.create",
+      "operationTypeLabel": "新增设备",
+      "objectType": "equipment",
+      "objectId": "L-964011",
+      "operationTime": "2026-06-16T11:39:24.011Z",
+      "operator": "user",
+      "summary": "新增设备：测试灯光设备（L-964011）",
+      "details": {
+        "after": {
+          "id": "L-964011",
+          "name": "测试灯光设备",
+          "category": "灯具",
+          "spec": "230W",
+          "location": "主仓A",
+          "condition": "available"
+        },
+        "readable": "设备编号: L-964011, 名称: 测试灯光设备, 类别: 灯具, 规格: 230W, 位置: 主仓A, 状态: 在库可用"
+      },
+      "revertible": false,
+      "revertInfo": null,
+      "reverted": false,
+      "revertedAt": null,
+      "revertedBy": null
     }
   ]
 }

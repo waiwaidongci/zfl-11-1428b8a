@@ -11,6 +11,12 @@ import {
 } from "../data/db.js";
 import { sendJson, parseBody } from "../lib/http.js";
 import { getStocktakeableEquipment } from "../lib/equipmentAvailability.js";
+import {
+  AUDIT_OBJECT_TYPES,
+  AUDIT_ACTIONS,
+  createAuditLogEntry,
+  addAuditLog
+} from "../lib/audit.js";
 
 function buildStocktakePayload(db, stocktake) {
   const eqMap = new Map(db.equipment.map((e) => [e.id, e]));
@@ -352,6 +358,32 @@ export async function processDamaged(req, res, id, equipmentId) {
   item.processed = true;
   item.linkedRepairId = repair.id;
 
+  const auditEntry = createAuditLogEntry({
+    objectType: AUDIT_OBJECT_TYPES.STOCKTAKE_ITEM,
+    objectId: `${id}:${equipmentId}`,
+    action: AUDIT_ACTIONS.PROCESS_DAMAGED,
+    summary: `盘点差异处理-损坏: ${item.equipmentName} (${equipmentId})`,
+    detail: `盘点任务: ${stocktake.name}, 设备: ${item.equipmentName}, 故障描述: ${faultDescription}, 维修费用: ¥${repair.repairCost}, 维修工单: ${repair.id}`,
+    before: {
+      processed: false,
+      equipmentCondition: equipment.condition === "repair" ? "available" : equipment.condition,
+      linkedRepairId: null
+    },
+    after: {
+      processed: true,
+      equipmentCondition: "repair",
+      linkedRepairId: repair.id
+    },
+    operator: "user",
+    reversible: true,
+    extra: {
+      stocktakeId: id,
+      equipmentId,
+      repairId: repair.id
+    }
+  });
+  await addAuditLog(db, auditEntry);
+
   await saveDb(db);
   return sendJson(res, 200, {
     repair,
@@ -383,9 +415,33 @@ export async function processMissing(req, res, id, equipmentId) {
     return sendJson(res, 409, { error: "该设备当前在租，请先与客户确认归还情况" });
   }
 
+  const beforeEquipmentCondition = equipment.condition;
   equipment.condition = "missing";
 
   item.processed = true;
+
+  const auditEntry = createAuditLogEntry({
+    objectType: AUDIT_OBJECT_TYPES.STOCKTAKE_ITEM,
+    objectId: `${id}:${equipmentId}`,
+    action: AUDIT_ACTIONS.PROCESS_MISSING,
+    summary: `盘点差异处理-丢失: ${item.equipmentName} (${equipmentId})`,
+    detail: `盘点任务: ${stocktake.name}, 设备: ${item.equipmentName}, 原状态: ${beforeEquipmentCondition}, 新状态: missing`,
+    before: {
+      processed: false,
+      equipmentCondition: beforeEquipmentCondition
+    },
+    after: {
+      processed: true,
+      equipmentCondition: "missing"
+    },
+    operator: "user",
+    reversible: true,
+    extra: {
+      stocktakeId: id,
+      equipmentId
+    }
+  });
+  await addAuditLog(db, auditEntry);
 
   await saveDb(db);
   return sendJson(res, 200, buildStocktakePayload(db, stocktake));
@@ -416,9 +472,33 @@ export async function processMismatch(req, res, id, equipmentId) {
     return sendJson(res, 400, { error: "请填写实际存放位置" });
   }
 
+  const beforeLocation = equipment.location;
   equipment.location = newLocation;
 
   item.processed = true;
+
+  const auditEntry = createAuditLogEntry({
+    objectType: AUDIT_OBJECT_TYPES.STOCKTAKE_ITEM,
+    objectId: `${id}:${equipmentId}`,
+    action: AUDIT_ACTIONS.PROCESS_MISMATCH,
+    summary: `盘点差异处理-位置不符: ${item.equipmentName} (${equipmentId})`,
+    detail: `盘点任务: ${stocktake.name}, 设备: ${item.equipmentName}, 原位置: ${beforeLocation}, 新位置: ${newLocation}`,
+    before: {
+      processed: false,
+      equipmentLocation: beforeLocation
+    },
+    after: {
+      processed: true,
+      equipmentLocation: newLocation
+    },
+    operator: "user",
+    reversible: true,
+    extra: {
+      stocktakeId: id,
+      equipmentId
+    }
+  });
+  await addAuditLog(db, auditEntry);
 
   await saveDb(db);
   return sendJson(res, 200, buildStocktakePayload(db, stocktake));

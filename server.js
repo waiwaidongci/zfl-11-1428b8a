@@ -106,6 +106,12 @@ import {
   previewPackageQuote
 } from "./routes/packages.js";
 
+import {
+  listAuditLogsApi,
+  getAuditLogApi,
+  revertAuditLogApi
+} from "./routes/audit.js";
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const publicDir = join(__dirname, "public");
 const port = Number(process.env.PORT || 3011);
@@ -415,6 +421,19 @@ const server = http.createServer(async (req, res) => {
     const packageAvailabilityMatch = p.match(/^\/api\/packages\/([^/]+)\/availability$/);
     if (packageAvailabilityMatch && req.method === "GET") {
       return checkPackageAvailability(req, res, decodeURIComponent(packageAvailabilityMatch[1]));
+    }
+
+    if (req.method === "GET" && p === "/api/audit-logs") return listAuditLogsApi(req, res);
+
+    const auditLogMatch = p.match(/^\/api\/audit-logs\/([^/]+)$/);
+    if (auditLogMatch) {
+      const id = decodeURIComponent(auditLogMatch[1]);
+      if (req.method === "GET") return getAuditLogApi(req, res, id);
+    }
+
+    const auditLogRevertMatch = p.match(/^\/api\/audit-logs\/([^/]+)\/revert$/);
+    if (auditLogRevertMatch && req.method === "POST") {
+      return revertAuditLogApi(req, res, decodeURIComponent(auditLogRevertMatch[1]));
     }
 
     notFound(res);

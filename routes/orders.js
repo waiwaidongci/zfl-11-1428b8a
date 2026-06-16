@@ -1,6 +1,12 @@
 import { loadDb, saveDb, occupiedItems, genHandoverId, genRepairId, genHandoverDraftId, occupiedItemsWithLocks } from "../data/db.js";
 import { sendJson, parseBody } from "../lib/http.js";
 import { validateEquipmentForOrder, findRepairItems } from "../lib/equipmentValidator.js";
+import {
+  AUDIT_OBJECT_TYPES,
+  AUDIT_ACTIONS,
+  createAuditLogEntry,
+  addAuditLog
+} from "../lib/audit.js";
 
 export async function listOrders(req, res) {
   const db = await loadDb();
@@ -296,6 +302,19 @@ export async function createHandover(req, res, orderId) {
       }
     }
 
+    const auditEntry = createAuditLogEntry({
+      objectType: AUDIT_OBJECT_TYPES.HANDOVER,
+      objectId: handover.id,
+      action: AUDIT_ACTIONS.CHECKOUT,
+      summary: `订单 ${orderId} 出库交接`,
+      detail: `经手人: ${input.handler}, 出库时间: ${input.actualTime}, 设备数: ${input.itemConfirmations.length}, 备注: ${input.remarks || "无"}`,
+      after: handover,
+      operator: input.handler || "user",
+      reversible: false,
+      extra: { orderId }
+    });
+    await addAuditLog(db, auditEntry);
+
     await saveDb(db);
     return sendJson(res, 201, handover);
   }
@@ -396,6 +415,28 @@ export async function createHandover(req, res, orderId) {
         }
       }
     }
+
+    const statusSummary = input.itemStatuses.reduce((acc, s) => {
+      acc[s.status] = (acc[s.status] || 0) + 1;
+      return acc;
+    }, {});
+    const statusText = Object.entries(statusSummary).map(([k, v]) => {
+      const label = { intact: "完好", damaged: "损坏", missing: "缺失" }[k] || k;
+      return `${label}: ${v}`;
+    }).join(", ");
+
+    const auditEntry = createAuditLogEntry({
+      objectType: AUDIT_OBJECT_TYPES.HANDOVER,
+      objectId: handover.id,
+      action: AUDIT_ACTIONS.RETURN,
+      summary: `订单 ${orderId} 归还交接`,
+      detail: `经手人: ${input.handler || "未指定"}, 归还时间: ${input.actualTime}, 设备情况: ${statusText}, 额外费用: ¥${input.extraCharges || 0}, 备注: ${input.remarks || "无"}`,
+      after: handover,
+      operator: input.handler || "user",
+      reversible: false,
+      extra: { orderId }
+    });
+    await addAuditLog(db, auditEntry);
 
     await saveDb(db);
     return sendJson(res, 201, handover);

@@ -3,12 +3,21 @@ import {
   saveDb,
   genRepairId,
   REPAIR_STATUSES,
+  REPAIR_STATUS_LABELS,
   REPAIR_SOURCE_TYPES,
   REPAIR_LIABILITY_TYPES,
   getActiveRepairByEquipmentId,
   genSettlementFeeId
 } from "../data/db.js";
 import { sendJson, parseBody } from "../lib/http.js";
+import {
+  AUDIT_OBJECT_TYPES,
+  AUDIT_ACTIONS,
+  createAuditLogEntry,
+  addAuditLog,
+  listAuditLogs,
+  buildAuditPayload
+} from "../lib/audit.js";
 
 function buildRepairPayload(db, repair) {
   const equipment = db.equipment.find((e) => e.id === repair.equipmentId);
@@ -336,22 +345,61 @@ export async function advanceRepairStatus(req, res, id) {
     return sendJson(res, 400, { error: "当前状态无法继续推进" });
   }
 
-  const nextStatus = flow[currentIdx + 1];
+  const beforeStatus = current.status;
+  const beforeCompletedAt = current.completedAt;
   const equipment = db.equipment.find((e) => e.id === current.equipmentId);
+  const beforeEquipmentCondition = equipment ? equipment.condition : null;
 
+  const nextStatus = flow[currentIdx + 1];
   current.status = nextStatus;
   current.updatedAt = new Date().toISOString();
 
+  let settlementFeeId = null;
   if (nextStatus === "completed") {
     current.completedAt = new Date().toISOString();
     if (equipment) equipment.condition = "available";
 
     if (current.orderId && current.liability === "customer") {
-      syncRepairFeeToSettlement(db, current);
+      const settlement = syncRepairFeeToSettlement(db, current);
+      if (settlement) {
+        const fee = (settlement.fees || []).find(
+          (f) => f.type === "compensation" && f.source === "repair" && f.sourceId === current.id
+        );
+        if (fee) settlementFeeId = fee.id;
+      }
     }
   } else if (equipment) {
     equipment.condition = "repair";
   }
+
+  const auditEntry = createAuditLogEntry({
+    objectType: AUDIT_OBJECT_TYPES.REPAIR,
+    objectId: id,
+    action: AUDIT_ACTIONS.STATUS_ADVANCE,
+    summary: `维修工单 ${id} 状态推进: ${REPAIR_STATUS_LABELS[beforeStatus] || beforeStatus} → ${REPAIR_STATUS_LABELS[nextStatus] || nextStatus}`,
+    detail: `设备: ${current.equipmentName} (${current.equipmentId}), 原状态: ${beforeStatus}, 新状态: ${nextStatus}`,
+    before: {
+      status: beforeStatus,
+      completedAt: beforeCompletedAt,
+      equipmentCondition: beforeEquipmentCondition
+    },
+    after: {
+      status: nextStatus,
+      completedAt: current.completedAt,
+      equipmentCondition: equipment ? equipment.condition : null
+    },
+    changedFields: {
+      status: { before: beforeStatus, after: nextStatus }
+    },
+    operator: "user",
+    reversible: true,
+    extra: {
+      settlementFeeId,
+      equipmentId: current.equipmentId,
+      orderId: current.orderId
+    }
+  });
+  await addAuditLog(db, auditEntry);
 
   db.repairs[idx] = current;
   await saveDb(db);

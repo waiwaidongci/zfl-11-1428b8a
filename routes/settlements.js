@@ -17,6 +17,12 @@ import {
 } from "../data/db.js";
 import { sendJson, parseBody } from "../lib/http.js";
 import { buildQuoteSummary } from "../lib/quoteCalculator.js";
+import {
+  AUDIT_OBJECT_TYPES,
+  AUDIT_ACTIONS,
+  createAuditLogEntry,
+  addAuditLog
+} from "../lib/audit.js";
 
 function getOrderSettlement(db, orderId) {
   const order = db.orders.find((o) => o.id === orderId);
@@ -553,6 +559,19 @@ export async function addFee(req, res, orderId) {
   settlement.fees.push(fee);
   settlement.updatedAt = new Date().toISOString();
 
+  const auditEntry = createAuditLogEntry({
+    objectType: AUDIT_OBJECT_TYPES.SETTLEMENT_FEE,
+    objectId: fee.id,
+    action: AUDIT_ACTIONS.ADD_FEE,
+    summary: `添加费用: ${FEE_TYPE_LABELS[fee.type] || fee.type} ¥${fee.amount}`,
+    detail: `订单: ${orderId}, 费用类型: ${FEE_TYPE_LABELS[fee.type] || fee.type}, 金额: ¥${fee.amount}, 描述: ${fee.description || "无"}, 来源: ${fee.source}`,
+    after: fee,
+    operator: "user",
+    reversible: false,
+    extra: { orderId, settlementId: settlement.id }
+  });
+  await addAuditLog(db, auditEntry);
+
   await saveDb(db);
   const payload = buildSettlementPayload(db, settlement, order);
   return sendJson(res, 201, payload);
@@ -574,10 +593,15 @@ export async function updateFee(req, res, orderId, feeId) {
   if (!fee) return sendJson(res, 404, { error: "fee_not_found" });
 
   const input = await parseBody(req);
+  const before = { ...fee };
+  const changedFields = {};
 
   if (input.type !== undefined) {
     if (!Object.keys(FEE_TYPE_LABELS).includes(input.type)) {
       return sendJson(res, 400, { error: "无效的费用类型" });
+    }
+    if (fee.type !== input.type) {
+      changedFields.type = { before: fee.type, after: input.type };
     }
     fee.type = input.type;
   }
@@ -587,15 +611,45 @@ export async function updateFee(req, res, orderId, feeId) {
     if (Number.isNaN(amount) || amount < 0) {
       return sendJson(res, 400, { error: "请输入有效的金额" });
     }
+    if (fee.amount !== amount) {
+      changedFields.amount = { before: fee.amount, after: amount };
+    }
     fee.amount = amount;
   }
 
   if (input.description !== undefined) {
-    fee.description = String(input.description || "").trim();
+    const desc = String(input.description || "").trim();
+    if (fee.description !== desc) {
+      changedFields.description = { before: fee.description, after: desc };
+    }
+    fee.description = desc;
   }
 
   fee.updatedAt = new Date().toISOString();
   settlement.updatedAt = new Date().toISOString();
+
+  if (Object.keys(changedFields).length > 0) {
+    const changeSummary = Object.entries(changedFields)
+      .map(([k, v]) => {
+        const label = k === "type" ? "类型" : k === "amount" ? "金额" : "描述";
+        return `${label}: ${JSON.stringify(v.before)} → ${JSON.stringify(v.after)}`;
+      })
+      .join(", ");
+    const auditEntry = createAuditLogEntry({
+      objectType: AUDIT_OBJECT_TYPES.SETTLEMENT_FEE,
+      objectId: feeId,
+      action: AUDIT_ACTIONS.UPDATE_FEE,
+      summary: `修改费用 ${feeId}`,
+      detail: `订单: ${orderId}, ${changeSummary}`,
+      before,
+      after: { ...fee },
+      changedFields,
+      operator: "user",
+      reversible: false,
+      extra: { orderId, settlementId: settlement.id }
+    });
+    await addAuditLog(db, auditEntry);
+  }
 
   await saveDb(db);
   const payload = buildSettlementPayload(db, settlement, order);
@@ -617,8 +671,22 @@ export async function deleteFee(req, res, orderId, feeId) {
   const idx = (settlement.fees || []).findIndex((f) => f.id === feeId);
   if (idx === -1) return sendJson(res, 404, { error: "fee_not_found" });
 
+  const deletedFee = { ...settlement.fees[idx] };
   settlement.fees.splice(idx, 1);
   settlement.updatedAt = new Date().toISOString();
+
+  const auditEntry = createAuditLogEntry({
+    objectType: AUDIT_OBJECT_TYPES.SETTLEMENT_FEE,
+    objectId: feeId,
+    action: AUDIT_ACTIONS.DELETE_FEE,
+    summary: `删除费用: ${FEE_TYPE_LABELS[deletedFee.type] || deletedFee.type} ¥${deletedFee.amount}`,
+    detail: `订单: ${orderId}, 费用类型: ${FEE_TYPE_LABELS[deletedFee.type] || deletedFee.type}, 金额: ¥${deletedFee.amount}, 描述: ${deletedFee.description || "无"}`,
+    before: deletedFee,
+    operator: "user",
+    reversible: true,
+    extra: { orderId, settlementId: settlement.id }
+  });
+  await addAuditLog(db, auditEntry);
 
   await saveDb(db);
   const payload = buildSettlementPayload(db, settlement, order);
@@ -766,6 +834,19 @@ export async function addPayment(req, res, orderId) {
   const newSummary = calcSettlementSummary(db, settlement, order);
   settlement.status = newSummary.status;
 
+  const auditEntry = createAuditLogEntry({
+    objectType: AUDIT_OBJECT_TYPES.PAYMENT,
+    objectId: payment.id,
+    action: AUDIT_ACTIONS.ADD_PAYMENT,
+    summary: `添加收款: ${PAYMENT_TYPE_LABELS[type] || type} ¥${amount} (${PAYMENT_METHOD_LABELS[method] || method})`,
+    detail: `订单: ${orderId}, 收款类型: ${PAYMENT_TYPE_LABELS[type] || type}, 金额: ¥${amount}, 方式: ${PAYMENT_METHOD_LABELS[method] || method}, 日期: ${payment.paymentDate}, 备注: ${payment.remark || "无"}`,
+    after: payment,
+    operator: "user",
+    reversible: false,
+    extra: { orderId, settlementId: settlement.id }
+  });
+  await addAuditLog(db, auditEntry);
+
   await saveDb(db);
   const payload = buildSettlementPayload(db, settlement, order);
   return sendJson(res, 201, payload);
@@ -787,11 +868,16 @@ export async function updatePayment(req, res, orderId, paymentId) {
   if (!payment) return sendJson(res, 404, { error: "payment_not_found" });
 
   const input = await parseBody(req);
+  const before = { ...payment };
+  const changedFields = {};
 
   if (input.amount !== undefined) {
     const amount = Number(input.amount);
     if (Number.isNaN(amount) || amount <= 0) {
       return sendJson(res, 400, { error: "请输入有效的金额" });
+    }
+    if (payment.amount !== amount) {
+      changedFields.amount = { before: payment.amount, after: amount };
     }
     payment.amount = amount;
   }
@@ -800,6 +886,9 @@ export async function updatePayment(req, res, orderId, paymentId) {
     if (!["payment", "deposit_deduction", "deposit_return"].includes(input.type)) {
       return sendJson(res, 400, { error: "无效的收款类型" });
     }
+    if (payment.type !== input.type) {
+      changedFields.type = { before: payment.type, after: input.type };
+    }
     payment.type = input.type;
   }
 
@@ -807,15 +896,25 @@ export async function updatePayment(req, res, orderId, paymentId) {
     if (!Object.keys(PAYMENT_METHOD_LABELS).includes(input.method)) {
       return sendJson(res, 400, { error: "无效的支付方式" });
     }
+    if (payment.method !== input.method) {
+      changedFields.method = { before: payment.method, after: input.method };
+    }
     payment.method = input.method;
   }
 
   if (input.paymentDate !== undefined) {
+    if (payment.paymentDate !== input.paymentDate) {
+      changedFields.paymentDate = { before: payment.paymentDate, after: input.paymentDate };
+    }
     payment.paymentDate = input.paymentDate;
   }
 
   if (input.remark !== undefined) {
-    payment.remark = String(input.remark || "").trim();
+    const remark = String(input.remark || "").trim();
+    if (payment.remark !== remark) {
+      changedFields.remark = { before: payment.remark, after: remark };
+    }
+    payment.remark = remark;
   }
 
   if (input.planId !== undefined) {
@@ -833,12 +932,43 @@ export async function updatePayment(req, res, orderId, paymentId) {
         return sendJson(res, 400, { error: "非押金退还计划节点不能关联押金退还类型的收款" });
       }
     }
+    if (payment.planId !== planId) {
+      changedFields.planId = { before: payment.planId, after: planId };
+    }
     payment.planId = planId;
   }
 
   settlement.updatedAt = new Date().toISOString();
   const newSummary = calcSettlementSummary(db, settlement, order);
   settlement.status = newSummary.status;
+
+  if (Object.keys(changedFields).length > 0) {
+    const fieldLabels = {
+      amount: "金额",
+      type: "类型",
+      method: "支付方式",
+      paymentDate: "收款日期",
+      remark: "备注",
+      planId: "收款计划"
+    };
+    const changeSummary = Object.entries(changedFields)
+      .map(([k, v]) => `${fieldLabels[k] || k}: ${JSON.stringify(v.before)} → ${JSON.stringify(v.after)}`)
+      .join(", ");
+    const auditEntry = createAuditLogEntry({
+      objectType: AUDIT_OBJECT_TYPES.PAYMENT,
+      objectId: paymentId,
+      action: AUDIT_ACTIONS.UPDATE_PAYMENT,
+      summary: `修改收款 ${paymentId}`,
+      detail: `订单: ${orderId}, ${changeSummary}`,
+      before,
+      after: { ...payment },
+      changedFields,
+      operator: "user",
+      reversible: false,
+      extra: { orderId, settlementId: settlement.id }
+    });
+    await addAuditLog(db, auditEntry);
+  }
 
   await saveDb(db);
   const payload = buildSettlementPayload(db, settlement, order);
@@ -860,11 +990,25 @@ export async function deletePayment(req, res, orderId, paymentId) {
   const idx = (db.payments || []).findIndex((p) => p.id === paymentId);
   if (idx === -1) return sendJson(res, 404, { error: "payment_not_found" });
 
+  const deletedPayment = { ...db.payments[idx] };
   db.payments.splice(idx, 1);
   settlement.updatedAt = new Date().toISOString();
 
   const newSummary = calcSettlementSummary(db, settlement, order);
   settlement.status = newSummary.status;
+
+  const auditEntry = createAuditLogEntry({
+    objectType: AUDIT_OBJECT_TYPES.PAYMENT,
+    objectId: paymentId,
+    action: AUDIT_ACTIONS.DELETE_PAYMENT,
+    summary: `删除收款: ${PAYMENT_TYPE_LABELS[deletedPayment.type] || deletedPayment.type} ¥${deletedPayment.amount}`,
+    detail: `订单: ${orderId}, 收款类型: ${PAYMENT_TYPE_LABELS[deletedPayment.type] || deletedPayment.type}, 金额: ¥${deletedPayment.amount}, 方式: ${PAYMENT_METHOD_LABELS[deletedPayment.method] || deletedPayment.method}, 日期: ${deletedPayment.paymentDate}`,
+    before: deletedPayment,
+    operator: "user",
+    reversible: false,
+    extra: { orderId, settlementId: settlement.id }
+  });
+  await addAuditLog(db, auditEntry);
 
   await saveDb(db);
   const payload = buildSettlementPayload(db, settlement, order);

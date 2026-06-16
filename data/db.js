@@ -83,6 +83,7 @@ export async function loadDb() {
   if (!db.stocktakes) db.stocktakes = [];
   if (!db.handoverDrafts) db.handoverDrafts = [];
   if (!db.packages) db.packages = [];
+  if (!db.auditLogs) db.auditLogs = [];
 
   db.quotations = db.quotations.map((q) => {
     if (!q.versions || !Array.isArray(q.versions)) {

@@ -407,3 +407,12 @@ export const Packages = {
   },
   previewQuote: (data) => api("/api/packages/preview-quote", { method: "POST", body: JSON.stringify(data) })
 };
+
+export const AuditLogs = {
+  list: (params) => {
+    const qs = params ? "?" + new URLSearchParams(params).toString() : "";
+    return api(`/api/audit-logs${qs}`);
+  },
+  get: (id) => api(`/api/audit-logs/${id}`),
+  revert: (id) => api(`/api/audit-logs/${id}/revert`, { method: "POST" })
+};
