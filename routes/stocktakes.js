@@ -10,24 +10,7 @@ import {
   getActiveRepairByEquipmentId
 } from "../data/db.js";
 import { sendJson, parseBody } from "../lib/http.js";
-
-function getStocktakeableEquipment(db, category) {
-  const rentedInOrders = new Set(
-    db.orders
-      .filter((o) => !["已取消", "已归还"].includes(o.status))
-      .flatMap((o) => o.itemIds)
-  );
-
-  return db.equipment.filter((e) => {
-    if (category && e.category !== category) return false;
-    if (e.condition === "rented" && rentedInOrders.has(e.id)) return false;
-    if (e.condition === "repair") {
-      const activeRepair = getActiveRepairByEquipmentId(db, e.id);
-      if (activeRepair) return false;
-    }
-    return true;
-  });
-}
+import { getStocktakeableEquipment } from "../lib/equipmentAvailability.js";
 
 function buildStocktakePayload(db, stocktake) {
   const eqMap = new Map(db.equipment.map((e) => [e.id, e]));

@@ -1,5 +1,6 @@
-import { loadDb, overlaps, getQuoteLockStatus } from "../data/db.js";
+import { loadDb } from "../data/db.js";
 import { sendJson } from "../lib/http.js";
+import { getEquipmentOccupancies } from "../lib/equipmentAvailability.js";
 
 function parseDate(str) {
   const d = new Date(str);
@@ -52,144 +53,47 @@ export async function getSchedule(req, res) {
 
   const dates = getDateRange(startDate, endDate);
 
-  let equipmentList = [...db.equipment];
-  if (category) equipmentList = equipmentList.filter((e) => e.category === category);
-  if (equipmentId) equipmentList = equipmentList.filter((e) => e.id === equipmentId);
+  const occupancies = getEquipmentOccupancies(db, {
+    startDate,
+    endDate,
+    category,
+    equipmentId,
+    customer,
+    includeOrders: true,
+    includeQuotations: true,
+    includeRepairs: true
+  });
 
-  const activeOrders = db.orders.filter((o) => !["已取消", "已归还"].includes(o.status));
-  const allQuotations = db.quotations.filter((q) => ["已确认", "草稿"].includes(q.status));
-  const activeRepairs = db.repairs.filter((r) => ["pending", "repairing"].includes(r.status));
-
-  const filteredOrders = customer
-    ? activeOrders.filter((o) => (o.customer || "") === customer)
-    : activeOrders;
-  const filteredQuotations = customer
-    ? allQuotations.filter((q) => (q.customer || "") === customer)
-    : allQuotations;
-
-  const equipmentSchedule = equipmentList.map((eq) => {
+  const equipmentSchedule = occupancies.map((eq) => {
     const dailyStatus = {};
-    const blocks = [];
 
     for (const d of dates) {
       dailyStatus[d] = { available: true, statuses: [] };
     }
 
-    const eqOrders = filteredOrders.filter((o) => o.itemIds.includes(eq.id));
-    for (const order of eqOrders) {
-      if (!overlaps(startDate, endDate, order.startDate, order.endDate)) continue;
-      let blockType = "occupied";
-      if (order.status === "待出库") blockType = "pending_out";
-      else if (order.status === "已出库") blockType = "occupied";
-      else if (order.status === "待归还") blockType = "pending_return";
-
-      blocks.push({
-        type: "order",
-        id: order.id,
-        status: order.status,
-        blockType,
-        startDate: order.startDate,
-        endDate: order.endDate,
-        customer: order.customer,
-        note: order.note || ""
-      });
-
-      const orderDates = getDateRange(
-        new Date(order.startDate) < new Date(startDate) ? startDate : order.startDate,
-        new Date(order.endDate) > new Date(endDate) ? endDate : order.endDate
+    for (const block of eq.blocks) {
+      const blockDates = getDateRange(
+        new Date(block.startDate) < new Date(startDate) ? startDate : block.startDate,
+        new Date(block.endDate) > new Date(endDate) ? endDate : block.endDate
       );
-      for (const d of orderDates) {
+
+      for (const d of blockDates) {
         if (dailyStatus[d]) {
-          dailyStatus[d].available = false;
-          dailyStatus[d].statuses.push({
-            type: "order",
-            id: order.id,
-            status: order.status,
-            blockType,
-            customer: order.customer
-          });
-        }
-      }
-    }
-
-    const eqQuotes = filteredQuotations.filter((q) => q.itemIds.includes(eq.id));
-    for (const quote of eqQuotes) {
-      if (!overlaps(startDate, endDate, quote.startDate, quote.endDate)) continue;
-      const lockStatus = getQuoteLockStatus(quote);
-      const isLocked = lockStatus.locked;
-      const wasLocked = !lockStatus.neverLocked;
-      const blockType = isLocked ? "quote_locked" : (wasLocked ? "quote_lock_expired" : "quotation");
-
-      blocks.push({
-        type: "quotation",
-        id: quote.id,
-        status: quote.status,
-        blockType,
-        isLocked,
-        isLockExpired: wasLocked && !isLocked,
-        lockStartAt: quote.lockStartAt,
-        lockEndAt: quote.lockEndAt,
-        lockRemainingMs: lockStatus.locked ? lockStatus.remainingMs : null,
-        lockExpiredMs: lockStatus.expired ? lockStatus.expiredMs : null,
-        startDate: quote.startDate,
-        endDate: quote.endDate,
-        customer: quote.customer,
-        note: quote.note || ""
-      });
-
-      const quoteDates = getDateRange(
-        new Date(quote.startDate) < new Date(startDate) ? startDate : quote.startDate,
-        new Date(quote.endDate) > new Date(endDate) ? endDate : quote.endDate
-      );
-      for (const d of quoteDates) {
-        if (dailyStatus[d]) {
-          if (isLocked) {
+          if (block.type === "order" || block.type === "repair" || (block.type === "quotation" && block.isLocked)) {
             dailyStatus[d].available = false;
           }
           dailyStatus[d].statuses.push({
-            type: "quotation",
-            id: quote.id,
-            status: quote.status,
-            blockType,
-            isLocked,
-            isLockExpired: wasLocked && !isLocked,
-            lockStartAt: quote.lockStartAt,
-            lockEndAt: quote.lockEndAt,
-            customer: quote.customer
-          });
-        }
-      }
-    }
-
-    const eqRepairs = activeRepairs.filter((r) => r.equipmentId === eq.id);
-    for (const repair of eqRepairs) {
-      const repairStart = repair.sendTime || startDate;
-      const repairEnd = repair.expectedReturn || endDate;
-      if (!overlaps(startDate, endDate, repairStart, repairEnd)) continue;
-
-      blocks.push({
-        type: "repair",
-        id: repair.id,
-        status: repair.status,
-        blockType: "repairing",
-        startDate: repairStart,
-        endDate: repairEnd,
-        customer: "维修中",
-        note: repair.faultDescription || ""
-      });
-
-      const repairDates = getDateRange(
-        new Date(repairStart) < new Date(startDate) ? startDate : repairStart,
-        new Date(repairEnd) > new Date(endDate) ? endDate : repairEnd
-      );
-      for (const d of repairDates) {
-        if (dailyStatus[d]) {
-          dailyStatus[d].available = false;
-          dailyStatus[d].statuses.push({
-            type: "repair",
-            id: repair.id,
-            status: repair.status,
-            blockType: "repairing"
+            type: block.type,
+            id: block.id,
+            status: block.status,
+            blockType: block.blockType,
+            customer: block.customer,
+            ...(block.type === "quotation" ? {
+              isLocked: block.isLocked,
+              isLockExpired: block.isLockExpired,
+              lockStartAt: block.lockStartAt,
+              lockEndAt: block.lockEndAt
+            } : {})
           });
         }
       }
@@ -203,7 +107,7 @@ export async function getSchedule(req, res) {
       location: eq.location,
       condition: eq.condition,
       dailyStatus,
-      blocks
+      blocks: eq.blocks
     };
   });
 

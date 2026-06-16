@@ -16,6 +16,12 @@ import {
   exportEquipment
 } from "./routes/equipment.js";
 
+import {
+  checkAvailability,
+  listAvailable,
+  getConflictTypes
+} from "./routes/equipmentAvailability.js";
+
 import { listOrders, getOrder, createOrder, updateOrder, listHandovers, createHandover, getHandover, getHandoverDraft, saveHandoverDraft, deleteHandoverDraft } from "./routes/orders.js";
 
 import {
@@ -153,6 +159,10 @@ const server = http.createServer(async (req, res) => {
     if (eqCondMatch && req.method === "PATCH") {
       return patchCondition(req, res, decodeURIComponent(eqCondMatch[1]));
     }
+
+    if (req.method === "POST" && p === "/api/equipment/availability/check") return checkAvailability(req, res);
+    if (req.method === "GET" && p === "/api/equipment/availability") return listAvailable(req, res);
+    if (req.method === "GET" && p === "/api/equipment/availability/conflict-types") return getConflictTypes(req, res);
 
     if (req.method === "GET" && p === "/api/orders") return listOrders(req, res);
     if (req.method === "POST" && p === "/api/orders") return createOrder(req, res);

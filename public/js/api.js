@@ -31,6 +31,12 @@ export const Equipment = {
   setCondition: (id, condition) => api(`/api/equipment/${id}/condition`, { method: "PATCH", body: JSON.stringify({ condition }) }),
   remove: (id) => api(`/api/equipment/${id}`, { method: "DELETE" }),
   listRepairs: (id) => api(`/api/equipment/${id}/repairs`),
+  checkAvailability: (data) => api("/api/equipment/availability/check", { method: "POST", body: JSON.stringify(data) }),
+  listAvailable: (params) => {
+    const qs = params ? "?" + new URLSearchParams(params).toString() : "";
+    return api(`/api/equipment/availability${qs}`);
+  },
+  getConflictTypes: () => api("/api/equipment/availability/conflict-types"),
   previewImport: (formData) => fetch("/api/equipment/import/preview", { method: "POST", body: formData }).then(async (r) => {
     const data = await r.json();
     if (!r.ok) throw new Error(data.error || "预览失败");
