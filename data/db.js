@@ -1,10 +1,22 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, isAbsolute } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const dbPath = join(__dirname, "rental.json");
+
+function resolveDbPath() {
+  const envPath = process.env.RENTAL_DB_PATH;
+  if (envPath) {
+    return isAbsolute(envPath) ? envPath : join(process.cwd(), envPath);
+  }
+  return join(__dirname, "rental.json");
+}
+
+export const dbPath = resolveDbPath();
+export function getDbPath() {
+  return dbPath;
+}
 
 const seed = {
   equipment: [

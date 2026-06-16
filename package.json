@@ -4,7 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "prestart": "node scripts/preflight.js",
     "start": "node server.js",
-    "test": "node --test test/*.test.js"
+    "dev": "npm run prestart && node --watch server.js",
+    "pretest": "node -e \"import('./test/test-helper.js').then(m => m.setupTestEnv())\"",
+    "test": "NODE_ENV=test RENTAL_DB_PATH=data/test/rental.test.json node --test test/*.test.js",
+    "test:clean": "node -e \"import('./test/test-helper.js').then(m => m.cleanupTestEnv())\"",
+    "posttest": "npm run test:clean",
+    "preflight": "node scripts/preflight.js"
   }
 }

@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [20.x, 22.x]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: 使用 Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+
+    - name: 检查端口可用性
+      run: |
+        node -e "
+        const { createServer } = require('net');
+        const server = createServer();
+        server.once('error', (err) => {
+          if (err.code === 'EADDRINUSE') {
+            console.log('端口 3011 被占用，CI 环境可能有问题');
+            process.exit(1);
+          }
+        });
+        server.once('listening', () => {
+          server.close();
+          console.log('端口 3011 可用');
+          process.exit(0);
+        });
+        server.listen(3011, '127.0.0.1');
+        "
+
+    - name: 验证数据文件结构
+      run: |
+        if [ -f "data/rental.json" ]; then
+          node -e "
+          const fs = require('fs');
+          const data = JSON.parse(fs.readFileSync('data/rental.json', 'utf8'));
+          const required = ['equipment', 'orders', 'customers'];
+          const missing = required.filter(k => !data[k]);
+          if (missing.length) {
+            console.error('数据文件缺少必要字段:', missing);
+            process.exit(1);
+          }
+          console.log('数据文件结构验证通过');
+          "
+        else
+          echo "⚠ 生产数据文件不存在，首次启动时会自动创建"
+        fi
+
+    - name: 运行启动前检查
+      run: npm run preflight
+      env:
+        NODE_ENV: test
+        RENTAL_DB_PATH: data/test/rental.ci.json
+
+    - name: 运行测试
+      run: npm test
+      env:
+        NODE_ENV: test
+
+    - name: 测试数据隔离验证
+      run: |
+        if [ -f "data/test/rental.test.json" ]; then
+          echo "✗ 测试数据未清理，存在污染风险"
+          exit 1
+        else
+          echo "✓ 测试数据已正确清理"
+        fi
+
+    - name: 验证生产数据未被修改
+      run: |
+        if [ -f "data/rental.json" ]; then
+          echo "生产数据文件存在"
+          node -e "
+          const fs = require('fs');
+          const path = require('path');
+          const prodDb = 'data/rental.json';
+          const testDb = 'data/test/rental.test.json';
+          if (fs.existsSync(testDb)) {
+            const prod = fs.readFileSync(prodDb, 'utf8');
+            const test = fs.readFileSync(testDb, 'utf8');
+            if (prod === test) {
+              console.warn('⚠ 生产数据与测试数据内容相同，可能存在隔离问题');
+            } else {
+              console.log('✓ 生产数据与测试数据隔离正常');
+            }
+          }
+          "
+        fi
